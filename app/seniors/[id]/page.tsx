@@ -415,7 +415,7 @@ export default function SeniorProfilePage({
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Alert history timeline */}
+        {/* Alert history — grouped by severity */}
         <div className="lg:col-span-2 space-y-4">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             Alert History
@@ -430,49 +430,91 @@ export default function SeniorProfilePage({
               </CardContent>
             </Card>
           ) : (
-            <div className="relative">
-              {/* Timeline line */}
-              <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border dark:bg-gray-800" />
-              <div className="space-y-4">
-                {sortedAlerts.map((alert) => (
-                  <div key={alert.id} className="flex gap-4 relative">
-                    {/* Timeline node */}
-                    <div className="relative flex items-start justify-center w-8 shrink-0 pt-3">
-                      <div className="z-10 flex items-center justify-center">
-                        {alertStatusIcon[alert.status]}
+            <div className="space-y-6">
+              {(
+                [
+                  {
+                    key: "critical",
+                    label: "Critical",
+                    headerColor: "text-red-600 dark:text-red-400",
+                    borderColor: "border-l-red-500",
+                    countBg: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400",
+                  },
+                  {
+                    key: "moderate",
+                    label: "Moderate",
+                    headerColor: "text-amber-600 dark:text-amber-400",
+                    borderColor: "border-l-amber-500",
+                    countBg: "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400",
+                  },
+                  {
+                    key: "low",
+                    label: "Low",
+                    headerColor: "text-gray-500 dark:text-gray-400",
+                    borderColor: "border-l-gray-400",
+                    countBg: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
+                  },
+                ] as const
+              ).map(({ key, label, headerColor, borderColor, countBg }) => {
+                const group = sortedAlerts.filter((a) => a.severity === key)
+                if (group.length === 0) return null
+                return (
+                  <div key={key} className="space-y-3">
+                    {/* Sub-section header */}
+                    <div className={`flex items-center gap-2 pl-3 border-l-2 ${borderColor}`}>
+                      <span className={`text-xs font-semibold uppercase tracking-wide ${headerColor}`}>
+                        {label}
+                      </span>
+                      <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${countBg}`}>
+                        {group.length}
+                      </span>
+                    </div>
+                    {/* Alerts in this group */}
+                    <div className="relative">
+                      <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border dark:bg-gray-800" />
+                      <div className="space-y-3">
+                        {group.map((alert) => (
+                          <div key={alert.id} className="flex gap-4 relative">
+                            <div className="relative flex items-start justify-center w-8 shrink-0 pt-3">
+                              <div className="z-10 flex items-center justify-center">
+                                {alertStatusIcon[alert.status]}
+                              </div>
+                            </div>
+                            <Card className="flex-1 border-border dark:border-gray-800 dark:bg-gray-900">
+                              <CardContent className="p-4">
+                                <div className="flex items-start justify-between gap-3 flex-wrap">
+                                  <div className="flex items-center gap-2 flex-wrap">
+                                    <Badge variant={alertSeverityBadge[alert.severity]}>
+                                      {alert.severity}
+                                    </Badge>
+                                    <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
+                                      {alert.title}
+                                    </h3>
+                                  </div>
+                                  <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
+                                    {formatDateTime(alert.timestamp)}
+                                  </span>
+                                </div>
+                                <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 leading-relaxed">
+                                  {alert.aiExplanation}
+                                </p>
+                                {alert.actionTaken && (
+                                  <div className="mt-2 pt-2 border-t border-border dark:border-gray-800">
+                                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                                      <span className="font-medium">Action:</span>{" "}
+                                      {alert.actionTaken}
+                                    </p>
+                                  </div>
+                                )}
+                              </CardContent>
+                            </Card>
+                          </div>
+                        ))}
                       </div>
                     </div>
-                    <Card className="flex-1 border-border dark:border-gray-800 dark:bg-gray-900">
-                      <CardContent className="p-4">
-                        <div className="flex items-start justify-between gap-3 flex-wrap">
-                          <div className="flex items-center gap-2 flex-wrap">
-                            <Badge variant={alertSeverityBadge[alert.severity]}>
-                              {alert.severity}
-                            </Badge>
-                            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
-                              {alert.title}
-                            </h3>
-                          </div>
-                          <span className="text-xs text-gray-400 dark:text-gray-500 shrink-0">
-                            {formatDateTime(alert.timestamp)}
-                          </span>
-                        </div>
-                        <p className="text-xs text-gray-600 dark:text-gray-300 mt-2 leading-relaxed">
-                          {alert.aiExplanation}
-                        </p>
-                        {alert.actionTaken && (
-                          <div className="mt-2 pt-2 border-t border-border dark:border-gray-800">
-                            <p className="text-xs text-gray-500 dark:text-gray-400">
-                              <span className="font-medium">Action:</span>{" "}
-                              {alert.actionTaken}
-                            </p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
                   </div>
-                ))}
-              </div>
+                )
+              })}
             </div>
           )}
         </div>
