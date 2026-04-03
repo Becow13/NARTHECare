@@ -199,140 +199,101 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Senior status list */}
-        <div className="lg:col-span-2">
-          <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
-            <CardHeader className="pb-3">
-              <div className="flex items-center justify-between">
-                <CardTitle className="text-base font-semibold">
-                  Senior Status
-                </CardTitle>
-                <Link
-                  href="/seniors"
-                  className="text-sm text-[#1D9E75] hover:text-[#187E5D] font-medium flex items-center gap-1"
+      {/* Senior status list */}
+      <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
+        <CardHeader className="pb-3">
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-base font-semibold">
+              Senior Status
+            </CardTitle>
+            <Link
+              href="/seniors"
+              className="text-sm text-[#1D9E75] hover:text-[#187E5D] font-medium flex items-center gap-1"
+            >
+              View all
+              <ChevronRight className="h-3.5 w-3.5" />
+            </Link>
+          </div>
+        </CardHeader>
+        <CardContent className="px-6 pb-2">
+          <div className="divide-y divide-border dark:divide-gray-800">
+            {seniors.map((senior) => {
+              const cfg = statusConfig[senior.status]
+              const activeAlertCount = senior.alerts.filter(
+                (a) => a.status === "active"
+              ).length
+              // simple trend: compare last 2 heart rate readings
+              const readings = senior.vitals.readings
+              const trendVal =
+                readings.length >= 2
+                  ? readings[readings.length - 1].heartRate -
+                    readings[readings.length - 2].heartRate
+                  : 0
+
+              return (
+                <div
+                  key={senior.id}
+                  className="flex items-center justify-between py-3.5 group"
                 >
-                  View all
-                  <ChevronRight className="h-3.5 w-3.5" />
-                </Link>
-              </div>
-            </CardHeader>
-            <CardContent className="px-6 pb-2">
-              <div className="divide-y divide-border dark:divide-gray-800">
-                {seniors.map((senior) => {
-                  const cfg = statusConfig[senior.status]
-                  const activeAlertCount = senior.alerts.filter(
-                    (a) => a.status === "active"
-                  ).length
-                  // simple trend: compare last 2 heart rate readings
-                  const readings = senior.vitals.readings
-                  const trendVal =
-                    readings.length >= 2
-                      ? readings[readings.length - 1].heartRate -
-                        readings[readings.length - 2].heartRate
-                      : 0
-
-                  return (
-                    <div
-                      key={senior.id}
-                      className="flex items-center justify-between py-3.5 group"
-                    >
-                      <div className="flex items-center gap-3 min-w-0">
-                        {/* Status dot */}
-                        <span
-                          className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`}
-                        />
-                        {/* Avatar placeholder */}
-                        <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 text-sm font-semibold text-gray-600 dark:text-gray-300">
-                          {senior.name
-                            .split(" ")
-                            .map((n) => n[0])
-                            .join("")}
-                        </div>
-                        <div className="min-w-0">
-                          <div className="flex items-center gap-2">
-                            <Link
-                              href={`/seniors/${senior.id}`}
-                              className="text-sm font-medium text-gray-900 dark:text-white hover:text-[#1D9E75] dark:hover:text-[#4DC8A0] truncate"
-                            >
-                              {senior.name}
-                            </Link>
-                            {activeAlertCount > 0 && (
-                              <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
-                                {activeAlertCount}
-                              </Badge>
-                            )}
-                          </div>
-                          <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                            {senior.primaryConditions.slice(0, 2).join(", ")}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="flex items-center gap-4 shrink-0 ml-4">
-                        {/* Trend */}
-                        <TrendIcon value={trendVal} />
-                        {/* Status badge */}
-                        <span
-                          className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}
-                        >
-                          {cfg.label}
-                        </span>
-                        {/* Last seen */}
-                        <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 min-w-[64px] justify-end">
-                          <Clock className="h-3 w-3" />
-                          {formatRelativeTime(senior.lastSeen)}
-                        </div>
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Status dot */}
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`}
+                    />
+                    {/* Avatar placeholder */}
+                    <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 text-sm font-semibold text-gray-600 dark:text-gray-300">
+                      {senior.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
                         <Link
                           href={`/seniors/${senior.id}`}
-                          className="opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="text-sm font-medium text-gray-900 dark:text-white hover:text-[#1D9E75] dark:hover:text-[#4DC8A0] truncate"
                         >
-                          <ChevronRight className="h-4 w-4 text-gray-400" />
+                          {senior.name}
                         </Link>
+                        {activeAlertCount > 0 && (
+                          <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                            {activeAlertCount}
+                          </Badge>
+                        )}
                       </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {senior.primaryConditions.slice(0, 2).join(", ")}
+                      </p>
                     </div>
-                  )
-                })}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-
-        {/* Upcoming appointments */}
-        <div>
-          <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base font-semibold">
-                Upcoming Appointments
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-6 pb-4 space-y-3">
-              {upcomingAppts.length === 0 ? (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  No upcoming appointments.
-                </p>
-              ) : (
-                upcomingAppts.map((appt) => (
-                  <div
-                    key={appt.id}
-                    className="flex flex-col gap-0.5 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-border dark:border-gray-700"
-                  >
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {appt.title}
-                    </p>
-                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                      {appt.seniorName} · {appt.provider}
-                    </p>
-                    <p className="text-xs text-[#1D9E75] font-medium mt-1">
-                      {formatDateTime(appt.dateTime)}
-                    </p>
                   </div>
-                ))
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
+
+                  <div className="flex items-center gap-4 shrink-0 ml-4">
+                    {/* Trend */}
+                    <TrendIcon value={trendVal} />
+                    {/* Status badge */}
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}
+                    >
+                      {cfg.label}
+                    </span>
+                    {/* Last seen */}
+                    <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 min-w-[64px] justify-end">
+                      <Clock className="h-3 w-3" />
+                      {formatRelativeTime(senior.lastSeen)}
+                    </div>
+                    <Link
+                      href={`/seniors/${senior.id}`}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                    </Link>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </CardContent>
+      </Card>
 
       {/* Recent AI summaries */}
       <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
@@ -479,6 +440,39 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* Upcoming appointments */}
+      <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
+        <CardHeader className="pb-3">
+          <CardTitle className="text-base font-semibold">
+            Upcoming Appointments
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="px-6 pb-4 space-y-3">
+          {upcomingAppts.length === 0 ? (
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              No upcoming appointments.
+            </p>
+          ) : (
+            upcomingAppts.map((appt) => (
+              <div
+                key={appt.id}
+                className="flex flex-col gap-0.5 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-border dark:border-gray-700"
+              >
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {appt.title}
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-400">
+                  {appt.seniorName} · {appt.provider}
+                </p>
+                <p className="text-xs text-[#1D9E75] font-medium mt-1">
+                  {formatDateTime(appt.dateTime)}
+                </p>
+              </div>
+            ))
+          )}
+        </CardContent>
+      </Card>
     </div>
   )
 }
