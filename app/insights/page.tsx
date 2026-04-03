@@ -24,19 +24,19 @@ import {
 import { formatDate, formatRelativeTime } from "@/lib/utils"
 
 const urgencyConfig = {
-  urgent: {
+  critical: {
     badge: "destructive" as const,
     bar: "bg-red-500",
-    label: "Urgent",
+    label: "Critical",
   },
-  attention: {
+  monitor: {
     badge: "warning" as const,
     bar: "bg-amber-500",
-    label: "Attention",
+    label: "Monitor",
   },
   routine: {
-    badge: "success" as const,
-    bar: "bg-emerald-500",
+    badge: "info" as const,
+    bar: "bg-blue-500",
     label: "Routine",
   },
 }
@@ -132,8 +132,8 @@ function InsightsContent() {
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Urgency</SelectItem>
-            <SelectItem value="urgent">Urgent</SelectItem>
-            <SelectItem value="attention">Attention</SelectItem>
+            <SelectItem value="critical">Critical</SelectItem>
+            <SelectItem value="monitor">Monitor</SelectItem>
             <SelectItem value="routine">Routine</SelectItem>
           </SelectContent>
         </Select>

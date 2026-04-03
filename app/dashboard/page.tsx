@@ -318,11 +318,17 @@ export default function DashboardPage() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {recentSummaries.map((summary) => {
               const urgencyBadge =
-                summary.urgency === "urgent"
+                summary.urgency === "critical"
                   ? "destructive"
-                  : summary.urgency === "attention"
+                  : summary.urgency === "monitor"
                   ? "warning"
-                  : "success"
+                  : "info"
+              const urgencyLabel =
+                summary.urgency === "critical"
+                  ? "Critical"
+                  : summary.urgency === "monitor"
+                  ? "Monitor"
+                  : "Routine"
               return (
                 <div
                   key={summary.id}
@@ -341,7 +347,7 @@ export default function DashboardPage() {
                       </span>
                     </div>
                     <Badge variant={urgencyBadge} className="shrink-0">
-                      {summary.urgency}
+                      {urgencyLabel}
                     </Badge>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-3">

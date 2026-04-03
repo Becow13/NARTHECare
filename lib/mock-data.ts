@@ -71,7 +71,7 @@ export type AlertCategory =
   | "device_connectivity"
   | "social_behavioral";
 export type SummaryType = "daily" | "post_visit" | "weekly" | "anomaly";
-export type SummaryUrgency = "routine" | "attention" | "urgent";
+export type SummaryUrgency = "critical" | "monitor" | "routine";
 export type CaregiverRole = "family" | "professional" | "agency";
 export type DataSourceType = "ehr" | "wearable" | "camera" | "fall_detection" | "medication";
 export type DashboardOverallStatus = "all_stable" | "needs_attention" | "critical";
@@ -979,7 +979,7 @@ export const MOCK_SUMMARIES: AISummary[] = [
       "Consider asking Rosa to confirm afternoon dose on next visit",
     ],
     sourceTags: ["Apple Watch", "Ring Camera", "MedMinder", "MyChart — Stanford"],
-    urgency: "attention",
+    urgency: "monitor",
   },
   {
     id: "summary-002",
@@ -1002,7 +1002,7 @@ export const MOCK_SUMMARIES: AISummary[] = [
       "Schedule follow-up blood pressure check for tomorrow morning",
     ],
     sourceTags: ["Fitbit Sense 2", "Google Nest", "MyChart — UCSF"],
-    urgency: "urgent",
+    urgency: "critical",
   },
   {
     id: "summary-003",
@@ -1024,7 +1024,7 @@ export const MOCK_SUMMARIES: AISummary[] = [
       "NartheCare will prepare a sleep trend summary for Dr. Stein's review",
     ],
     sourceTags: ["Apple Watch", "Ring Camera", "MyChart — Kaiser"],
-    urgency: "attention",
+    urgency: "monitor",
   },
   {
     id: "summary-004",
@@ -1046,7 +1046,7 @@ export const MOCK_SUMMARIES: AISummary[] = [
       "If blood pressure does not trend down by Friday, Dr. Wu requested a call",
     ],
     sourceTags: ["MyChart — UCSF", "Fitbit Sense 2", "Google Nest"],
-    urgency: "attention",
+    urgency: "monitor",
   },
   {
     id: "summary-005",
