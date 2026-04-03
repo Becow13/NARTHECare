@@ -193,6 +193,63 @@ export default function SeniorProfilePage({
       {/* Legend */}
       <VitalsLegend seniorFirstName={senior.name.split(" ")[0]} />
 
+      {/* AI summary */}
+      {mostRecentSummary && (
+        <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
+          <CardHeader className="pb-3">
+            <div className="flex items-center gap-2">
+              <Sparkles className="h-4 w-4 text-[#1D9E75]" />
+              <CardTitle className="text-sm font-semibold">
+                Latest AI Summary
+              </CardTitle>
+            </div>
+            <p className="text-xs text-gray-400 dark:text-gray-500">
+              {formatRelativeTime(mostRecentSummary.generatedAt)}
+            </p>
+          </CardHeader>
+          <CardContent className="px-5 pb-5">
+            <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
+              {mostRecentSummary.plainTextSummary}
+            </p>
+            {mostRecentSummary.recommendedActions.length > 0 && (
+              <>
+                <Separator className="my-3" />
+                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
+                  Recommended
+                </p>
+                <ul className="space-y-1.5">
+                  {mostRecentSummary.recommendedActions.slice(0, 3).map((action, i) => (
+                    <li
+                      key={i}
+                      className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400"
+                    >
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#1D9E75] shrink-0 mt-1" />
+                      {action}
+                    </li>
+                  ))}
+                </ul>
+              </>
+            )}
+            <div className="flex flex-wrap gap-1.5 mt-3">
+              {mostRecentSummary.sourceTags.map((tag) => (
+                <span
+                  key={tag}
+                  className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
+                >
+                  {tag}
+                </span>
+              ))}
+            </div>
+            <div className="mt-4">
+              <Button size="sm" variant="outline" className="w-full text-xs h-8">
+                View Full Summary
+                <ChevronRight className="h-3.5 w-3.5 ml-1" />
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Today's Latest Reading */}
       {latestReading && (
         <div>
@@ -543,63 +600,6 @@ export default function SeniorProfilePage({
 
         {/* Right column */}
         <div className="space-y-5">
-          {/* AI summary */}
-          {mostRecentSummary && (
-            <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
-              <CardHeader className="pb-3">
-                <div className="flex items-center gap-2">
-                  <Sparkles className="h-4 w-4 text-[#1D9E75]" />
-                  <CardTitle className="text-sm font-semibold">
-                    Latest AI Summary
-                  </CardTitle>
-                </div>
-                <p className="text-xs text-gray-400 dark:text-gray-500">
-                  {formatRelativeTime(mostRecentSummary.generatedAt)}
-                </p>
-              </CardHeader>
-              <CardContent className="px-5 pb-5">
-                <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed">
-                  {mostRecentSummary.plainTextSummary}
-                </p>
-                {mostRecentSummary.recommendedActions.length > 0 && (
-                  <>
-                    <Separator className="my-3" />
-                    <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-2 uppercase tracking-wide">
-                      Recommended
-                    </p>
-                    <ul className="space-y-1.5">
-                      {mostRecentSummary.recommendedActions.slice(0, 3).map((action, i) => (
-                        <li
-                          key={i}
-                          className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400"
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full bg-[#1D9E75] shrink-0 mt-1" />
-                          {action}
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-                <div className="flex flex-wrap gap-1.5 mt-3">
-                  {mostRecentSummary.sourceTags.map((tag) => (
-                    <span
-                      key={tag}
-                      className="text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400"
-                    >
-                      {tag}
-                    </span>
-                  ))}
-                </div>
-                <div className="mt-4">
-                  <Button size="sm" variant="outline" className="w-full text-xs h-8">
-                    View Full Summary
-                    <ChevronRight className="h-3.5 w-3.5 ml-1" />
-                  </Button>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Care team */}
           <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
             <CardHeader className="pb-3">
