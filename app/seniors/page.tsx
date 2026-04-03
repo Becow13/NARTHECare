@@ -11,6 +11,12 @@ const statusConfig = {
   critical: { label: "Critical", dot: "bg-red-500", badge: "destructive" as const },
 }
 
+const avatarBg: Record<string, string> = {
+  critical: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
+  monitor:  "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
+  routine:  "bg-[#1D9E75]/10 dark:bg-[#1D9E75]/20 text-[#1D9E75] dark:text-[#4DC8A0]",
+}
+
 export default function SeniorsPage() {
   return (
     <div className="max-w-4xl mx-auto space-y-6">
@@ -33,7 +39,7 @@ export default function SeniorsPage() {
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0">
-                      <div className="w-12 h-12 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 text-base font-semibold text-gray-600 dark:text-gray-300">
+                      <div className={`w-12 h-12 rounded-full flex items-center justify-center shrink-0 text-base font-semibold ${avatarBg[senior.status]}`}>
                         {senior.name.split(" ").map((n) => n[0]).join("")}
                       </div>
                       <div className="min-w-0">

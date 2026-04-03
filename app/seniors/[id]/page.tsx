@@ -60,6 +60,12 @@ const alertSeverityBadge = {
   routine:  "info" as const,
 }
 
+const avatarBg: Record<string, string> = {
+  critical: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
+  monitor:  "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
+  routine:  "bg-[#1D9E75]/10 dark:bg-[#1D9E75]/20 text-[#1D9E75] dark:text-[#4DC8A0]",
+}
+
 const alertSeverityLabel: Record<string, string> = {
   critical: "Critical",
   monitor:  "Monitor",
@@ -128,7 +134,7 @@ export default function SeniorProfilePage({
             {/* LEFT — avatar + info (1/2) */}
             <div className="flex flex-col sm:flex-row sm:items-start gap-5 flex-[2] min-w-0 lg:pr-6">
               {/* Avatar */}
-              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#1D9E75]/20 to-[#1D9E75]/5 dark:from-[#1D9E75]/30 dark:to-[#1D9E75]/10 flex items-center justify-center shrink-0 text-2xl font-bold text-[#1D9E75]">
+              <div className={`w-20 h-20 rounded-2xl flex items-center justify-center shrink-0 text-2xl font-bold ${avatarBg[senior.status]}`}>
                 {senior.name.split(" ").map((n) => n[0]).join("")}
               </div>
 

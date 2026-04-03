@@ -23,6 +23,14 @@ import {
 } from "@/components/ui/select"
 import { formatDate, formatRelativeTime } from "@/lib/utils"
 
+const avatarBg: Record<string, string> = {
+  critical: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
+  monitor:  "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
+  routine:  "bg-[#1D9E75]/10 dark:bg-[#1D9E75]/20 text-[#1D9E75] dark:text-[#4DC8A0]",
+}
+
+const seniorStatusMap = new Map(MOCK_SENIORS.map((s) => [s.id, s.status]))
+
 const urgencyConfig = {
   critical: {
     badge: "destructive" as const,
@@ -175,6 +183,7 @@ function InsightsContent() {
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-5">
           {filtered.map((summary) => {
+            const summaryStatus = seniorStatusMap.get(summary.seniorId) ?? "routine"
             const urgCfg = urgencyConfig[summary.urgency]
             return (
               <Card
@@ -187,7 +196,7 @@ function InsightsContent() {
                 <CardHeader className="pb-2 pt-4 px-5">
                   <div className="flex items-start justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-7 h-7 rounded-full bg-[#1D9E75]/10 flex items-center justify-center shrink-0 text-xs font-bold text-[#1D9E75]">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-bold ${avatarBg[summaryStatus]}`}>
                         {summary.seniorName.split(" ").map((n) => n[0]).join("")}
                       </div>
                       <div className="min-w-0">

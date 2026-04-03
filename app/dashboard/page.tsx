@@ -59,6 +59,12 @@ const severityLabel: Record<string, string> = {
   routine:  "Routine",
 }
 
+const avatarBg: Record<string, string> = {
+  critical: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
+  monitor:  "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
+  routine:  "bg-[#1D9E75]/10 dark:bg-[#1D9E75]/20 text-[#1D9E75] dark:text-[#4DC8A0]",
+}
+
 const overallStatusConfig = {
   all_stable: {
     label: "All Stable",
@@ -247,7 +253,7 @@ export default function DashboardPage() {
                       className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`}
                     />
                     {/* Avatar placeholder */}
-                    <div className="w-9 h-9 rounded-full bg-gray-100 dark:bg-gray-800 flex items-center justify-center shrink-0 text-sm font-semibold text-gray-600 dark:text-gray-300">
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-semibold ${avatarBg[senior.status]}`}>
                       {senior.name
                         .split(" ")
                         .map((n) => n[0])
@@ -323,6 +329,7 @@ export default function DashboardPage() {
         <CardContent className="px-6 pb-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {recentSummaries.map((summary) => {
+              const summaryStatus = seniors.find((s) => s.id === summary.seniorId)?.status ?? "routine"
               const urgencyBadge =
                 summary.urgency === "critical"
                   ? "destructive"
@@ -342,7 +349,7 @@ export default function DashboardPage() {
                 >
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
-                      <div className="w-7 h-7 rounded-full bg-[#1D9E75]/10 flex items-center justify-center shrink-0 text-xs font-semibold text-[#1D9E75]">
+                      <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold ${avatarBg[summaryStatus]}`}>
                         {summary.seniorName
                           .split(" ")
                           .map((n) => n[0])
