@@ -11,7 +11,65 @@
 export type SeniorStatus = "stable" | "monitor" | "alert";
 export type AlertSeverity = "critical" | "moderate" | "low";
 export type AlertStatus = "active" | "acknowledged" | "resolved";
-export type AlertType = "vitals" | "fall" | "medication" | "behavioral" | "appointment";
+export type AlertType =
+  | "fall_detected"
+  | "inactivity"
+  | "fall_device_offline"
+  | "wandering"
+  | "camera_night_motion"
+  | "blood_pressure"
+  | "heart_rate"
+  | "irregular_rhythm"
+  | "oxygen_saturation"
+  | "medication_missed_critical"
+  | "medication_double_dose"
+  | "dementia_no_activity"
+  | "all_devices_offline"
+  | "gps_unusual_location"
+  | "gps_not_home_overnight"
+  | "vitals_trending"
+  | "weight_change"
+  | "sleep_duration"
+  | "sleep_pattern"
+  | "sleep_schedule"
+  | "medication_late"
+  | "activity_declined"
+  | "no_outdoor_activity"
+  | "appointment_upcoming_48h"
+  | "appointment_missed"
+  | "no_kitchen_activity"
+  | "fridge_no_interaction"
+  | "routine_variation"
+  | "sleep_slightly_low"
+  | "activity_slightly_low"
+  | "appointment_upcoming_week"
+  | "prescription_refill"
+  | "wellness_visit_due"
+  | "activity_above_baseline"
+  | "best_sleep_week"
+  | "medication_adherence_streak"
+  | "device_not_synced"
+  | "wearable_battery_low"
+  | "visitor_detected"
+  | "phone_activity_low"
+  | "tv_pattern_changed";
+
+export type AlertCategory =
+  | "falls_safety"
+  | "cardiovascular"
+  | "medication"
+  | "behavioral"
+  | "device_data"
+  | "vitals_trending"
+  | "sleep"
+  | "activity_mobility"
+  | "appointment"
+  | "nutrition"
+  | "routine"
+  | "upcoming_items"
+  | "positive_signal"
+  | "device_connectivity"
+  | "social_behavioral";
 export type SummaryType = "daily" | "post_visit" | "weekly" | "anomaly";
 export type SummaryUrgency = "routine" | "attention" | "urgent";
 export type CaregiverRole = "family" | "professional" | "agency";
@@ -57,6 +115,7 @@ export type Alert = {
   seniorId: string;
   seniorName: string;
   type: AlertType;
+  category: AlertCategory;
   severity: AlertSeverity;
   title: string;
   description: string;
@@ -66,6 +125,10 @@ export type Alert = {
   actionTaken: string | null;
   resolvedBy: string | null;
   resolvedAt: string | null;
+  personalThresholdApplied: boolean;
+  patternAlert: boolean;
+  contextSuppressible: boolean;
+  suppressedBy: string | null;
 };
 
 export type AISummary = {
@@ -426,117 +489,265 @@ const CARE_TEAM_MARGARET: CareTeamMember[] = [
 // ─────────────────────────────────────────────────────────────────────────────
 
 export const MOCK_ALERTS: Alert[] = [
+  // ── CRITICAL ──────────────────────────────────────────────────────────────
+
   {
     id: "alert-001",
     seniorId: "senior-002",
     seniorName: "Robert Chen",
-    type: "vitals",
+    type: "blood_pressure",
+    category: "cardiovascular",
     severity: "critical",
-    title: "Blood pressure elevated above personal threshold",
-    description: "Systolic reading of 178 mmHg detected at 6:42 AM via Fitbit Sense 2.",
+    title: "Blood pressure above personal threshold — 3rd consecutive morning",
+    description: "Systolic reading of 178 mmHg at 6:42 AM, exceeding Robert's 160 mmHg personal threshold.",
     aiExplanation:
-      "Robert's blood pressure has been trending upward over the past 3 days, with this morning's reading of 178/94 exceeding his established personal threshold of 160/90. His cardiologist at UCSF noted a similar pattern in visit notes from last month and recommended monitoring closely. Two of his last four readings have been above threshold. This warrants same-day attention — a call to his care team or cardiologist is recommended.",
+      "Robert's systolic BP hit 178/94 this morning — his third consecutive reading above his personal 160 mmHg threshold. His UCSF cardiologist should be contacted today.",
     timestamp: new Date(Date.now() - 1000 * 60 * 120).toISOString(),
     status: "active",
     actionTaken: null,
     resolvedBy: null,
     resolvedAt: null,
+    personalThresholdApplied: true,
+    patternAlert: true,
+    contextSuppressible: false,
+    suppressedBy: null,
   },
   {
     id: "alert-002",
     seniorId: "senior-001",
     seniorName: "Eleanor Yang",
-    type: "medication",
-    severity: "moderate",
-    title: "Afternoon medication dose not confirmed",
-    description: "Smart dispenser did not log 2:00 PM metformin dose. Morning dose confirmed at 8:14 AM.",
-    aiExplanation:
-      "Eleanor's MedMinder dispenser shows her 2:00 PM metformin dose was not dispensed or confirmed. This is the second missed afternoon dose this week — Monday's 2:00 PM dose was also skipped. Her morning doses have been consistent every day. This pattern may indicate she is napping at that time or has changed her routine. A gentle check-in call is recommended before escalating — her blood glucose readings have remained within range so far.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 55).toISOString(),
-    status: "acknowledged",
-    actionTaken: "Check-in call scheduled for 4:00 PM by Becca Yang",
-    resolvedBy: null,
-    resolvedAt: null,
-  },
-  {
-    id: "alert-003",
-    seniorId: "senior-001",
-    seniorName: "Eleanor Yang",
-    type: "behavioral",
-    severity: "low",
-    title: "Unusual inactivity detected between 10 AM and 1 PM",
-    description: "Ring camera and Apple Watch both show minimal movement for a 3-hour window this morning.",
-    aiExplanation:
-      "Eleanor's Apple Watch activity data and Ring indoor camera both show very low movement between 10:12 AM and 1:05 PM today. This is outside her typical pattern — she is usually most active in the late morning. Her heart rate remained steady at 68 bpm throughout, suggesting she was resting rather than unwell. This may simply be a rest day, but it is worth a quick check-in if you have not already spoken with her today.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
-    status: "acknowledged",
-    actionTaken: "Rosa (home aide) confirmed Eleanor napped — she had a poor night's sleep",
-    resolvedBy: "Rosa Martinez",
-    resolvedAt: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
-  },
-  {
-    id: "alert-004",
-    seniorId: "senior-003",
-    seniorName: "Margaret Sullivan",
-    type: "appointment",
-    severity: "low",
-    title: "Upcoming neurology appointment in 48 hours",
-    description: "Dr. Stein appointment scheduled for Thursday at 2:30 PM at Kaiser Permanente San Jose.",
-    aiExplanation:
-      "Margaret has a geriatric specialist appointment with Dr. Robert Stein in 48 hours. Based on her recent MyChart notes and Apple Watch data, there are three things worth bringing to this appointment: her sleep has averaged 5.4 hours over the past week (down from her 6.8 hour baseline), she has had two episodes of elevated heart rate above 105 bpm in the past 10 days, and her activity levels have declined 22% compared to last month. A summary of these trends has been prepared for you to share with Dr. Stein.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
-    status: "active",
-    actionTaken: null,
-    resolvedBy: null,
-    resolvedAt: null,
-  },
-  {
-    id: "alert-005",
-    seniorId: "senior-002",
-    seniorName: "Robert Chen",
-    type: "vitals",
-    severity: "moderate",
-    title: "Resting heart rate elevated overnight",
-    description: "Average overnight heart rate of 88 bpm, above his 72 bpm baseline.",
-    aiExplanation:
-      "Robert's Fitbit recorded an average resting heart rate of 88 bpm between 11 PM and 6 AM — significantly above his 30-day baseline of 72 bpm. Elevated resting heart rate can be an early indicator of cardiovascular stress, dehydration, or infection. Combined with this morning's blood pressure reading, this pattern warrants attention from his cardiologist. His oxygen saturation remained normal at 96-97% throughout the night.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
-    status: "active",
-    actionTaken: null,
-    resolvedBy: null,
-    resolvedAt: null,
-  },
-  {
-    id: "alert-006",
-    seniorId: "senior-003",
-    seniorName: "Margaret Sullivan",
-    type: "vitals",
-    severity: "low",
-    title: "Sleep duration below baseline for 5 consecutive nights",
-    description: "Average of 5.4 hours over the past 5 nights, compared to her 6.8 hour 30-day baseline.",
-    aiExplanation:
-      "Margaret's sleep has been consistently shorter than her baseline for the past 5 nights. Her Apple Watch shows she is going to bed at her usual time but waking earlier than normal — between 4:30 AM and 5:15 AM each day. This pattern of early waking can sometimes be associated with mood changes or cognitive shifts in individuals with mild cognitive impairment. It is worth mentioning to Dr. Stein at Thursday's appointment.",
-    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
-    status: "active",
-    actionTaken: null,
-    resolvedBy: null,
-    resolvedAt: null,
-  },
-  {
-    id: "alert-007",
-    seniorId: "senior-001",
-    seniorName: "Eleanor Yang",
-    type: "fall",
+    type: "fall_device_offline",
+    category: "falls_safety",
     severity: "critical",
-    title: "Possible fall detected — Life Alert not responding",
-    description: "Life Alert pendant offline for 26 hours. Last known status: active.",
+    title: "Fall detection pendant offline for 26+ hours",
+    description: "Life Alert pendant last communicated at 8:15 PM yesterday. Fall detection is currently inactive.",
     aiExplanation:
-      "Eleanor's Life Alert fall detection pendant has been offline for approximately 26 hours. The device last communicated at 8:15 PM yesterday. Ring camera activity shows Eleanor has been moving normally throughout the house today, which is reassuring — however the pendant should be reconnected as soon as possible. She may have removed it, placed it in a drawer, or the battery may need charging. This is flagged as critical because fall detection is offline, not because a fall has been detected.",
+      "Eleanor's Life Alert pendant has been offline for 26 hours — fall detection is not active. Ring camera shows she is moving normally, but the device must be reconnected today.",
     timestamp: new Date(Date.now() - 1000 * 60 * 60 * 26).toISOString(),
     status: "acknowledged",
     actionTaken: "Rosa (home aide) will check device on next visit at 3:00 PM today",
     resolvedBy: null,
     resolvedAt: null,
+    personalThresholdApplied: false,
+    patternAlert: false,
+    contextSuppressible: false,
+    suppressedBy: null,
+  },
+
+  // ── MODERATE ──────────────────────────────────────────────────────────────
+
+  {
+    id: "alert-003",
+    seniorId: "senior-002",
+    seniorName: "Robert Chen",
+    type: "vitals_trending",
+    category: "vitals_trending",
+    severity: "moderate",
+    title: "Resting heart rate elevated 16 bpm above baseline for 2 nights",
+    description: "Average overnight HR of 88 bpm vs Robert's 72 bpm 30-day baseline.",
+    aiExplanation:
+      "Robert's Fitbit recorded 88 bpm resting overnight — 16 bpm above his personal 72 bpm baseline for the second consecutive night. Combined with elevated BP, this pattern warrants a call to his care team within 24 hours.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 8).toISOString(),
+    status: "active",
+    actionTaken: null,
+    resolvedBy: null,
+    resolvedAt: null,
+    personalThresholdApplied: true,
+    patternAlert: true,
+    contextSuppressible: false,
+    suppressedBy: null,
+  },
+  {
+    id: "alert-004",
+    seniorId: "senior-003",
+    seniorName: "Margaret Sullivan",
+    type: "sleep_duration",
+    category: "sleep",
+    severity: "moderate",
+    title: "Sleep below 5.5 hours for 5 consecutive nights",
+    description: "Averaging 5.4 hours over the past 5 nights against her 6.8-hour baseline.",
+    aiExplanation:
+      "Margaret has slept an average of 5.4 hours for 5 straight nights, well below her 6.8-hour baseline. Early waking between 4:30–5:15 AM each day may signal mood or cognitive shifts worth discussing with Dr. Stein.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 12).toISOString(),
+    status: "active",
+    actionTaken: null,
+    resolvedBy: null,
+    resolvedAt: null,
+    personalThresholdApplied: true,
+    patternAlert: true,
+    contextSuppressible: true,
+    suppressedBy: null,
+  },
+  {
+    id: "alert-005",
+    seniorId: "senior-001",
+    seniorName: "Eleanor Yang",
+    type: "medication_late",
+    category: "medication",
+    severity: "moderate",
+    title: "Afternoon metformin missed — 2nd time this week",
+    description: "MedMinder did not log Eleanor's 2:00 PM metformin dose. Morning dose confirmed at 8:14 AM.",
+    aiExplanation:
+      "Eleanor's 2pm metformin dose has been missed two days in a row. This matters because consistent afternoon dosing controls her post-lunch glucose spike.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 55).toISOString(),
+    status: "acknowledged",
+    actionTaken: "Check-in call scheduled for 4:00 PM by Becca Yang",
+    resolvedBy: null,
+    resolvedAt: null,
+    personalThresholdApplied: false,
+    patternAlert: true,
+    contextSuppressible: true,
+    suppressedBy: null,
+  },
+  {
+    id: "alert-006",
+    seniorId: "senior-003",
+    seniorName: "Margaret Sullivan",
+    type: "appointment_upcoming_48h",
+    category: "appointment",
+    severity: "moderate",
+    title: "Geriatric specialist appointment in 48 hours",
+    description: "Dr. Stein at Kaiser Permanente San Jose — Thursday 2:30 PM. Health trends prepared.",
+    aiExplanation:
+      "Margaret's appointment with Dr. Stein is in 48 hours. NartheCare has flagged her 5-night sleep deficit and 22% activity decline as key data points to bring to this visit.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+    status: "active",
+    actionTaken: null,
+    resolvedBy: null,
+    resolvedAt: null,
+    personalThresholdApplied: false,
+    patternAlert: false,
+    contextSuppressible: true,
+    suppressedBy: null,
+  },
+
+  // ── LOW ───────────────────────────────────────────────────────────────────
+
+  {
+    id: "alert-007",
+    seniorId: "senior-003",
+    seniorName: "Margaret Sullivan",
+    type: "best_sleep_week",
+    category: "positive_signal",
+    severity: "low",
+    title: "Best sleep quality week in the past 30 days",
+    description: "Margaret averaged 7.1 hours with minimal wake events over the past 7 nights.",
+    aiExplanation:
+      "Margaret's sleep quality this week is the best recorded in 30 days — 7.1 average hours with few disruptions. This is worth noting at Thursday's appointment as a positive baseline.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 2).toISOString(),
+    status: "active",
+    actionTaken: null,
+    resolvedBy: null,
+    resolvedAt: null,
+    personalThresholdApplied: false,
+    patternAlert: true,
+    contextSuppressible: true,
+    suppressedBy: null,
+  },
+  {
+    id: "alert-008",
+    seniorId: "senior-001",
+    seniorName: "Eleanor Yang",
+    type: "wearable_battery_low",
+    category: "device_connectivity",
+    severity: "low",
+    title: "Apple Watch battery at 8% — sync may be disrupted",
+    description: "Eleanor's Apple Watch reported 8% battery as of 11:30 AM. Charging reminder recommended.",
+    aiExplanation:
+      "Eleanor's Apple Watch is at 8% battery, which may interrupt heart rate and activity logging later today. A reminder to charge should be sent before her afternoon routine.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 30).toISOString(),
+    status: "active",
+    actionTaken: null,
+    resolvedBy: null,
+    resolvedAt: null,
+    personalThresholdApplied: false,
+    patternAlert: false,
+    contextSuppressible: true,
+    suppressedBy: null,
+  },
+  {
+    id: "alert-009",
+    seniorId: "senior-001",
+    seniorName: "Eleanor Yang",
+    type: "routine_variation",
+    category: "routine",
+    severity: "low",
+    title: "Morning kitchen activity started 90 minutes later than usual",
+    description: "Ring camera first detected Eleanor in the kitchen at 8:45 AM vs her typical 7:15 AM.",
+    aiExplanation:
+      "Eleanor's morning kitchen activity was 90 minutes later than her established pattern today. Her heart rate and movement data show normal rest, suggesting she simply slept in.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 4).toISOString(),
+    status: "resolved",
+    actionTaken: "Rosa confirmed Eleanor slept in — no concern",
+    resolvedBy: "Rosa Martinez",
+    resolvedAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+    personalThresholdApplied: false,
+    patternAlert: false,
+    contextSuppressible: true,
+    suppressedBy: null,
+  },
+  {
+    id: "alert-010",
+    seniorId: "senior-003",
+    seniorName: "Margaret Sullivan",
+    type: "appointment_upcoming_week",
+    category: "upcoming_items",
+    severity: "low",
+    title: "Follow-up bone density scan in 6 days",
+    description: "Radiography appointment at Kaiser San Jose on Monday at 10:00 AM. Transport may be needed.",
+    aiExplanation:
+      "Margaret's bone density follow-up is in 6 days — relevant given her osteoporosis diagnosis. Confirming transport and reviewing any prep instructions now avoids a last-minute scramble.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 10).toISOString(),
+    status: "active",
+    actionTaken: null,
+    resolvedBy: null,
+    resolvedAt: null,
+    personalThresholdApplied: false,
+    patternAlert: false,
+    contextSuppressible: true,
+    suppressedBy: null,
+  },
+  {
+    id: "alert-011",
+    seniorId: "senior-002",
+    seniorName: "Robert Chen",
+    type: "phone_activity_low",
+    category: "social_behavioral",
+    severity: "low",
+    title: "Phone call activity significantly below usual for 3 days",
+    description: "Robert typically makes or receives 4–6 calls per day. This week's average is under 1.",
+    aiExplanation:
+      "Robert's phone call activity has dropped sharply this week — under 1 call per day vs his usual 4–6. Social withdrawal can be an early sign of mood changes worth a gentle check-in.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 14).toISOString(),
+    status: "active",
+    actionTaken: null,
+    resolvedBy: null,
+    resolvedAt: null,
+    personalThresholdApplied: false,
+    patternAlert: true,
+    contextSuppressible: true,
+    suppressedBy: null,
+  },
+  {
+    id: "alert-012",
+    seniorId: "senior-001",
+    seniorName: "Eleanor Yang",
+    type: "prescription_refill",
+    category: "upcoming_items",
+    severity: "low",
+    title: "Metformin refill needed within 10 days",
+    description: "Based on MedMinder dispense logs, Eleanor has approximately 10 days of metformin remaining.",
+    aiExplanation:
+      "Eleanor's MedMinder logs show roughly a 10-day supply of metformin left. Requesting a refill now prevents a gap in her diabetes management.",
+    timestamp: new Date(Date.now() - 1000 * 60 * 60 * 18).toISOString(),
+    status: "active",
+    actionTaken: null,
+    resolvedBy: null,
+    resolvedAt: null,
+    personalThresholdApplied: false,
+    patternAlert: false,
+    contextSuppressible: true,
+    suppressedBy: null,
   },
 ];
 
