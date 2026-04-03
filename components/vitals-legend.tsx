@@ -9,7 +9,7 @@ interface VitalsLegendProps {
 }
 
 export function VitalsLegend({ seniorFirstName }: VitalsLegendProps) {
-  const [open, setOpen] = useState(true)
+  const [open, setOpen] = useState(false)
 
   return (
     <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 overflow-hidden">
