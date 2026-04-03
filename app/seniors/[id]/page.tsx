@@ -28,7 +28,9 @@ import { Sparkline } from "@/components/sparkline"
 import { DataFreshnessBadge } from "@/components/data-freshness-badge"
 import { VitalsLegend } from "@/components/vitals-legend"
 import { DataSourcesList } from "@/components/data-sources-list"
+import { SeniorTabs } from "@/components/senior-tabs"
 import { formatRelativeTime, formatDateTime, formatDate } from "@/lib/utils"
+import { Suspense } from "react"
 
 const statusConfig = {
   stable: {
@@ -644,6 +646,11 @@ export default function SeniorProfilePage({
           </Card>
         </div>
       </div>
+
+      {/* AI Insights + Action Plans tabs */}
+      <Suspense>
+        <SeniorTabs seniorId={senior.id} />
+      </Suspense>
     </div>
   )
 }

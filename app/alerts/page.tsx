@@ -12,6 +12,7 @@ import {
   ChevronUp,
   MessageSquare,
   X,
+  ClipboardList,
 } from "lucide-react"
 import {
   MOCK_ALERTS,
@@ -482,6 +483,19 @@ export default function AlertsPage() {
                               Log context
                             </Button>
                           )}
+                          <Link
+                            href={`/seniors/${alert.seniorId}?tab=action-plans&newplan=${alert.id}`}
+                            className="ml-auto"
+                          >
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-xs h-7 text-[#1D9E75] hover:bg-[#E8F7F2] dark:hover:bg-[#1D9E75]/10"
+                            >
+                              <ClipboardList className="h-3.5 w-3.5 mr-1" />
+                              Create Action Plan
+                            </Button>
+                          </Link>
                         </div>
                       )}
                     </div>

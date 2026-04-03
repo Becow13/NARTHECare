@@ -188,6 +188,40 @@ export type DashboardStats = {
   overallStatus: DashboardOverallStatus;
 };
 
+export type ActionOption = {
+  level: "standard" | "better" | "best";
+  title: string;
+  description: string;
+  estimatedCost: string;
+  timeToComplete: string;
+  difficulty: "easy" | "moderate" | "involved";
+};
+
+export type ActionPlanResource = {
+  type: "service" | "device" | "professional" | "insurance" | "community";
+  name: string;
+  description: string;
+  estimatedCost: string;
+  contactOrLink: string;
+  localToSenior: boolean;
+};
+
+export type ActionPlan = {
+  id: string;
+  seniorId: string;
+  seniorName: string;
+  linkedAlertIds: string[];
+  title: string;
+  summary: string;
+  generatedAt: string;
+  status: "open" | "in_progress" | "complete";
+  chosenOptionLevel: "standard" | "better" | "best" | null;
+  caregiverNotes: string;
+  immediateActions: ActionOption[];
+  financialConsiderations: string;
+  resources: ActionPlanResource[];
+};
+
 // ─────────────────────────────────────────────────────────────────────────────
 // SECTION 2: HELPER — generates 30 days of realistic vitals data
 // ─────────────────────────────────────────────────────────────────────────────
@@ -752,6 +786,175 @@ export const MOCK_ALERTS: Alert[] = [
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
+// SECTION 6.5: SEED DATA — ACTION PLANS
+// ─────────────────────────────────────────────────────────────────────────────
+
+export const MOCK_ACTION_PLANS: ActionPlan[] = [
+  {
+    id: "plan-001",
+    seniorId: "senior-002",
+    seniorName: "Robert Chen",
+    linkedAlertIds: ["alert-001"],
+    title: "Blood Pressure Management Plan",
+    summary:
+      "Robert's systolic BP has exceeded 160 mmHg on multiple consecutive readings. This plan outlines steps to stabilize his blood pressure, reduce cardiovascular risk, and improve monitoring frequency.",
+    generatedAt: new Date(Date.now() - 1000 * 60 * 60 * 3).toISOString(),
+    status: "open",
+    chosenOptionLevel: null,
+    caregiverNotes: "",
+    immediateActions: [
+      {
+        level: "standard",
+        title: "Daily BP Logging + Medication Review",
+        description:
+          "Begin recording blood pressure twice daily (morning and evening) using the existing wrist cuff. Contact Robert's primary care physician to review current antihypertensive medication dosage and confirm compliance.",
+        estimatedCost: "$0 – uses existing equipment",
+        timeToComplete: "1–2 days to implement",
+        difficulty: "easy",
+      },
+      {
+        level: "better",
+        title: "Remote-Connected BP Monitor + Nurse Check-in",
+        description:
+          "Replace wrist cuff with a Bluetooth-enabled arm cuff (e.g., Omron Evolv) that auto-syncs readings to the NartheCare platform. Schedule a telehealth nurse check-in within 48 hours to assess symptoms and adjust care plan.",
+        estimatedCost: "$60–$90 for device; telehealth visit may be covered by Medicare",
+        timeToComplete: "3–5 days",
+        difficulty: "moderate",
+      },
+      {
+        level: "best",
+        title: "Cardiology Referral + Dietary & Medication Optimization",
+        description:
+          "Refer Robert to a cardiologist for a comprehensive evaluation. Engage a registered dietitian to design a low-sodium DASH diet plan. Coordinate pharmacy review for potential medication interactions. Consider ambulatory BP monitoring over 24 hours.",
+        estimatedCost: "$150–$400 depending on insurance; specialist copays vary",
+        timeToComplete: "1–3 weeks for full program",
+        difficulty: "involved",
+      },
+    ],
+    financialConsiderations:
+      "Medicare Part B covers ambulatory blood pressure monitoring if ordered by a physician. Telehealth nurse visits are typically covered under Medicare Advantage plans. A connected BP monitor qualifies as a durable medical expense and may be HSA-eligible. Dietitian visits (up to 3 per year) are covered under Medicare for diabetes or kidney disease; otherwise expect $80–$120/session without coverage.",
+    resources: [
+      {
+        type: "professional",
+        name: "Peninsula Cardiology Associates",
+        description: "In-network cardiology group accepting Medicare patients",
+        estimatedCost: "$30–$50 specialist copay (Medicare Advantage)",
+        contactOrLink: "(650) 555-0182",
+        localToSenior: true,
+      },
+      {
+        type: "device",
+        name: "Omron Evolv Wireless BP Monitor",
+        description: "FDA-cleared, arm-based, syncs via Bluetooth to health apps",
+        estimatedCost: "$69–$89",
+        contactOrLink: "omron-healthcare.com",
+        localToSenior: false,
+      },
+      {
+        type: "service",
+        name: "DASH Diet Coaching (Medicare-covered)",
+        description:
+          "Phone-based dietitian program through SilverSneakers health coaching",
+        estimatedCost: "$0 for eligible Medicare Advantage members",
+        contactOrLink: "silversneakers.com/healthy-living",
+        localToSenior: false,
+      },
+      {
+        type: "insurance",
+        name: "Medicare Advantage Telehealth Line",
+        description: "24/7 nurse line for urgent health questions and triage",
+        estimatedCost: "$0 (included in plan)",
+        contactOrLink: "1-800-555-0144",
+        localToSenior: false,
+      },
+    ],
+  },
+  {
+    id: "plan-002",
+    seniorId: "senior-001",
+    seniorName: "Eleanor Yang",
+    linkedAlertIds: ["alert-002"],
+    title: "Fall Prevention & Device Restoration Plan",
+    summary:
+      "Eleanor's fall detection device has been offline for over 12 hours, leaving a critical safety gap. This plan covers immediate device restoration and longer-term fall-risk reduction strategies for her home environment.",
+    generatedAt: new Date(Date.now() - 1000 * 60 * 60 * 6).toISOString(),
+    status: "in_progress",
+    chosenOptionLevel: "better",
+    caregiverNotes:
+      "Spoke with Eleanor's daughter — she will stop by tonight to check the device. Scheduling a home safety visit for next week.",
+    immediateActions: [
+      {
+        level: "standard",
+        title: "Restore Fall Detection Device",
+        description:
+          "Have a family member or caregiver visit Eleanor today to inspect the fall detection pendant or sensor. Check power, connectivity, and placement. Reboot the hub and confirm sync with the NartheCare platform before leaving.",
+        estimatedCost: "$0",
+        timeToComplete: "Same day",
+        difficulty: "easy",
+      },
+      {
+        level: "better",
+        title: "Device Restoration + Professional Home Safety Assessment",
+        description:
+          "Restore the device as above, then schedule an occupational therapist home visit to identify fall hazards (rugs, lighting, bathroom grab bars). Implement OT recommendations within 2 weeks.",
+        estimatedCost: "$0–$150 for OT visit (often covered by Medicare Part B)",
+        timeToComplete: "1–2 weeks",
+        difficulty: "moderate",
+      },
+      {
+        level: "best",
+        title: "Full Fall-Risk Program with Backup Detection",
+        description:
+          "Restore primary device and add a secondary passive fall detection sensor (e.g., Bay Alarm Medical in-home sensor) as backup. Enroll Eleanor in a structured balance & strength program (e.g., Tai Chi for Arthritis, SilverSneakers). Complete full OT home modification assessment.",
+        estimatedCost: "$200–$600 one-time; ongoing class fees $0–$30/month",
+        timeToComplete: "2–4 weeks for full setup",
+        difficulty: "involved",
+      },
+    ],
+    financialConsiderations:
+      "Medicare Part B covers occupational therapy evaluations when ordered by a physician (after deductible). Home modification grants may be available through local Area Agency on Aging — no income requirements for safety modifications. Bay Alarm Medical monthly monitoring plans start at $19.95/month. Some Medicare Advantage plans include fall-detection devices at no cost under supplemental benefits.",
+    resources: [
+      {
+        type: "professional",
+        name: "Coastside OT Home Safety Services",
+        description:
+          "Occupational therapist specializing in home fall-risk assessment for seniors",
+        estimatedCost: "$0 with Medicare Part B referral",
+        contactOrLink: "(415) 555-0237",
+        localToSenior: true,
+      },
+      {
+        type: "community",
+        name: "Area Agency on Aging — Fall Prevention Program",
+        description:
+          "Free home safety checks and grab-bar installation for qualifying seniors",
+        estimatedCost: "$0",
+        contactOrLink: "aging.ca.gov/local-resources",
+        localToSenior: true,
+      },
+      {
+        type: "device",
+        name: "Bay Alarm Medical In-Home Sensor",
+        description:
+          "Passive fall detection — no button press required, mounts on wall",
+        estimatedCost: "$0 upfront + $19.95/month monitoring",
+        contactOrLink: "bayalarmmedical.com",
+        localToSenior: false,
+      },
+      {
+        type: "service",
+        name: "SilverSneakers Tai Chi for Balance",
+        description:
+          "Evidence-based balance program shown to reduce falls; available in-person and online",
+        estimatedCost: "$0 for Medicare Advantage members",
+        contactOrLink: "silversneakers.com/classes",
+        localToSenior: false,
+      },
+    ],
+  },
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
 // SECTION 7: SEED DATA — AI SUMMARIES
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -1017,4 +1220,8 @@ export function getUpcomingAppointments(): Appointment[] {
   ).sort(
     (a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime()
   );
+}
+
+export function getActionPlansBySenior(seniorId: string): ActionPlan[] {
+  return MOCK_ACTION_PLANS.filter((p) => p.seniorId === seniorId);
 }
