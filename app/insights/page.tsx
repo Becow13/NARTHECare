@@ -96,7 +96,7 @@ function InsightsContent() {
           </h1>
         </div>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-          {MOCK_SUMMARIES.length} AI-generated health summaries across all seniors
+          {MOCK_SUMMARIES.length} AI-generated health summaries across All Care Members
         </p>
       </div>
 
@@ -109,10 +109,10 @@ function InsightsContent() {
 
         <Select value={seniorFilter} onValueChange={setSeniorFilter}>
           <SelectTrigger className="w-[160px] h-9 text-sm">
-            <SelectValue placeholder="All seniors" />
+            <SelectValue placeholder="All Care Members" />
           </SelectTrigger>
           <SelectContent>
-            <SelectItem value="all">All Seniors</SelectItem>
+            <SelectItem value="all">All Care Members</SelectItem>
             {MOCK_SENIORS.map((s) => (
               <SelectItem key={s.id} value={s.id}>
                 {s.name}

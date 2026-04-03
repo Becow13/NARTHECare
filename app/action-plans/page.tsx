@@ -128,7 +128,7 @@ function ActionPlansContent() {
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
           {seniorName
             ? `AI-generated care plans for ${seniorName}.`
-            : "AI-generated care plans across all seniors."}
+            : "AI-generated care plans across all care members."}
         </p>
       </div>
 
@@ -161,7 +161,7 @@ function ActionPlansContent() {
           onChange={(e) => setSeniorFilter(e.target.value)}
           className="text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/30"
         >
-          <option value="all">All seniors</option>
+          <option value="all">All care members</option>
           {seniorNames.map(({ id, name }) => (
             <option key={id} value={id}>{name}</option>
           ))}

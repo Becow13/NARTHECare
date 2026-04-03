@@ -387,7 +387,7 @@ export default function SettingsPage() {
                   {
                     key: "dataSharing" as const,
                     label: "Share Health Data with Care Team",
-                    desc: "Allow your seniors' care team to view NartheCare summaries",
+                    desc: "Allow your care members' care team to view NartheCare summaries",
                   },
                   {
                     key: "analyticsOptIn" as const,

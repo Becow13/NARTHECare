@@ -38,3 +38,4 @@ export function formatDate(isoString: string): string {
     year: "numeric",
   })
 }
+

@@ -23,7 +23,7 @@ const navItems = [
     icon: LayoutDashboard,
   },
   {
-    label: "Seniors",
+    label: "Care Members",
     href: "/seniors",
     icon: Users,
   },
@@ -145,3 +145,4 @@ export function Sidebar() {
     </>
   )
 }
+

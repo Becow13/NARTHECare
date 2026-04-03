@@ -5,7 +5,7 @@ import { Sidebar } from "@/components/sidebar"
 export const metadata: Metadata = {
   title: "NartheCare — AI-Powered Remote Eldercare",
   description:
-    "Monitor, coordinate, and support your senior loved ones with AI-assisted caregiving.",
+    "Monitor, coordinate, and support your Care Member loved ones with AI-assisted caregiving.",
 }
 
 export default function RootLayout({
@@ -28,3 +28,4 @@ export default function RootLayout({
     </html>
   )
 }
+

@@ -26,7 +26,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatRelativeTime, formatDateTime } from "@/lib/utils"
 
-// ─── Status config ────────────────────────────────────────────────────────────
 const statusConfig = {
   routine: {
     label: "Routine",
@@ -50,8 +49,8 @@ const statusConfig = {
 
 const severityBadge = {
   critical: "destructive" as const,
-  monitor:  "warning"     as const,
-  routine:  "info"        as const,
+  monitor:  "warning" as const,
+  routine:  "info" as const,
 }
 
 const severityLabel: Record<string, string> = {
@@ -87,59 +86,47 @@ const overallStatusConfig = {
   },
 }
 
-// ─── Trend icon ───────────────────────────────────────────────────────────────
 function TrendIcon({ value }: { value: number }) {
-  if (value > 0) return <TrendingUp  className="h-3.5 w-3.5 text-amber-500" />
-  if (value < 0) return <TrendingDown className="h-3.5 w-3.5 text-emerald-500" />
+  if (value > 0)
+    return <TrendingUp className="h-3.5 w-3.5 text-amber-500" />
+  if (value < 0)
+    return <TrendingDown className="h-3.5 w-3.5 text-emerald-500" />
   return <Minus className="h-3.5 w-3.5 text-gray-400" />
 }
 
-// ─── Grid column definition (used by BOTH header and every data row) ──────────
-// col 1: status dot  12px
-// col 2: avatar      36px
-// col 3: name        1fr
-// col 4: alerts      80px
-// col 5: appts       80px
-// col 6: trend       60px
-// col 7: status      90px
-// col 8: last update 90px
-const GRID = "grid grid-cols-[12px_36px_1fr_80px_80px_60px_90px_90px] gap-x-4 items-center"
-
-// ─── Page ─────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const stats          = MOCK_DASHBOARD_STATS
-  const seniors        = MOCK_SENIORS
-  const activeAlerts   = MOCK_ALERTS.filter((a) => a.status === "active")
+  const stats = MOCK_DASHBOARD_STATS
+  const seniors = MOCK_SENIORS
+  const activeAlerts = MOCK_ALERTS.filter((a) => a.status === "active")
   const recentSummaries = MOCK_SUMMARIES.slice(0, 3)
-  const upcomingAppts  = MOCK_APPOINTMENTS
+  const upcomingAppts = MOCK_APPOINTMENTS
     .filter((a) => new Date(a.dateTime) > new Date())
     .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime())
     .slice(0, 3)
 
-  const overallCfg  = overallStatusConfig[stats.overallStatus]
+  const overallCfg = overallStatusConfig[stats.overallStatus]
   const OverallIcon = overallCfg.icon
 
   return (
     <div className="max-w-7xl mx-auto space-y-6">
-
-      {/* ── Page header ── */}
+      {/* Page header */}
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+          Dashboard
+        </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
           Good morning, Becca. Here&apos;s your care overview for today.
         </p>
       </div>
 
-      {/* ── Summary stat cards ── */}
+      {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-
-        {/* Active Care Members */}
         <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
                 <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Active Care Members
+                  Active Seniors
                 </p>
                 <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
                   {stats.activeSeniors}
@@ -152,7 +139,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Alerts Today */}
         <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
@@ -176,7 +162,6 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Upcoming Appointments */}
         <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
@@ -200,8 +185,9 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Overall Status */}
-        <Card className={`border ${overallCfg.bg} dark:border-gray-800 dark:bg-gray-900`}>
+        <Card
+          className={`border ${overallCfg.bg} dark:border-gray-800 dark:bg-gray-900`}
+        >
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
@@ -212,19 +198,20 @@ export default function DashboardPage() {
                   {overallCfg.label}
                 </p>
               </div>
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${overallCfg.bg}`}>
+              <div
+                className={`w-9 h-9 rounded-lg flex items-center justify-center ${overallCfg.bg}`}
+              >
                 <OverallIcon className={`h-4.5 w-4.5 ${overallCfg.color}`} />
               </div>
             </div>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              {stats.activeSeniors} care members monitored
+              {stats.activeSeniors} seniors monitored
             </p>
           </CardContent>
         </Card>
-
       </div>
 
-      {/* ── Care Member Snapshot ── */}
+      {/* Senior status list */}
       <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -235,137 +222,107 @@ export default function DashboardPage() {
               href="/seniors"
               className="text-sm text-[#1D9E75] hover:text-[#187E5D] font-medium flex items-center gap-1"
             >
-              View all <ChevronRight className="h-3.5 w-3.5" />
+              View all
+              <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </CardHeader>
-        <CardContent className="px-6 pb-4">
+        <CardContent className="px-6 pb-2">
+          <div className="divide-y divide-border dark:divide-gray-800">
+            {seniors.map((senior) => {
+              const cfg = statusConfig[senior.status]
+              const activeAlertCount = senior.alerts.filter(
+                (a) => a.status === "active"
+              ).length
+              // simple trend: compare last 2 heart rate readings
+              const readings = senior.vitals.readings
+              const trendVal =
+                readings.length >= 2
+                  ? readings[readings.length - 1].heartRate -
+                    readings[readings.length - 2].heartRate
+                  : 0
 
-          {/* Header row — same GRID as each data row */}
-          <div className={`${GRID} pb-2 border-b border-gray-100 dark:border-gray-800 text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide`}>
-            <span />
-            <span />
-            <span>Care Member</span>
-            <span className="text-center">Active Alerts</span>
-            <span className="text-center">Appointments</span>
-            <span className="text-center">Trend</span>
-            <span className="text-center">Care Status</span>
-            <span className="text-center">Last Update</span>
+              return (
+                <div
+                  key={senior.id}
+                  className="flex items-center justify-between py-3.5 group"
+                >
+                  <div className="flex items-center gap-3 min-w-0">
+                    {/* Status dot */}
+                    <span
+                      className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`}
+                    />
+                    {/* Avatar placeholder */}
+                    <div className={`w-9 h-9 rounded-full flex items-center justify-center shrink-0 text-sm font-semibold ${avatarBg[senior.status]}`}>
+                      {senior.name
+                        .split(" ")
+                        .map((n) => n[0])
+                        .join("")}
+                    </div>
+                    <div className="min-w-0">
+                      <div className="flex items-center gap-2">
+                        <Link
+                          href={`/seniors/${senior.id}`}
+                          className="text-sm font-medium text-gray-900 dark:text-white hover:text-[#1D9E75] dark:hover:text-[#4DC8A0] truncate"
+                        >
+                          {senior.name}
+                        </Link>
+                        {activeAlertCount > 0 && (
+                          <Badge variant="destructive" className="text-[10px] px-1.5 py-0">
+                            {activeAlertCount}
+                          </Badge>
+                        )}
+                      </div>
+                      <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                        {senior.primaryConditions.slice(0, 2).join(", ")}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-4 shrink-0 ml-4">
+                    {/* Trend */}
+                    <TrendIcon value={trendVal} />
+                    {/* Status badge */}
+                    <span
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}
+                    >
+                      {cfg.label}
+                    </span>
+                    {/* Last seen */}
+                    <div className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 min-w-[64px] justify-end">
+                      <Clock className="h-3 w-3" />
+                      {formatRelativeTime(senior.lastSeen)}
+                    </div>
+                    <Link
+                      href={`/seniors/${senior.id}`}
+                      className="opacity-0 group-hover:opacity-100 transition-opacity"
+                    >
+                      <ChevronRight className="h-4 w-4 text-gray-400" />
+                    </Link>
+                  </div>
+                </div>
+              )
+            })}
           </div>
-
-          {/* Data rows */}
-          {seniors.map((senior) => {
-            const cfg = statusConfig[senior.status]
-
-            // Alert count
-            const alertCount = senior.alerts.filter((a) => a.status === "active").length
-
-            // Appointment count + "soon" flag (within 48 h)
-            const now      = new Date()
-            const in48h    = new Date(Date.now() + 48 * 60 * 60 * 1000)
-            const appts    = MOCK_APPOINTMENTS.filter(
-              (a) => a.seniorId === senior.id && new Date(a.dateTime) > now
-            )
-            const apptCount = appts.length
-            const apptSoon  = appts.some((a) => new Date(a.dateTime) < in48h)
-
-            // Trend: compare last two heart-rate readings
-            const readings = senior.vitals.readings
-            const trendVal =
-              readings.length >= 2
-                ? readings[readings.length - 1].heartRate -
-                  readings[readings.length - 2].heartRate
-                : 0
-
-            return (
-              <Link
-                key={senior.id}
-                href={`/seniors/${senior.id}`}
-                className={`${GRID} py-3.5 border-b border-gray-50 dark:border-gray-800/60 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors`}
-              >
-                {/* Col 1 — status dot */}
-                <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`} />
-
-                {/* Col 2 — avatar */}
-                <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${avatarBg[senior.status]}`}>
-                  {senior.name.split(" ").map((n) => n[0]).join("")}
-                </div>
-
-                {/* Col 3 — name + conditions */}
-                <div className="min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                    {senior.name}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                    {senior.primaryConditions.slice(0, 2).join(", ")}
-                  </p>
-                </div>
-
-                {/* Col 4 — active alerts */}
-                <div className="flex justify-center">
-                  {alertCount > 0 ? (
-                    <Badge
-                      variant="destructive"
-                      className="text-[10px] px-1.5 py-0 rounded-full min-w-[20px] justify-center"
-                    >
-                      {alertCount}
-                    </Badge>
-                  ) : (
-                    <span className="text-gray-300 dark:text-gray-600 text-sm">—</span>
-                  )}
-                </div>
-
-                {/* Col 5 — appointments */}
-                <div className="flex justify-center">
-                  {apptCount > 0 ? (
-                    <Badge
-                      variant={apptSoon ? "warning" : "secondary"}
-                      className="text-[10px] px-1.5 py-0 rounded-full min-w-[20px] justify-center"
-                    >
-                      {apptCount}
-                    </Badge>
-                  ) : (
-                    <span className="text-gray-300 dark:text-gray-600 text-sm">—</span>
-                  )}
-                </div>
-
-                {/* Col 6 — health trend */}
-                <div className="flex justify-center">
-                  <TrendIcon value={trendVal} />
-                </div>
-
-                {/* Col 7 — care status badge */}
-                <div className="flex justify-center">
-                  <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
-                    {cfg.label}
-                  </span>
-                </div>
-
-                {/* Col 8 — last update */}
-                <div className="flex items-center justify-center gap-1 text-xs text-gray-400 dark:text-gray-500">
-                  <Clock className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{formatRelativeTime(senior.lastSeen)}</span>
-                </div>
-              </Link>
-            )
-          })}
-
         </CardContent>
       </Card>
 
-      {/* ── Recent AI Summaries ── */}
+      {/* Recent AI summaries */}
       <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <Sparkles className="h-4 w-4 text-[#1D9E75]" />
-              <CardTitle className="text-base font-semibold">Recent AI Summaries</CardTitle>
+              <CardTitle className="text-base font-semibold">
+                Recent AI Summaries
+              </CardTitle>
             </div>
             <Link
               href="/insights"
               className="text-sm text-[#1D9E75] hover:text-[#187E5D] font-medium flex items-center gap-1"
             >
-              View all <ChevronRight className="h-3.5 w-3.5" />
+              View all
+              <ChevronRight className="h-3.5 w-3.5" />
             </Link>
           </div>
         </CardHeader>
@@ -374,13 +331,17 @@ export default function DashboardPage() {
             {recentSummaries.map((summary) => {
               const summaryStatus = seniors.find((s) => s.id === summary.seniorId)?.status ?? "routine"
               const urgencyBadge =
-                summary.urgency === "critical" ? "destructive"
-                : summary.urgency === "monitor"  ? "warning"
-                : "info"
+                summary.urgency === "critical"
+                  ? "destructive"
+                  : summary.urgency === "monitor"
+                  ? "warning"
+                  : "info"
               const urgencyLabel =
-                summary.urgency === "critical" ? "Critical"
-                : summary.urgency === "monitor"  ? "Monitor"
-                : "Routine"
+                summary.urgency === "critical"
+                  ? "Critical"
+                  : summary.urgency === "monitor"
+                  ? "Monitor"
+                  : "Routine"
               return (
                 <div
                   key={summary.id}
@@ -389,13 +350,18 @@ export default function DashboardPage() {
                   <div className="flex items-center justify-between gap-2">
                     <div className="flex items-center gap-2 min-w-0">
                       <div className={`w-7 h-7 rounded-full flex items-center justify-center shrink-0 text-xs font-semibold ${avatarBg[summaryStatus]}`}>
-                        {summary.seniorName.split(" ").map((n) => n[0]).join("")}
+                        {summary.seniorName
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")}
                       </div>
                       <span className="text-sm font-medium text-gray-900 dark:text-white truncate">
                         {summary.seniorName}
                       </span>
                     </div>
-                    <Badge variant={urgencyBadge} className="shrink-0">{urgencyLabel}</Badge>
+                    <Badge variant={urgencyBadge} className="shrink-0">
+                      {urgencyLabel}
+                    </Badge>
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-3">
                     {summary.plainTextSummary}
@@ -410,17 +376,32 @@ export default function DashboardPage() {
                       </span>
                     ))}
                   </div>
+                  {/* Quick actions */}
                   <div className="flex items-center gap-2 pt-1 border-t border-border dark:border-gray-700">
                     <Link href={`/seniors/${summary.seniorId}`}>
-                      <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-gray-600 dark:text-gray-300">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 text-xs px-2 text-gray-600 dark:text-gray-300"
+                      >
                         View Profile
                       </Button>
                     </Link>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-gray-600 dark:text-gray-300">
-                      <Phone className="h-3 w-3 mr-1" /> Contact
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs px-2 text-gray-600 dark:text-gray-300"
+                    >
+                      <Phone className="h-3 w-3 mr-1" />
+                      Contact
                     </Button>
-                    <Button variant="ghost" size="sm" className="h-7 text-xs px-2 text-amber-600 dark:text-amber-400">
-                      <Flag className="h-3 w-3 mr-1" /> Flag
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-7 text-xs px-2 text-amber-600 dark:text-amber-400"
+                    >
+                      <Flag className="h-3 w-3 mr-1" />
+                      Flag
                     </Button>
                   </div>
                 </div>
@@ -430,9 +411,9 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* ── Active Alerts preview ── */}
+      {/* Active alerts preview */}
       {activeAlerts.length > 0 && (
-        <Card className="border-red-200 dark:border-red-900/50 dark:bg-gray-900">
+        <Card className="border-red-200 dark:border-red-900/50 bg-red-50/50 dark:bg-red-900/10 dark:bg-gray-900">
           <CardHeader className="pb-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -445,7 +426,8 @@ export default function DashboardPage() {
                 href="/alerts"
                 className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 font-medium flex items-center gap-1"
               >
-                Manage all <ChevronRight className="h-3.5 w-3.5" />
+                Manage all
+                <ChevronRight className="h-3.5 w-3.5" />
               </Link>
             </div>
           </CardHeader>
@@ -455,7 +437,10 @@ export default function DashboardPage() {
                 key={alert.id}
                 className="flex items-start gap-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-red-100 dark:border-red-900/30"
               >
-                <Badge variant={severityBadge[alert.severity]} className="shrink-0 mt-0.5">
+                <Badge
+                  variant={severityBadge[alert.severity]}
+                  className="shrink-0 mt-0.5"
+                >
                   {severityLabel[alert.severity] ?? alert.severity}
                 </Badge>
                 <div className="flex-1 min-w-0">
@@ -475,29 +460,27 @@ export default function DashboardPage() {
         </Card>
       )}
 
-      {/* ── Upcoming Appointments ── */}
+      {/* Upcoming appointments */}
       <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
         <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold">Upcoming Appointments</CardTitle>
-            <Link
-              href="/appointments"
-              className="text-sm text-[#1D9E75] hover:text-[#187E5D] font-medium flex items-center gap-1"
-            >
-              View all <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
+          <CardTitle className="text-base font-semibold">
+            Upcoming Appointments
+          </CardTitle>
         </CardHeader>
         <CardContent className="px-6 pb-4 space-y-3">
           {upcomingAppts.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">No upcoming appointments.</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">
+              No upcoming appointments.
+            </p>
           ) : (
             upcomingAppts.map((appt) => (
               <div
                 key={appt.id}
                 className="flex flex-col gap-0.5 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-border dark:border-gray-700"
               >
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{appt.title}</p>
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
+                  {appt.title}
+                </p>
                 <p className="text-xs text-gray-500 dark:text-gray-400">
                   {appt.seniorName} · {appt.provider}
                 </p>
@@ -509,7 +492,6 @@ export default function DashboardPage() {
           )}
         </CardContent>
       </Card>
-
     </div>
   )
 }

@@ -122,7 +122,7 @@ export default function AlertsPage() {
   const monitorCount   = active.filter((a) => a.severity === "monitor").length
   const resolvedCount  = alerts.filter((a) => a.status === "resolved").length
 
-  // "stable" = seniors who have zero critical/monitor active alerts
+  // "stable" = care memberswho have zero critical/monitor active alerts
   const stableCount = MOCK_SENIORS.filter((s) =>
     !active.some(
       (a) => a.seniorId === s.id && (a.severity === "critical" || a.severity === "monitor")

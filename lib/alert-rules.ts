@@ -10,7 +10,7 @@
 export const CRITICAL_ALERT_RULES = {
   fallsAndSafety: [
     "fall_detected",           // Fall detected by pendant or camera
-    "inactivity",              // Senior has not moved for unusually long during waking hours
+    "inactivity",              // Care Member has not moved for unusually long during waking hours
     "fall_device_offline",     // Fall detection device offline >24h with no explanation
     "wandering",               // Door/exit sensor at unusual hour suggesting wandering
     "camera_night_motion",     // Camera detects motion during caregiver-defined sleep hours
@@ -53,7 +53,7 @@ export const MODERATE_ALERT_RULES = {
   ],
   activityAndMobility: [
     "activity_declined",       // Activity declined >40% vs 30-day baseline for 3+ days
-    "no_outdoor_activity",     // No outdoor activity for a week (senior normally goes out daily)
+    "no_outdoor_activity",     // No outdoor activity for a week (Care Member normally goes out daily)
   ],
   appointment: [
     "appointment_upcoming_48h", // Upcoming appointment within 48h with health data to bring
@@ -77,7 +77,7 @@ export const LOW_ALERT_RULES = {
     "wellness_visit_due",        // Annual wellness visit due within the next month
   ],
   positiveSignals: [
-    "activity_above_baseline",        // Senior more active than usual above personal baseline
+    "activity_above_baseline",        // Care Member more active than usual above personal baseline
     "best_sleep_week",                // Best sleep week in the past 30 days
     "medication_adherence_streak",    // Consistent medication adherence for 7 consecutive days
   ],
@@ -99,7 +99,7 @@ export const LOW_ALERT_RULES = {
 export const ALERT_RULES = {
   personalThresholds: {
     description:
-      "Alert thresholds are set per senior, not population averages. Each senior has their own " +
+      "Alert thresholds are set per Care Member, not population averages. Each Care Member has their own " +
       "bloodPressureSysThreshold, heartRateMax, heartRateMin, oxygenSatMin, and " +
       "weightChangeThreshold stored in their profile.",
     defaultBloodPressureSysThreshold: 160,
@@ -116,24 +116,24 @@ export const ALERT_RULES = {
   },
   caregiverFatigue: {
     description:
-      "Target 2–4 meaningful alerts per senior per day. " +
+      "Target 2–4 meaningful alerts per Care Member per day. " +
       "Weight distribution: low 70%, moderate 25%, critical 5%.",
     targetDailyAlertsPerSenior: 3,
     maxDailyAlertsPerSenior: 6,
   },
   contextSuppression: {
     description:
-      "If a care team member logs a check-in confirming the senior is fine, " +
+      "If a care team member logs a check-in confirming the Care Member is fine, " +
       "alerts triggered within the following window are suppressed.",
     suppressionWindowMinutes: 120,
   },
   aiExplanationRequired: {
     description:
       "Every alert must include a plain language AI explanation. Maximum 2 sentences. " +
-      "Must reference the specific senior by name, the specific reading or pattern, " +
+      "Must reference the specific Care Member by name, the specific reading or pattern, " +
       "and why it matters for this individual.",
     maxSentences: 2,
-    mustIncludeSeniorName: true,
+    mustIncludeseniorName: true,
     mustIncludeSpecificReading: true,
   },
 } as const
@@ -159,3 +159,4 @@ export const ALERT_CATEGORY_LABELS: Record<string, string> = {
   device_connectivity:"Device",
   social_behavioral:  "Social",
 }
+

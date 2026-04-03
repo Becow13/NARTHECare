@@ -123,7 +123,7 @@ export default function SeniorProfilePage({
         className="inline-flex items-center gap-1.5 text-sm text-gray-500 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white transition-colors"
       >
         <ArrowLeft className="h-4 w-4" />
-        Back to Seniors
+        Back to Care Members
       </Link>
 
       {/* Profile header */}
