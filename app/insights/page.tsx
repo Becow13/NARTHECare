@@ -1,6 +1,7 @@
 "use client"
 
-import { useState, useMemo } from "react"
+import { useState, useMemo, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
 import Link from "next/link"
 import { Sparkles, ChevronRight, Calendar, SlidersHorizontal } from "lucide-react"
 import {
@@ -47,8 +48,11 @@ const summaryTypeLabel: Record<SummaryType, string> = {
   anomaly: "Anomaly Detected",
 }
 
-export default function InsightsPage() {
-  const [seniorFilter, setSeniorFilter] = useState<string>("all")
+function InsightsContent() {
+  const searchParams = useSearchParams()
+  const [seniorFilter, setSeniorFilter] = useState<string>(
+    searchParams.get("senior") ?? "all"
+  )
   const [typeFilter, setTypeFilter] = useState<string>("all")
   const [urgencyFilter, setUrgencyFilter] = useState<string>("all")
 
@@ -269,5 +273,13 @@ export default function InsightsPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function InsightsPage() {
+  return (
+    <Suspense>
+      <InsightsContent />
+    </Suspense>
   )
 }

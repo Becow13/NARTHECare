@@ -241,10 +241,12 @@ export default function SeniorProfilePage({
               ))}
             </div>
             <div className="mt-4">
-              <Button size="sm" variant="outline" className="w-full text-xs h-8">
-                View Full Summary
-                <ChevronRight className="h-3.5 w-3.5 ml-1" />
-              </Button>
+              <Link href={`/insights?senior=${senior.id}`}>
+                <Button size="sm" variant="outline" className="w-full text-xs h-8">
+                  View Full Summary
+                  <ChevronRight className="h-3.5 w-3.5 ml-1" />
+                </Button>
+              </Link>
             </div>
           </CardContent>
         </Card>
