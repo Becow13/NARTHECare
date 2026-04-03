@@ -28,6 +28,7 @@ import { Sparkline } from "@/components/sparkline"
 import { DataFreshnessBadge } from "@/components/data-freshness-badge"
 import { VitalsLegend } from "@/components/vitals-legend"
 import { DataSourcesList } from "@/components/data-sources-list"
+import { CareTeamList } from "@/components/care-team-list"
 import { SeniorTabs } from "@/components/senior-tabs"
 import { formatRelativeTime, formatDateTime, formatDate } from "@/lib/utils"
 import { Suspense } from "react"
@@ -118,7 +119,7 @@ export default function SeniorProfilePage({
         <CardContent className="p-6">
           <div className="flex flex-col lg:flex-row gap-0">
 
-            {/* LEFT — avatar + info (2/3) */}
+            {/* LEFT — avatar + info (1/2) */}
             <div className="flex flex-col sm:flex-row sm:items-start gap-5 flex-[2] min-w-0 lg:pr-6">
               {/* Avatar */}
               <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#1D9E75]/20 to-[#1D9E75]/5 dark:from-[#1D9E75]/30 dark:to-[#1D9E75]/10 flex items-center justify-center shrink-0 text-2xl font-bold text-[#1D9E75]">
@@ -176,11 +177,23 @@ export default function SeniorProfilePage({
               </div>
             </div>
 
-            {/* Divider */}
+            {/* Divider — left / middle */}
             <div className="hidden lg:block w-px bg-gray-200 dark:bg-gray-700 mx-0 my-1 self-stretch" />
             <div className="block lg:hidden h-px bg-gray-200 dark:bg-gray-700 my-5" />
 
-            {/* RIGHT — connected data sources (1/3) */}
+            {/* MIDDLE — care team (1/4) */}
+            <div className="flex-1 min-w-0 lg:px-6">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">
+                Care Team
+              </p>
+              <CareTeamList members={senior.careTeam} />
+            </div>
+
+            {/* Divider — middle / right */}
+            <div className="hidden lg:block w-px bg-gray-200 dark:bg-gray-700 mx-0 my-1 self-stretch" />
+            <div className="block lg:hidden h-px bg-gray-200 dark:bg-gray-700 my-5" />
+
+            {/* RIGHT — connected data sources (1/4) */}
             <div className="flex-1 min-w-0 lg:pl-6">
               <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">
                 Connected Sources
@@ -497,9 +510,8 @@ export default function SeniorProfilePage({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Alert history — grouped by severity */}
-        <div className="lg:col-span-2 space-y-4">
+      {/* Alert history — grouped by severity */}
+      <div className="space-y-4">
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
             Alert History
           </h2>
@@ -600,51 +612,6 @@ export default function SeniorProfilePage({
               })}
             </div>
           )}
-        </div>
-
-        {/* Right column */}
-        <div className="space-y-5">
-          {/* Care team */}
-          <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">Care Team</CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-5 space-y-4">
-              {senior.careTeam.map((member) => (
-                <div key={member.id} className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-full bg-[#1D9E75]/10 flex items-center justify-center shrink-0 text-xs font-semibold text-[#1D9E75]">
-                    {member.name.split(" ").map((n) => n[0]).join("")}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-gray-900 dark:text-white">
-                      {member.name}
-                    </p>
-                    <p className="text-xs text-[#1D9E75] font-medium">
-                      {member.role}
-                    </p>
-                    {member.organization && (
-                      <div className="flex items-center gap-1 mt-0.5">
-                        <Building2 className="h-3 w-3 text-gray-400" />
-                        <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                          {member.organization}
-                        </p>
-                      </div>
-                    )}
-                    <div className="flex items-center gap-3 mt-1.5">
-                      <a
-                        href={`tel:${member.phone}`}
-                        className="flex items-center gap-1 text-xs text-gray-500 dark:text-gray-400 hover:text-[#1D9E75]"
-                      >
-                        <Phone className="h-3 w-3" />
-                        {member.phone}
-                      </a>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </CardContent>
-          </Card>
-        </div>
       </div>
 
       {/* AI Insights + Action Plans tabs */}
