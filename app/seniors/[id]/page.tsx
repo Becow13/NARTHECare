@@ -176,7 +176,7 @@ export default function SeniorProfilePage({
         <div>
           <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
             <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-              Today&apos;s Latest Reading
+              Vitals — Today
             </h2>
             <span className="text-xs text-gray-400 dark:text-gray-500">
               last updated{" "}
