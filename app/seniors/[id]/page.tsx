@@ -26,6 +26,7 @@ import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Sparkline } from "@/components/sparkline"
 import { DataFreshnessBadge } from "@/components/data-freshness-badge"
+import { VitalsLegend } from "@/components/vitals-legend"
 import { formatRelativeTime, formatDateTime, formatDate } from "@/lib/utils"
 
 const statusConfig = {
@@ -170,6 +171,9 @@ export default function SeniorProfilePage({
           </div>
         </CardContent>
       </Card>
+
+      {/* Legend */}
+      <VitalsLegend seniorFirstName={senior.name.split(" ")[0]} />
 
       {/* Today's Latest Reading */}
       {latestReading && (
