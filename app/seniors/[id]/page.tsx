@@ -171,6 +171,136 @@ export default function SeniorProfilePage({
         </CardContent>
       </Card>
 
+      {/* Today's Latest Reading */}
+      {latestReading && (
+        <div>
+          <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+            <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+              Today&apos;s Latest Reading
+            </h2>
+            <span className="text-xs text-gray-400 dark:text-gray-500">
+              last updated{" "}
+              <span className="text-gray-600 dark:text-gray-300 font-medium">
+                {formatRelativeTime(latestReading.timestamp)}
+              </span>
+            </span>
+          </div>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+            {/* Today — Heart Rate */}
+            <Card className="border-[#1D9E75]/20 dark:border-[#1D9E75]/20 bg-[#1D9E75]/[0.04] dark:bg-[#1D9E75]/[0.08]">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Heart className="h-4 w-4 text-red-400" />
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    Heart Rate
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      latestReading.heartRate >= 60 && latestReading.heartRate <= 100
+                        ? "bg-emerald-500"
+                        : latestReading.heartRate >= 50 && latestReading.heartRate <= 110
+                        ? "bg-amber-500"
+                        : "bg-red-500"
+                    }`}
+                  />
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {latestReading.heartRate}
+                    <span className="text-sm font-normal text-gray-500 ml-1">bpm</span>
+                  </p>
+                </div>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">latest reading</p>
+              </CardContent>
+            </Card>
+
+            {/* Today — Blood Pressure */}
+            <Card className="border-[#1D9E75]/20 dark:border-[#1D9E75]/20 bg-[#1D9E75]/[0.04] dark:bg-[#1D9E75]/[0.08]">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Activity className="h-4 w-4 text-purple-400" />
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    Blood Pressure
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      latestReading.bloodPressureSys < 130
+                        ? "bg-emerald-500"
+                        : latestReading.bloodPressureSys <= 139
+                        ? "bg-amber-500"
+                        : "bg-red-500"
+                    }`}
+                  />
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {latestReading.bloodPressureSys}/{latestReading.bloodPressureDia}
+                    <span className="text-sm font-normal text-gray-500 ml-1">mmHg</span>
+                  </p>
+                </div>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">latest reading</p>
+              </CardContent>
+            </Card>
+
+            {/* Today — Sleep */}
+            <Card className="border-[#1D9E75]/20 dark:border-[#1D9E75]/20 bg-[#1D9E75]/[0.04] dark:bg-[#1D9E75]/[0.08]">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Moon className="h-4 w-4 text-blue-400" />
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    Sleep
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      latestReading.sleepHours >= 7
+                        ? "bg-emerald-500"
+                        : latestReading.sleepHours >= 5
+                        ? "bg-amber-500"
+                        : "bg-red-500"
+                    }`}
+                  />
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {latestReading.sleepHours}
+                    <span className="text-sm font-normal text-gray-500 ml-1">hrs</span>
+                  </p>
+                </div>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">latest reading</p>
+              </CardContent>
+            </Card>
+
+            {/* Today — Activity */}
+            <Card className="border-[#1D9E75]/20 dark:border-[#1D9E75]/20 bg-[#1D9E75]/[0.04] dark:bg-[#1D9E75]/[0.08]">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 mb-2">
+                  <Footprints className="h-4 w-4 text-[#1D9E75]" />
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                    Activity
+                  </span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={`w-2 h-2 rounded-full shrink-0 ${
+                      latestReading.activityMinutes >= 30
+                        ? "bg-emerald-500"
+                        : latestReading.activityMinutes >= 15
+                        ? "bg-amber-500"
+                        : "bg-red-500"
+                    }`}
+                  />
+                  <p className="text-2xl font-bold text-gray-900 dark:text-white">
+                    {latestReading.activityMinutes}
+                    <span className="text-sm font-normal text-gray-500 ml-1">min</span>
+                  </p>
+                </div>
+                <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">latest reading</p>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+      )}
+
       {/* Vitals panel */}
       <div>
         <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
