@@ -8,7 +8,7 @@
 // SECTION 1: TYPE DEFINITIONS
 // ─────────────────────────────────────────────────────────────────────────────
 
-export type SeniorStatus = "stable" | "monitor" | "alert";
+export type SeniorStatus = "critical" | "monitor" | "routine";
 export type AlertSeverity = "critical" | "moderate" | "low";
 export type AlertStatus = "active" | "acknowledged" | "resolved";
 export type AlertType =
@@ -1139,7 +1139,7 @@ export const MOCK_SENIORS: Senior[] = [
     photo: null,
     primaryConditions: ["Congestive Heart Failure", "Hypertension"],
     location: "Palo Alto, CA",
-    status: "alert",
+    status: "critical",
     lastSeen: new Date(Date.now() - 1000 * 60 * 180).toISOString(),
     caregivers: CAREGIVERS_ROBERT,
     dataSources: DATA_SOURCES_ROBERT,
@@ -1155,7 +1155,7 @@ export const MOCK_SENIORS: Senior[] = [
     photo: null,
     primaryConditions: ["Mild Cognitive Impairment", "Osteoporosis"],
     location: "San Jose, CA",
-    status: "stable",
+    status: "routine",
     lastSeen: new Date(Date.now() - 1000 * 60 * 15).toISOString(),
     caregivers: CAREGIVERS_MARGARET,
     dataSources: DATA_SOURCES_MARGARET,

@@ -6,9 +6,9 @@ import { Badge } from "@/components/ui/badge"
 import { formatRelativeTime } from "@/lib/utils"
 
 const statusConfig = {
-  stable: { label: "Stable", dot: "bg-emerald-500", badge: "success" as const },
+  routine: { label: "Routine", dot: "bg-emerald-500", badge: "success" as const },
   monitor: { label: "Monitor", dot: "bg-amber-500", badge: "warning" as const },
-  alert: { label: "Alert", dot: "bg-red-500", badge: "destructive" as const },
+  critical: { label: "Critical", dot: "bg-red-500", badge: "destructive" as const },
 }
 
 export default function SeniorsPage() {

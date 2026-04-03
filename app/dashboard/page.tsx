@@ -27,8 +27,8 @@ import { Button } from "@/components/ui/button"
 import { formatRelativeTime, formatDateTime } from "@/lib/utils"
 
 const statusConfig = {
-  stable: {
-    label: "Stable",
+  routine: {
+    label: "Routine",
     color: "text-emerald-600 dark:text-emerald-400",
     bg: "bg-emerald-50 dark:bg-emerald-900/20",
     dot: "bg-emerald-500",
@@ -39,8 +39,8 @@ const statusConfig = {
     bg: "bg-amber-50 dark:bg-amber-900/20",
     dot: "bg-amber-500",
   },
-  alert: {
-    label: "Alert",
+  critical: {
+    label: "Critical",
     color: "text-red-600 dark:text-red-400",
     bg: "bg-red-50 dark:bg-red-900/20",
     dot: "bg-red-500",
