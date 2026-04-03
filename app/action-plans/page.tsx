@@ -22,8 +22,14 @@ const statusGroups: Array<{ key: ActionPlan["status"]; label: string }> = [
 
 const severityBadge = {
   critical: "destructive" as const,
-  moderate: "warning" as const,
-  low: "info" as const,
+  monitor:  "warning" as const,
+  routine:  "info" as const,
+}
+
+const severityLabel: Record<string, string> = {
+  critical: "Critical",
+  monitor:  "Monitor",
+  routine:  "Routine",
 }
 
 const seniorNames = Array.from(
@@ -45,11 +51,12 @@ function ActionPlansContent() {
     : []
 
   const critical = seniorAlerts.filter((a) => a.severity === "critical")
-  const moderate = seniorAlerts.filter((a) => a.severity === "moderate")
-  const low      = seniorAlerts.filter((a) => a.severity === "low")
+  const monitor  = seniorAlerts.filter((a) => a.severity === "monitor")
+  const routine  = seniorAlerts.filter((a) => a.severity === "routine")
   const openAlerts = seniorAlerts.filter(
     (a) => a.status === "active" || a.status === "acknowledged"
   )
+
 
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
   const [context, setContext] = useState("")
@@ -218,8 +225,8 @@ function ActionPlansContent() {
               ) : (
                 [
                   { group: critical, label: "Critical", labelColor: "text-red-500 dark:text-red-400" },
-                  { group: moderate, label: "Moderate", labelColor: "text-amber-500 dark:text-amber-400" },
-                  { group: low,      label: "Low",      labelColor: "text-gray-400 dark:text-gray-500" },
+                  { group: monitor,  label: "Monitor",  labelColor: "text-amber-500 dark:text-amber-400" },
+                  { group: routine,  label: "Routine",  labelColor: "text-blue-500 dark:text-blue-400" },
                 ].map(({ group, label, labelColor }) =>
                   group.length === 0 ? null : (
                     <div key={label} className="px-3 py-2.5 space-y-0.5">
@@ -238,7 +245,7 @@ function ActionPlansContent() {
                             onChange={() => toggleAlert(alert.id)}
                           />
                           <Badge variant={severityBadge[alert.severity]} className="text-[10px] shrink-0">
-                            {alert.severity}
+                            {severityLabel[alert.severity] ?? alert.severity}
                           </Badge>
                           <span className="flex-1 min-w-0 text-xs font-semibold text-gray-900 dark:text-white truncate">
                             {alert.title}

@@ -9,7 +9,7 @@
 // ─────────────────────────────────────────────────────────────────────────────
 
 export type SeniorStatus = "critical" | "monitor" | "routine";
-export type AlertSeverity = "critical" | "moderate" | "low";
+export type AlertSeverity = "critical" | "monitor" | "routine";
 export type AlertStatus = "active" | "acknowledged" | "resolved";
 export type AlertType =
   | "fall_detected"
@@ -576,7 +576,7 @@ export const MOCK_ALERTS: Alert[] = [
     seniorName: "Robert Chen",
     type: "vitals_trending",
     category: "vitals_trending",
-    severity: "moderate",
+    severity: "monitor",
     title: "Resting heart rate elevated 16 bpm above baseline for 2 nights",
     description: "Average overnight HR of 88 bpm vs Robert's 72 bpm 30-day baseline.",
     aiExplanation:
@@ -597,7 +597,7 @@ export const MOCK_ALERTS: Alert[] = [
     seniorName: "Margaret Sullivan",
     type: "sleep_duration",
     category: "sleep",
-    severity: "moderate",
+    severity: "monitor",
     title: "Sleep below 5.5 hours for 5 consecutive nights",
     description: "Averaging 5.4 hours over the past 5 nights against her 6.8-hour baseline.",
     aiExplanation:
@@ -618,7 +618,7 @@ export const MOCK_ALERTS: Alert[] = [
     seniorName: "Eleanor Yang",
     type: "medication_late",
     category: "medication",
-    severity: "moderate",
+    severity: "monitor",
     title: "Afternoon metformin missed — 2nd time this week",
     description: "MedMinder did not log Eleanor's 2:00 PM metformin dose. Morning dose confirmed at 8:14 AM.",
     aiExplanation:
@@ -639,7 +639,7 @@ export const MOCK_ALERTS: Alert[] = [
     seniorName: "Margaret Sullivan",
     type: "appointment_upcoming_48h",
     category: "appointment",
-    severity: "moderate",
+    severity: "monitor",
     title: "Geriatric specialist appointment in 48 hours",
     description: "Dr. Stein at Kaiser Permanente San Jose — Thursday 2:30 PM. Health trends prepared.",
     aiExplanation:
@@ -663,7 +663,7 @@ export const MOCK_ALERTS: Alert[] = [
     seniorName: "Margaret Sullivan",
     type: "best_sleep_week",
     category: "positive_signal",
-    severity: "low",
+    severity: "routine",
     title: "Best sleep quality week in the past 30 days",
     description: "Margaret averaged 7.1 hours with minimal wake events over the past 7 nights.",
     aiExplanation:
@@ -684,7 +684,7 @@ export const MOCK_ALERTS: Alert[] = [
     seniorName: "Eleanor Yang",
     type: "wearable_battery_low",
     category: "device_connectivity",
-    severity: "low",
+    severity: "routine",
     title: "Apple Watch battery at 8% — sync may be disrupted",
     description: "Eleanor's Apple Watch reported 8% battery as of 11:30 AM. Charging reminder recommended.",
     aiExplanation:
@@ -705,7 +705,7 @@ export const MOCK_ALERTS: Alert[] = [
     seniorName: "Eleanor Yang",
     type: "routine_variation",
     category: "routine",
-    severity: "low",
+    severity: "routine",
     title: "Morning kitchen activity started 90 minutes later than usual",
     description: "Ring camera first detected Eleanor in the kitchen at 8:45 AM vs her typical 7:15 AM.",
     aiExplanation:
@@ -726,7 +726,7 @@ export const MOCK_ALERTS: Alert[] = [
     seniorName: "Margaret Sullivan",
     type: "appointment_upcoming_week",
     category: "upcoming_items",
-    severity: "low",
+    severity: "routine",
     title: "Follow-up bone density scan in 6 days",
     description: "Radiography appointment at Kaiser San Jose on Monday at 10:00 AM. Transport may be needed.",
     aiExplanation:
@@ -747,7 +747,7 @@ export const MOCK_ALERTS: Alert[] = [
     seniorName: "Robert Chen",
     type: "phone_activity_low",
     category: "social_behavioral",
-    severity: "low",
+    severity: "routine",
     title: "Phone call activity significantly below usual for 3 days",
     description: "Robert typically makes or receives 4–6 calls per day. This week's average is under 1.",
     aiExplanation:
@@ -768,7 +768,7 @@ export const MOCK_ALERTS: Alert[] = [
     seniorName: "Eleanor Yang",
     type: "prescription_refill",
     category: "upcoming_items",
-    severity: "low",
+    severity: "routine",
     title: "Metformin refill needed within 10 days",
     description: "Based on MedMinder dispense logs, Eleanor has approximately 10 days of metformin remaining.",
     aiExplanation:

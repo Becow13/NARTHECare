@@ -49,8 +49,14 @@ const statusConfig = {
 
 const severityBadge = {
   critical: "destructive" as const,
-  moderate: "warning" as const,
-  low: "info" as const,
+  monitor:  "warning" as const,
+  routine:  "info" as const,
+}
+
+const severityLabel: Record<string, string> = {
+  critical: "Critical",
+  monitor:  "Monitor",
+  routine:  "Routine",
 }
 
 const overallStatusConfig = {
@@ -428,7 +434,7 @@ export default function DashboardPage() {
                   variant={severityBadge[alert.severity]}
                   className="shrink-0 mt-0.5"
                 >
-                  {alert.severity}
+                  {severityLabel[alert.severity] ?? alert.severity}
                 </Badge>
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-gray-900 dark:text-white">

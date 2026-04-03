@@ -49,16 +49,16 @@ const seniorAgeMap = Object.fromEntries(
   MOCK_SENIORS.map((s) => [s.id, s.age])
 )
 
-const severityBadge: Record<AlertSeverity, "destructive" | "warning" | "muted"> = {
+const severityBadge: Record<AlertSeverity, "destructive" | "warning" | "info"> = {
   critical: "destructive",
-  moderate: "warning",
-  low:      "muted",
+  monitor:  "warning",
+  routine:  "info",
 }
 
 const severityLabel: Record<AlertSeverity, string> = {
   critical: "Critical",
-  moderate: "Moderate",
-  low:      "Low",
+  monitor:  "Monitor",
+  routine:  "Routine",
 }
 
 const alertTypeIcon: Record<string, string> = {
@@ -119,13 +119,13 @@ export default function AlertsPage() {
   // ── derived counts ──────────────────────────────────────────────────────────
   const active = alerts.filter((a) => a.status !== "resolved" && !a.suppressedBy)
   const criticalCount  = active.filter((a) => a.severity === "critical").length
-  const moderateCount  = active.filter((a) => a.severity === "moderate").length
+  const monitorCount   = active.filter((a) => a.severity === "monitor").length
   const resolvedCount  = alerts.filter((a) => a.status === "resolved").length
 
-  // "stable" = seniors who have zero critical/moderate active alerts
+  // "stable" = seniors who have zero critical/monitor active alerts
   const stableCount = MOCK_SENIORS.filter((s) =>
     !active.some(
-      (a) => a.seniorId === s.id && (a.severity === "critical" || a.severity === "moderate")
+      (a) => a.seniorId === s.id && (a.severity === "critical" || a.severity === "monitor")
     )
   ).length
 
@@ -187,9 +187,9 @@ export default function AlertsPage() {
   const tabs: { key: SeverityFilter; label: string; count: number; countStyle: string }[] = [
     { key: "all",      label: "All",      count: alerts.length,  countStyle: "bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300" },
     { key: "critical", label: "Critical", count: criticalCount,  countStyle: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400" },
-    { key: "moderate", label: "Moderate", count: moderateCount,  countStyle: "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400" },
-    { key: "low",      label: "Low",      count: alerts.filter((a) => a.severity === "low" && a.status !== "resolved").length,
-                                          countStyle: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400" },
+    { key: "monitor",  label: "Monitor",  count: monitorCount,   countStyle: "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400" },
+    { key: "routine",  label: "Routine",  count: alerts.filter((a) => a.severity === "routine" && a.status !== "resolved").length,
+                                          countStyle: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400" },
     { key: "resolved", label: "Resolved", count: resolvedCount,  countStyle: "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400" },
   ]
 
@@ -229,7 +229,7 @@ export default function AlertsPage() {
         <div className="flex items-center gap-2 px-3 py-2 rounded-lg bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800">
           <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" />
           <span className="text-sm font-semibold text-amber-700 dark:text-amber-400">
-            {moderateCount} moderate
+            {monitorCount} monitor
           </span>
           <span className="text-xs text-amber-500 dark:text-amber-500">— check in soon</span>
         </div>

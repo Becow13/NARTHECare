@@ -56,8 +56,14 @@ const statusConfig = {
 
 const alertSeverityBadge = {
   critical: "destructive" as const,
-  moderate: "warning" as const,
-  low: "info" as const,
+  monitor:  "warning" as const,
+  routine:  "info" as const,
+}
+
+const alertSeverityLabel: Record<string, string> = {
+  critical: "Critical",
+  monitor:  "Monitor",
+  routine:  "Routine",
 }
 
 const alertStatusIcon = {
@@ -536,18 +542,18 @@ export default function SeniorProfilePage({
                     countBg: "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400",
                   },
                   {
-                    key: "moderate",
-                    label: "Moderate",
+                    key: "monitor",
+                    label: "Monitor",
                     headerColor: "text-amber-600 dark:text-amber-400",
                     borderColor: "border-l-amber-500",
                     countBg: "bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400",
                   },
                   {
-                    key: "low",
-                    label: "Low",
-                    headerColor: "text-gray-500 dark:text-gray-400",
-                    borderColor: "border-l-gray-400",
-                    countBg: "bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400",
+                    key: "routine",
+                    label: "Routine",
+                    headerColor: "text-blue-500 dark:text-blue-400",
+                    borderColor: "border-l-blue-400",
+                    countBg: "bg-blue-100 dark:bg-blue-900/30 text-blue-600 dark:text-blue-400",
                   },
                 ] as const
               ).map(({ key, label, headerColor, borderColor, countBg }) => {
@@ -580,7 +586,7 @@ export default function SeniorProfilePage({
                                 <div className="flex items-start justify-between gap-3 flex-wrap">
                                   <div className="flex items-center gap-2 flex-wrap">
                                     <Badge variant={alertSeverityBadge[alert.severity]}>
-                                      {alert.severity}
+                                      {alertSeverityLabel[alert.severity] ?? alert.severity}
                                     </Badge>
                                     <h3 className="text-sm font-semibold text-gray-900 dark:text-white">
                                       {alert.title}
