@@ -3,7 +3,7 @@
 import { useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { ClipboardList, CheckCircle2 } from "lucide-react"
-import { MOCK_ACTION_PLANS, type ActionPlan } from "@/lib/mock-data"
+import { MOCK_ACTION_PLANS, MOCK_ALERTS, type ActionPlan, type Alert } from "@/lib/mock-data"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { formatRelativeTime } from "@/lib/utils"
@@ -20,6 +20,12 @@ const statusGroups: Array<{ key: ActionPlan["status"]; label: string }> = [
   { key: "complete", label: "Completed" },
 ]
 
+const severityBadge = {
+  critical: "destructive" as const,
+  moderate: "warning" as const,
+  low: "info" as const,
+}
+
 const seniorNames = Array.from(
   new Map(MOCK_ACTION_PLANS.map((p) => [p.seniorId, p.seniorName])).entries()
 ).map(([id, name]) => ({ id, name }))
@@ -29,8 +35,38 @@ function ActionPlansContent() {
   const seniorIdParam = searchParams.get("seniorId") ?? null
 
   const seniorName = seniorIdParam
-    ? MOCK_ACTION_PLANS.find((p) => p.seniorId === seniorIdParam)?.seniorName ?? null
+    ? (MOCK_ACTION_PLANS.find((p) => p.seniorId === seniorIdParam)?.seniorName
+        ?? MOCK_ALERTS.find((a) => a.seniorId === seniorIdParam)?.seniorName
+        ?? null)
     : null
+
+  const seniorAlerts = seniorIdParam
+    ? MOCK_ALERTS.filter((a) => a.seniorId === seniorIdParam)
+    : []
+
+  const critical = seniorAlerts.filter((a) => a.severity === "critical")
+  const moderate = seniorAlerts.filter((a) => a.severity === "moderate")
+  const low      = seniorAlerts.filter((a) => a.severity === "low")
+  const openAlerts = seniorAlerts.filter(
+    (a) => a.status === "active" || a.status === "acknowledged"
+  )
+
+  const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
+
+  const toggleAlert = (id: string) =>
+    setCheckedIds((prev) => {
+      const next = new Set(prev)
+      next.has(id) ? next.delete(id) : next.add(id)
+      return next
+    })
+
+  const selectAllCritical = () =>
+    setCheckedIds((prev) => new Set([...Array.from(prev), ...critical.map((a) => a.id)]))
+
+  const selectAllOpen = () =>
+    setCheckedIds((prev) => new Set([...Array.from(prev), ...openAlerts.map((a) => a.id)]))
+
+  const clearAll = () => setCheckedIds(new Set())
 
   const [seniorFilter, setSeniorFilter] = useState(seniorIdParam ?? "all")
   const [statusFilter, setStatusFilter] = useState("all")
@@ -105,6 +141,102 @@ function ActionPlansContent() {
           <option value="complete">Completed</option>
         </select>
       </div>
+
+      {/* Alert checklist — shown only when filtered to a specific senior */}
+      {seniorIdParam && (
+        <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
+          <CardContent className="px-5 py-4 space-y-4">
+            {/* Label */}
+            <p className="text-xs font-bold text-gray-800 dark:text-gray-200">
+              Select alerts to include
+            </p>
+
+            {/* Shortcut buttons */}
+            <div className="flex flex-wrap gap-2">
+              <button
+                type="button"
+                onClick={selectAllCritical}
+                disabled={critical.length === 0}
+                className="text-[11px] font-medium px-2.5 py-1 rounded-md border border-red-200 dark:border-red-800 text-red-600 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-900/20 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Select all critical
+              </button>
+              <button
+                type="button"
+                onClick={selectAllOpen}
+                disabled={openAlerts.length === 0}
+                className="text-[11px] font-medium px-2.5 py-1 rounded-md border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Select all open
+              </button>
+              <button
+                type="button"
+                onClick={clearAll}
+                disabled={checkedIds.size === 0}
+                className="text-[11px] px-2.5 py-1 rounded-md border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 disabled:opacity-40 disabled:cursor-not-allowed"
+              >
+                Clear selection
+              </button>
+            </div>
+
+            {/* Alert checklist */}
+            <div className="border border-gray-200 dark:border-gray-700 rounded-lg divide-y divide-gray-100 dark:divide-gray-800 bg-white dark:bg-gray-900/50">
+              {seniorAlerts.length === 0 ? (
+                <p className="text-xs text-gray-400 dark:text-gray-500 text-center py-6">
+                  No alerts on record for this senior.
+                </p>
+              ) : (
+                [
+                  { group: critical, label: "Critical", labelColor: "text-red-500 dark:text-red-400" },
+                  { group: moderate, label: "Moderate", labelColor: "text-amber-500 dark:text-amber-400" },
+                  { group: low,      label: "Low",      labelColor: "text-gray-400 dark:text-gray-500" },
+                ].map(({ group, label, labelColor }) =>
+                  group.length === 0 ? null : (
+                    <div key={label} className="px-3 py-2.5 space-y-0.5">
+                      <p className={`text-[10px] font-semibold uppercase tracking-wider mb-2 ${labelColor}`}>
+                        {label}
+                      </p>
+                      {group.map((alert) => (
+                        <label
+                          key={alert.id}
+                          className="flex items-center gap-3 py-1.5 rounded-md hover:bg-gray-50 dark:hover:bg-gray-800/50 cursor-pointer px-1 -mx-1"
+                        >
+                          <input
+                            type="checkbox"
+                            className="accent-[#1D9E75] shrink-0"
+                            checked={checkedIds.has(alert.id)}
+                            onChange={() => toggleAlert(alert.id)}
+                          />
+                          <Badge variant={severityBadge[alert.severity]} className="text-[10px] shrink-0">
+                            {alert.severity}
+                          </Badge>
+                          <span className="flex-1 min-w-0 text-xs font-semibold text-gray-900 dark:text-white truncate">
+                            {alert.title}
+                          </span>
+                          <span className="text-[10px] text-gray-400 dark:text-gray-500 shrink-0 whitespace-nowrap">
+                            {formatRelativeTime(alert.timestamp)}
+                          </span>
+                        </label>
+                      ))}
+                    </div>
+                  )
+                )
+              )}
+            </div>
+
+            {/* Running count */}
+            <p className="text-xs text-gray-500 dark:text-gray-400">
+              {checkedIds.size === 0 ? (
+                <span className="text-gray-400 dark:text-gray-500">No alerts selected</span>
+              ) : (
+                <span className="font-medium text-[#1D9E75]">
+                  {checkedIds.size} alert{checkedIds.size !== 1 ? "s" : ""} selected
+                </span>
+              )}
+            </p>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Plan list grouped by status */}
       {filtered.length === 0 ? (
