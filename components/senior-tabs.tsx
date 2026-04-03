@@ -18,10 +18,8 @@ import {
   Phone,
 } from "lucide-react"
 import {
-  MOCK_SUMMARIES,
   MOCK_ALERTS,
   MOCK_ACTION_PLANS,
-  type AISummary,
   type Alert,
   type ActionPlan,
   type ActionOption,
@@ -30,28 +28,9 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card, CardContent, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { formatDate, formatRelativeTime } from "@/lib/utils"
+import { formatRelativeTime } from "@/lib/utils"
 
 // ─── helpers ─────────────────────────────────────────────────────────────────
-
-const urgencyBadgeVariant = {
-  urgent: "destructive" as const,
-  attention: "warning" as const,
-  routine: "success" as const,
-}
-
-const urgencyBar = {
-  urgent: "bg-red-500",
-  attention: "bg-amber-500",
-  routine: "bg-emerald-500",
-}
-
-const summaryTypeLabel: Record<string, string> = {
-  daily: "Daily Check-in",
-  post_visit: "Post-Visit",
-  weekly: "Weekly Report",
-  anomaly: "Anomaly Detected",
-}
 
 const difficultyConfig = {
   easy: { label: "Easy", color: "text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-950/40" },
@@ -437,68 +416,6 @@ function PlanCard({ plan, alerts, onUpdate }: PlanCardProps) {
   )
 }
 
-// ─── AI Insights Tab ──────────────────────────────────────────────────────────
-
-function InsightsTab({ summaries }: { summaries: AISummary[] }) {
-  if (summaries.length === 0) {
-    return (
-      <div className="text-center py-12">
-        <Sparkles className="h-8 w-8 text-gray-300 dark:text-gray-600 mx-auto mb-2" />
-        <p className="text-sm text-gray-500 dark:text-gray-400">No AI summaries yet</p>
-      </div>
-    )
-  }
-
-  return (
-    <div className="space-y-4">
-      {summaries.map((s) => (
-        <Card key={s.id} className="border-border dark:border-gray-800 dark:bg-gray-900 overflow-hidden">
-          <div className={`h-1 ${urgencyBar[s.urgency]} rounded-t-xl`} />
-          <CardContent className="px-5 py-4 space-y-2">
-            <div className="flex items-center justify-between gap-2">
-              <div>
-                <span className="inline-flex text-[10px] px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 font-medium">
-                  {summaryTypeLabel[s.summaryType] ?? s.summaryType}
-                </span>
-                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5">
-                  {formatDate(s.generatedAt)} · {formatRelativeTime(s.generatedAt)}
-                </p>
-              </div>
-              <Badge variant={urgencyBadgeVariant[s.urgency]} className="text-[10px] shrink-0">
-                {s.urgency.charAt(0).toUpperCase() + s.urgency.slice(1)}
-              </Badge>
-            </div>
-
-            <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">{s.plainTextSummary}</p>
-
-            {s.keyInsights.length > 0 && (
-              <ul className="space-y-1 pt-1">
-                {s.keyInsights.map((insight, i) => (
-                  <li key={i} className="flex items-start gap-1.5 text-xs text-gray-600 dark:text-gray-400">
-                    <span className="w-1 h-1 rounded-full bg-[#1D9E75] shrink-0 mt-1.5" />
-                    {insight}
-                  </li>
-                ))}
-              </ul>
-            )}
-
-            <div className="flex flex-wrap gap-1.5 pt-1">
-              {s.sourceTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="text-[10px] px-2 py-0.5 rounded-full bg-[#E8F7F2] dark:bg-[#1D9E75]/10 text-[#1D9E75] dark:text-[#4DC8A0] font-medium"
-                >
-                  {tag}
-                </span>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      ))}
-    </div>
-  )
-}
-
 // ─── Main SeniorTabs component ────────────────────────────────────────────────
 
 interface SeniorTabsProps {
@@ -509,16 +426,14 @@ export function SeniorTabs({ seniorId }: SeniorTabsProps) {
   const searchParams = useSearchParams()
   const router = useRouter()
 
-  const initialTab = searchParams.get("tab") === "action-plans" ? "action-plans" : "insights"
   const preCheckedAlertId = searchParams.get("newplan") ?? null
 
-  const [activeTab, setActiveTab] = useState(initialTab)
+  const [activeTab, setActiveTab] = useState("action-plans")
   const [showModal, setShowModal] = useState(preCheckedAlertId !== null)
   const [plans, setPlans] = useState<ActionPlan[]>(
     MOCK_ACTION_PLANS.filter((p) => p.seniorId === seniorId)
   )
 
-  const summaries = MOCK_SUMMARIES.filter((s) => s.seniorId === seniorId)
   const alerts = MOCK_ALERTS.filter((a) => a.seniorId === seniorId)
 
   const openPlans = plans.filter((p) => p.status !== "complete")
@@ -554,15 +469,6 @@ export function SeniorTabs({ seniorId }: SeniorTabsProps) {
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList className="mb-4">
-          <TabsTrigger value="insights" className="flex items-center gap-1.5 text-sm">
-            <Sparkles className="h-3.5 w-3.5" />
-            AI Insights
-            {summaries.length > 0 && (
-              <span className="ml-1 text-[10px] bg-gray-100 dark:bg-gray-800 text-gray-500 dark:text-gray-400 rounded-full px-1.5 py-0.5 font-medium">
-                {summaries.length}
-              </span>
-            )}
-          </TabsTrigger>
           <TabsTrigger value="action-plans" className="flex items-center gap-1.5 text-sm">
             <ClipboardList className="h-3.5 w-3.5" />
             Action Plans
@@ -573,10 +479,6 @@ export function SeniorTabs({ seniorId }: SeniorTabsProps) {
             )}
           </TabsTrigger>
         </TabsList>
-
-        <TabsContent value="insights">
-          <InsightsTab summaries={summaries} />
-        </TabsContent>
 
         <TabsContent value="action-plans">
           <div className="space-y-4">

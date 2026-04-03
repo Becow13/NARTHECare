@@ -7,6 +7,7 @@ import {
   Users,
   AlertTriangle,
   Sparkles,
+  ClipboardList,
   Settings,
   Heart,
   Menu,
@@ -35,6 +36,11 @@ const navItems = [
     label: "AI Insights",
     href: "/insights",
     icon: Sparkles,
+  },
+  {
+    label: "Action Plans",
+    href: "/action-plans",
+    icon: ClipboardList,
   },
   {
     label: "Settings",
