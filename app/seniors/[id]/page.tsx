@@ -25,6 +25,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
 import { Sparkline } from "@/components/sparkline"
+import { DataFreshnessBadge } from "@/components/data-freshness-badge"
 import { formatRelativeTime, formatDateTime, formatDate } from "@/lib/utils"
 
 const statusConfig = {
@@ -84,6 +85,18 @@ export default function SeniorProfilePage({
   )
 
   const latestReading = lastReadings[lastReadings.length - 1]
+
+  const avg = (vals: number[]) =>
+    vals.length ? Math.round(vals.reduce((s, v) => s + v, 0) / vals.length) : null
+
+  const avgHeartRate = avg(lastReadings.map((r) => r.heartRate))
+  const avgSysBP = avg(lastReadings.map((r) => r.bloodPressureSys))
+  const avgDiaBP = avg(lastReadings.map((r) => r.bloodPressureDia))
+  const avgSleep =
+    lastReadings.length
+      ? Math.round((lastReadings.reduce((s, r) => s + r.sleepHours, 0) / lastReadings.length) * 10) / 10
+      : null
+  const avgActivity = avg(lastReadings.map((r) => r.activityMinutes))
 
   return (
     <div className="max-w-5xl mx-auto space-y-6">
@@ -160,9 +173,22 @@ export default function SeniorProfilePage({
 
       {/* Vitals panel */}
       <div>
-        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3">
-          Vitals — Last 7 Days
-        </h2>
+        <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
+            Vitals — Last 7 Days
+          </h2>
+          <div className="flex items-center gap-3">
+            {latestReading && (
+              <span className="text-xs text-gray-400 dark:text-gray-500">
+                Last reading:{" "}
+                <span className="text-gray-600 dark:text-gray-300 font-medium">
+                  {formatDateTime(latestReading.timestamp)}
+                </span>
+              </span>
+            )}
+            <DataFreshnessBadge isLive={false} />
+          </div>
+        </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {/* Heart rate */}
           <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
@@ -174,9 +200,10 @@ export default function SeniorProfilePage({
                 </span>
               </div>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {latestReading?.heartRate ?? "—"}
+                {avgHeartRate ?? "—"}
                 <span className="text-sm font-normal text-gray-500 ml-1">bpm</span>
               </p>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">7-day avg</p>
               <div className="mt-2 h-10">
                 <Sparkline
                   data={lastReadings.map((r) => r.heartRate)}
@@ -196,11 +223,10 @@ export default function SeniorProfilePage({
                 </span>
               </div>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {latestReading
-                  ? `${latestReading.bloodPressureSys}/${latestReading.bloodPressureDia}`
-                  : "—"}
+                {avgSysBP && avgDiaBP ? `${avgSysBP}/${avgDiaBP}` : "—"}
                 <span className="text-sm font-normal text-gray-500 ml-1">mmHg</span>
               </p>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">7-day avg</p>
               <div className="mt-2 h-10">
                 <Sparkline
                   data={lastReadings.map((r) => r.bloodPressureSys)}
@@ -220,9 +246,10 @@ export default function SeniorProfilePage({
                 </span>
               </div>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {latestReading?.sleepHours ?? "—"}
+                {avgSleep ?? "—"}
                 <span className="text-sm font-normal text-gray-500 ml-1">hrs</span>
               </p>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">7-day avg</p>
               <div className="mt-2 h-10">
                 <Sparkline
                   data={lastReadings.map((r) => r.sleepHours)}
@@ -242,9 +269,10 @@ export default function SeniorProfilePage({
                 </span>
               </div>
               <p className="text-2xl font-bold text-gray-900 dark:text-white">
-                {latestReading?.activityMinutes ?? "—"}
+                {avgActivity ?? "—"}
                 <span className="text-sm font-normal text-gray-500 ml-1">min</span>
               </p>
+              <p className="text-[11px] text-gray-400 dark:text-gray-500 mt-0.5">7-day avg</p>
               <div className="mt-2 h-10">
                 <Sparkline
                   data={lastReadings.map((r) => r.activityMinutes)}
