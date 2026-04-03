@@ -2,7 +2,7 @@
 
 import { useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
-import { ClipboardList, CheckCircle2 } from "lucide-react"
+import { ClipboardList, CheckCircle2, Loader2, X } from "lucide-react"
 import { MOCK_ACTION_PLANS, MOCK_ALERTS, type ActionPlan, type Alert } from "@/lib/mock-data"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -52,6 +52,18 @@ function ActionPlansContent() {
   )
 
   const [checkedIds, setCheckedIds] = useState<Set<string>>(new Set())
+  const [context, setContext] = useState("")
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [showBanner, setShowBanner] = useState(false)
+
+  const handleGenerate = () => {
+    setIsGenerating(true)
+    setTimeout(() => {
+      setIsGenerating(false)
+      setShowBanner(true)
+      setTimeout(() => setShowBanner(false), 4000)
+    }, 1500)
+  }
 
   const toggleAlert = (id: string) =>
     setCheckedIds((prev) => {
@@ -83,6 +95,24 @@ function ActionPlansContent() {
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
+      {/* Success banner */}
+      {showBanner && (
+        <div className="flex items-center justify-between gap-3 px-4 py-3 rounded-lg bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800">
+          <div className="flex items-center gap-2">
+            <CheckCircle2 className="h-4 w-4 text-emerald-600 dark:text-emerald-400 shrink-0" />
+            <span className="text-sm font-medium text-emerald-800 dark:text-emerald-300">
+              Action plan generated
+            </span>
+          </div>
+          <button
+            onClick={() => setShowBanner(false)}
+            className="text-emerald-600 dark:text-emerald-400 hover:text-emerald-800 dark:hover:text-emerald-200"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      )}
+
       {/* Page header */}
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
@@ -234,6 +264,37 @@ function ActionPlansContent() {
                 </span>
               )}
             </p>
+
+            {/* Context input */}
+            <div>
+              <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+                Additional context (optional)
+              </label>
+              <input
+                type="text"
+                value={context}
+                onChange={(e) => setContext(e.target.value)}
+                placeholder="e.g. budget under $100, preparing for Thursday's appointment"
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/30"
+              />
+            </div>
+
+            {/* Generate button */}
+            <button
+              type="button"
+              onClick={handleGenerate}
+              disabled={checkedIds.size === 0 || isGenerating}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors bg-[#1D9E75] hover:bg-[#187E5D] text-white disabled:bg-gray-200 dark:disabled:bg-gray-700 disabled:text-gray-400 dark:disabled:text-gray-500 disabled:cursor-not-allowed"
+            >
+              {isGenerating ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Generating plan...
+                </>
+              ) : (
+                "Generate Action Plan from Selected Alerts"
+              )}
+            </button>
           </CardContent>
         </Card>
       )}
