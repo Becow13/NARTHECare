@@ -1,9 +1,10 @@
 "use client"
 
-import { useState } from "react"
-import { ClipboardList, CheckCircle2, Sparkles } from "lucide-react"
-import { MOCK_ACTION_PLANS, MOCK_SENIORS, type ActionPlan } from "@/lib/mock-data"
-import { Card, CardContent, CardHeader } from "@/components/ui/card"
+import { useState, Suspense } from "react"
+import { useSearchParams } from "next/navigation"
+import { ClipboardList, CheckCircle2 } from "lucide-react"
+import { MOCK_ACTION_PLANS, type ActionPlan } from "@/lib/mock-data"
+import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { formatRelativeTime } from "@/lib/utils"
 
@@ -23,8 +24,15 @@ const seniorNames = Array.from(
   new Map(MOCK_ACTION_PLANS.map((p) => [p.seniorId, p.seniorName])).entries()
 ).map(([id, name]) => ({ id, name }))
 
-export default function ActionPlansPage() {
-  const [seniorFilter, setSeniorFilter] = useState("all")
+function ActionPlansContent() {
+  const searchParams = useSearchParams()
+  const seniorIdParam = searchParams.get("seniorId") ?? null
+
+  const seniorName = seniorIdParam
+    ? MOCK_ACTION_PLANS.find((p) => p.seniorId === seniorIdParam)?.seniorName ?? null
+    : null
+
+  const [seniorFilter, setSeniorFilter] = useState(seniorIdParam ?? "all")
   const [statusFilter, setStatusFilter] = useState("all")
 
   const filtered = MOCK_ACTION_PLANS.filter((p) => {
@@ -41,9 +49,13 @@ export default function ActionPlansPage() {
     <div className="max-w-4xl mx-auto space-y-6">
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Action Plans</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
+          {seniorName ? `Action Plans — ${seniorName}` : "Action Plans"}
+        </h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-          AI-generated care plans across all seniors.
+          {seniorName
+            ? `AI-generated care plans for ${seniorName}.`
+            : "AI-generated care plans across all seniors."}
         </p>
       </div>
 
@@ -184,5 +196,13 @@ export default function ActionPlansPage() {
         </div>
       )}
     </div>
+  )
+}
+
+export default function ActionPlansPage() {
+  return (
+    <Suspense>
+      <ActionPlansContent />
+    </Suspense>
   )
 }
