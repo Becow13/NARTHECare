@@ -27,6 +27,7 @@ import { Separator } from "@/components/ui/separator"
 import { Sparkline } from "@/components/sparkline"
 import { DataFreshnessBadge } from "@/components/data-freshness-badge"
 import { VitalsLegend } from "@/components/vitals-legend"
+import { DataSourcesList } from "@/components/data-sources-list"
 import { formatRelativeTime, formatDateTime, formatDate } from "@/lib/utils"
 
 const statusConfig = {
@@ -113,61 +114,78 @@ export default function SeniorProfilePage({
       {/* Profile header */}
       <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
         <CardContent className="p-6">
-          <div className="flex flex-col sm:flex-row sm:items-start gap-5">
-            {/* Avatar */}
-            <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#1D9E75]/20 to-[#1D9E75]/5 dark:from-[#1D9E75]/30 dark:to-[#1D9E75]/10 flex items-center justify-center shrink-0 text-2xl font-bold text-[#1D9E75]">
-              {senior.name.split(" ").map((n) => n[0]).join("")}
-            </div>
+          <div className="flex flex-col lg:flex-row gap-0">
 
-            {/* Info */}
-            <div className="flex-1 min-w-0">
-              <div className="flex flex-wrap items-start gap-3">
-                <div>
-                  <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
-                    {senior.name}
-                  </h1>
-                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-                    Age {senior.age} · {senior.location}
-                  </p>
-                </div>
-                <span
-                  className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${cfg.bg} ${cfg.color}`}
-                >
-                  <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
-                  {cfg.label}
-                </span>
+            {/* LEFT — avatar + info (2/3) */}
+            <div className="flex flex-col sm:flex-row sm:items-start gap-5 flex-[2] min-w-0 lg:pr-6">
+              {/* Avatar */}
+              <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-[#1D9E75]/20 to-[#1D9E75]/5 dark:from-[#1D9E75]/30 dark:to-[#1D9E75]/10 flex items-center justify-center shrink-0 text-2xl font-bold text-[#1D9E75]">
+                {senior.name.split(" ").map((n) => n[0]).join("")}
               </div>
 
-              {/* Conditions */}
-              <div className="flex flex-wrap gap-2 mt-3">
-                {senior.primaryConditions.map((cond) => (
+              {/* Info */}
+              <div className="flex-1 min-w-0">
+                <div className="flex flex-wrap items-start gap-3">
+                  <div>
+                    <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+                      {senior.name}
+                    </h1>
+                    <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
+                      Age {senior.age} · {senior.location}
+                    </p>
+                  </div>
                   <span
-                    key={cond}
-                    className="text-xs px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium"
+                    className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium ${cfg.bg} ${cfg.color}`}
                   >
-                    {cond}
+                    <span className={`w-2 h-2 rounded-full ${cfg.dot}`} />
+                    {cfg.label}
                   </span>
-                ))}
-              </div>
+                </div>
 
-              {/* Last seen */}
-              <div className="flex items-center gap-1.5 mt-3 text-xs text-gray-500 dark:text-gray-400">
-                <Clock className="h-3.5 w-3.5" />
-                Last seen {formatRelativeTime(senior.lastSeen)}
-              </div>
+                {/* Conditions */}
+                <div className="flex flex-wrap gap-2 mt-3">
+                  {senior.primaryConditions.map((cond) => (
+                    <span
+                      key={cond}
+                      className="text-xs px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 font-medium"
+                    >
+                      {cond}
+                    </span>
+                  ))}
+                </div>
 
-              {/* Quick actions */}
-              <div className="flex flex-wrap gap-2 mt-4">
-                <Button size="sm" variant="outline" className="text-xs h-8">
-                  <Phone className="h-3.5 w-3.5 mr-1.5" />
-                  Contact Care Team
-                </Button>
-                <Button size="sm" variant="outline" className="text-xs h-8">
-                  <AlertTriangle className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
-                  Flag for Review
-                </Button>
+                {/* Last seen */}
+                <div className="flex items-center gap-1.5 mt-3 text-xs text-gray-500 dark:text-gray-400">
+                  <Clock className="h-3.5 w-3.5" />
+                  Last seen {formatRelativeTime(senior.lastSeen)}
+                </div>
+
+                {/* Quick actions */}
+                <div className="flex flex-wrap gap-2 mt-4">
+                  <Button size="sm" variant="outline" className="text-xs h-8">
+                    <Phone className="h-3.5 w-3.5 mr-1.5" />
+                    Contact Care Team
+                  </Button>
+                  <Button size="sm" variant="outline" className="text-xs h-8">
+                    <AlertTriangle className="h-3.5 w-3.5 mr-1.5 text-amber-500" />
+                    Flag for Review
+                  </Button>
+                </div>
               </div>
             </div>
+
+            {/* Divider */}
+            <div className="hidden lg:block w-px bg-gray-200 dark:bg-gray-700 mx-0 my-1 self-stretch" />
+            <div className="block lg:hidden h-px bg-gray-200 dark:bg-gray-700 my-5" />
+
+            {/* RIGHT — connected data sources (1/3) */}
+            <div className="flex-1 min-w-0 lg:pl-6">
+              <p className="text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500 mb-3">
+                Connected Sources
+              </p>
+              <DataSourcesList sources={senior.dataSources} />
+            </div>
+
           </div>
         </CardContent>
       </Card>
@@ -581,44 +599,6 @@ export default function SeniorProfilePage({
               </CardContent>
             </Card>
           )}
-
-          {/* Data sources */}
-          <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
-            <CardHeader className="pb-3">
-              <CardTitle className="text-sm font-semibold">
-                Connected Data Sources
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="px-5 pb-5 space-y-2.5">
-              {senior.dataSources.map((source) => (
-                <div
-                  key={source.id}
-                  className="flex items-center justify-between gap-3"
-                >
-                  <div className="flex items-center gap-2.5 min-w-0">
-                    <span className="text-base shrink-0">
-                      {dataSourceIcon[source.type]}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="text-xs font-medium text-gray-900 dark:text-white truncate">
-                        {source.name}
-                      </p>
-                      <p className="text-[10px] text-gray-500 dark:text-gray-400">
-                        {source.connected
-                          ? `Synced ${formatRelativeTime(source.lastSync)}`
-                          : "Disconnected"}
-                      </p>
-                    </div>
-                  </div>
-                  {source.connected ? (
-                    <Wifi className="h-3.5 w-3.5 text-emerald-500 shrink-0" />
-                  ) : (
-                    <WifiOff className="h-3.5 w-3.5 text-red-400 shrink-0" />
-                  )}
-                </div>
-              ))}
-            </CardContent>
-          </Card>
 
           {/* Care team */}
           <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
