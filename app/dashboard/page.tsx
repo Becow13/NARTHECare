@@ -73,12 +73,12 @@ const overallStatusConfig = {
 }
 
 function TrendIcon({ value }: { value: number }) {
-  if (value > 0) return <TrendingUp  className="h-3.5 w-3.5 text-amber-500" />
-  if (value < 0) return <TrendingDown className="h-3.5 w-3.5 text-emerald-500" />
-  return <Minus className="h-3.5 w-3.5 text-gray-400" />
+  if (value > 0) return <TrendingUp className="h-3.5 w-3.5 text-emerald-500" />
+  if (value < 0) return <TrendingDown className="h-3.5 w-3.5 text-red-500" />
+  return <Minus className="h-3.5 w-3.5 text-amber-400" />
 }
 
-const GRID = "grid grid-cols-[12px_36px_1fr_80px_80px_60px_90px_90px] gap-x-4 items-center"
+const GRID = "grid grid-cols-[12px_36px_1fr_80px_80px_100px_100px_90px] gap-x-4 items-center"
 
 export default function CareHubPage() {
   const stats           = MOCK_DASHBOARD_STATS
@@ -96,8 +96,26 @@ export default function CareHubPage() {
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Care Hub</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
-          Good morning, Becca. Here&apos;s your care overview for today.
+          Hello Becca! Welcome To Your Care Circle Care Hub!
         </p>
+      </div>
+
+
+      {/* ── Slogan Banner ── */}
+      <div style={{position: 'relative', borderRadius: '16px', overflow: 'hidden', background: '#0d0f2b', padding: '28px 36px'}}>
+        <div style={{position: 'absolute', top: 0, left: 0, width: '5px', height: '100%', background: '#3B5BDB'}} />
+        <div style={{position: 'absolute', top: 0, right: 0, width: '5px', height: '100%', background: '#91A7FF'}} />
+        <div style={{position: 'absolute', top: '-30px', left: '-30px', width: '120px', height: '120px', borderRadius: '50%', background: '#3B5BDB', opacity: 0.3}} />
+        <div style={{position: 'absolute', bottom: '-40px', right: '-20px', width: '150px', height: '150px', borderRadius: '50%', background: '#91A7FF', opacity: 0.15}} />
+        <div style={{textAlign: 'center', position: 'relative'}}>
+          <div style={{fontSize: '22px', fontWeight: 700, color: '#EEF0FF', letterSpacing: '3px', marginBottom: '8px'}}>NARTHECare</div>
+          <div style={{height: '2px', background: '#3B5BDB', opacity: 0.5, width: '200px', margin: '0 auto 12px'}} />
+          <div style={{fontSize: '30px', fontWeight: 700, color: '#EEF0FF', lineHeight: 1.3}}>Clear AIs,</div>
+          <div style={{fontSize: '30px', fontWeight: 700, color: '#91A7FF', lineHeight: 1.3}}>Full Care,</div>
+          <div style={{fontSize: '30px', fontWeight: 700, color: '#3B5BDB', lineHeight: 1.3}}>Can't Lose.</div>
+          <div style={{height: '2px', background: '#3B5BDB', opacity: 0.5, width: '200px', margin: '12px auto 12px'}} />
+          <div style={{fontSize: '11px', fontWeight: 600, color: '#91A7FF', letterSpacing: '2px'}}>◆ UNIFIED ◆ INTELLIGENT ◆ CAREGIVER FOCUSED</div>
+        </div>
       </div>
 
       {/* Stat cards */}
@@ -172,8 +190,8 @@ export default function CareHubPage() {
             <span>Care Member</span>
             <span className="text-center">Active Alerts</span>
             <span className="text-center">Appointments</span>
-            <span className="text-center">Trend</span>
-            <span className="text-center">Care Status</span>
+            <span className="text-center leading-tight">Overall Well-Being Journey</span>
+            <span className="text-center leading-tight">Today's Well-Being</span>
             <span className="text-center">Last Update</span>
           </div>
 
