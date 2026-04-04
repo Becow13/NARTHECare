@@ -1,3 +1,5 @@
+"use client"
+
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import {
@@ -18,6 +20,8 @@ import {
   Building2,
   Sparkles,
   ChevronRight,
+  ChevronDown,
+  ChevronUp,
 } from "lucide-react"
 import { getSeniorById } from "@/lib/mock-data"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
@@ -31,7 +35,7 @@ import { DataSourcesList } from "@/components/data-sources-list"
 import { CareTeamList } from "@/components/care-team-list"
 import { SeniorTabs } from "@/components/senior-tabs"
 import { formatRelativeTime, formatDateTime, formatDate } from "@/lib/utils"
-import { Suspense } from "react"
+import { Suspense, useState } from "react"
 
 const statusConfig = {
   routine: {
@@ -100,6 +104,16 @@ export default function SeniorProfilePage({
   const sortedAlerts = [...senior.alerts].sort(
     (a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   )
+
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({
+    critical: true,
+    monitor: true,
+    routine: true,
+  })
+
+  const toggleGroup = (key: string) => {
+    setOpenGroups(prev => ({ ...prev, [key]: !prev[key] }))
+  }
 
   const latestReading = lastReadings[lastReadings.length - 1]
 
@@ -568,16 +582,24 @@ export default function SeniorProfilePage({
                 return (
                   <div key={key} className="space-y-3">
                     {/* Sub-section header */}
-                    <div className={`flex items-center gap-2 pl-3 border-l-2 ${borderColor}`}>
+                    <button
+                      onClick={() => toggleGroup(key)}
+                      className={`flex items-center gap-2 pl-3 border-l-2 ${borderColor} w-full text-left hover:opacity-80 transition-opacity cursor-pointer`}
+                    >
                       <span className={`text-xs font-semibold uppercase tracking-wide ${headerColor}`}>
                         {label}
                       </span>
                       <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full ${countBg}`}>
                         {group.length}
                       </span>
-                    </div>
+                      <span className="ml-auto pr-1">
+                        {openGroups[key]
+                          ? <ChevronUp className={`h-3.5 w-3.5 ${headerColor}`} />
+                          : <ChevronDown className={`h-3.5 w-3.5 ${headerColor}`} />}
+                      </span>
+                    </button>
                     {/* Alerts in this group */}
-                    <div className="relative">
+                    {openGroups[key] && <div className="relative">
                       <div className="absolute left-[15px] top-2 bottom-2 w-px bg-border dark:bg-gray-800" />
                       <div className="space-y-3">
                         {group.map((alert) => (
@@ -618,7 +640,7 @@ export default function SeniorProfilePage({
                           </div>
                         ))}
                       </div>
-                    </div>
+                    </div>}
                   </div>
                 )
               })}
