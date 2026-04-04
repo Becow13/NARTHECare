@@ -26,7 +26,7 @@ import { formatDate, formatRelativeTime } from "@/lib/utils"
 const avatarBg: Record<string, string> = {
   critical: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
   monitor:  "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
-  routine:  "bg-[#1D9E75]/10 dark:bg-[#1D9E75]/20 text-[#1D9E75] dark:text-[#4DC8A0]",
+  routine:  "bg-[#3B5BDB]/10 dark:bg-[#3B5BDB]/20 text-[#3B5BDB] dark:text-[#91A7FF]",
 }
 
 const seniorStatusMap = new Map(MOCK_SENIORS.map((s) => [s.id, s.status]))
@@ -90,7 +90,7 @@ function InsightsContent() {
       {/* Header */}
       <div>
         <div className="flex items-center gap-2">
-          <Sparkles className="h-5 w-5 text-[#1D9E75]" />
+          <Sparkles className="h-5 w-5 text-[#3B5BDB]" />
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
             AI Insights
           </h1>
@@ -174,7 +174,7 @@ function InsightsContent() {
               variant="ghost"
               size="sm"
               onClick={clearFilters}
-              className="mt-2 text-[#1D9E75]"
+              className="mt-2 text-[#3B5BDB]"
             >
               Clear all filters
             </Button>
@@ -202,7 +202,7 @@ function InsightsContent() {
                       <div className="min-w-0">
                         <Link
                           href={`/seniors/${summary.seniorId}`}
-                          className="text-sm font-semibold text-gray-900 dark:text-white hover:text-[#1D9E75] dark:hover:text-[#4DC8A0] truncate block"
+                          className="text-sm font-semibold text-gray-900 dark:text-white hover:text-[#3B5BDB] dark:hover:text-[#91A7FF] truncate block"
                         >
                           {summary.seniorName}
                         </Link>
@@ -242,7 +242,7 @@ function InsightsContent() {
                             key={i}
                             className="flex items-start gap-1.5 text-xs text-gray-600 dark:text-gray-400"
                           >
-                            <span className="w-1 h-1 rounded-full bg-[#1D9E75] shrink-0 mt-1.5" />
+                            <span className="w-1 h-1 rounded-full bg-[#3B5BDB] shrink-0 mt-1.5" />
                             <span className="line-clamp-2">{insight}</span>
                           </li>
                         ))}
@@ -255,7 +255,7 @@ function InsightsContent() {
                     {summary.sourceTags.map((tag) => (
                       <span
                         key={tag}
-                        className="text-[10px] px-2 py-0.5 rounded-full bg-[#E8F7F2] dark:bg-[#1D9E75]/10 text-[#1D9E75] dark:text-[#4DC8A0] font-medium"
+                        className="text-[10px] px-2 py-0.5 rounded-full bg-[#EEF0FF] dark:bg-[#3B5BDB]/10 text-[#3B5BDB] dark:text-[#91A7FF] font-medium"
                       >
                         {tag}
                       </span>

@@ -143,7 +143,7 @@ export default function AppointmentsPage() {
                 {/* Button */}
                 <div className="mt-4">
                   <Link href={`/seniors/${senior.id}`}>
-                    <button className="bg-[#1D9E75] hover:bg-[#187E5D] text-white text-sm px-4 py-2 rounded-lg font-medium">
+                    <button className="bg-[#3B5BDB] hover:bg-[#2F4AC4] text-white text-sm px-4 py-2 rounded-lg font-medium">
                       View Care Member Profile
                     </button>
                   </Link>

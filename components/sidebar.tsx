@@ -9,7 +9,7 @@ import {
   Sparkles,
   ClipboardList,
   CalendarClock,
-  Settings
+  Settings,
   Menu,
   X,
 } from "lucide-react"
@@ -90,17 +90,18 @@ export function Sidebar() {
       >
         {/* Wordmark */}
         <div className="flex items-center gap-2.5 px-6 py-5 border-b border-border">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1D9E75] shrink-0">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#3B5BDB] shrink-0">
             <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
               <circle cx="10" cy="10" r="7" stroke="white" strokeWidth="1.5" strokeDasharray="9 5" strokeLinecap="round" transform="rotate(-30 10 10)"/>
               <rect x="6.5" y="6.5" width="7" height="7" rx="1.5" fill="white" opacity="0.9" transform="rotate(45 10 10)"/>
-              <circle cx="10" cy="10" r="2" fill="#1D9E75"/>
+              <circle cx="10" cy="10" r="2" fill="#3B5BDB"/>
               <circle cx="14.2" cy="5.8" r="1.5" fill="white" opacity="0.7"/>
             </svg>
           </div>
-          <span className="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-white">
-            NartheCare
-          </span>
+          <div className="flex flex-col">
+            <span className="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-white">NARTHECare</span>
+            <span className="text-[9px] font-medium tracking-widest text-gray-400 dark:text-[#91A7FF] uppercase">◆ Unified ◆ Intelligent ◆ Caregiver Focused</span>
+          </div>
         </div>
 
         {/* Nav */}
@@ -117,7 +118,7 @@ export function Sidebar() {
                 className={cn(
                   "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
                   isActive
-                    ? "bg-[#E8F7F2] text-[#1D9E75] dark:bg-[#1D9E75]/20 dark:text-[#4DC8A0]"
+                    ? "bg-[#EEF0FF] text-[#3B5BDB] dark:bg-[#3B5BDB]/20 dark:text-[#91A7FF]"
                     : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
                 )}
               >
@@ -125,7 +126,7 @@ export function Sidebar() {
                   className={cn(
                     "h-4 w-4 shrink-0",
                     isActive
-                      ? "text-[#1D9E75] dark:text-[#4DC8A0]"
+                      ? "text-[#3B5BDB] dark:text-[#91A7FF]"
                       : "text-gray-500 dark:text-gray-500"
                   )}
                 />
@@ -138,8 +139,8 @@ export function Sidebar() {
         {/* Footer */}
         <div className="px-4 py-4 border-t border-border">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#1D9E75]/10 flex items-center justify-center shrink-0">
-              <span className="text-xs font-semibold text-[#1D9E75]">BY</span>
+            <div className="w-8 h-8 rounded-full bg-[#3B5BDB]/10 flex items-center justify-center shrink-0">
+              <span className="text-xs font-semibold text-[#3B5BDB]">BY</span>
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">

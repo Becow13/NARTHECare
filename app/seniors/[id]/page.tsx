@@ -67,7 +67,7 @@ const alertSeverityBadge = {
 const avatarBg: Record<string, string> = {
   critical: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
   monitor:  "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
-  routine:  "bg-[#1D9E75]/10 dark:bg-[#1D9E75]/20 text-[#1D9E75] dark:text-[#4DC8A0]",
+  routine:  "bg-[#3B5BDB]/10 dark:bg-[#3B5BDB]/20 text-[#3B5BDB] dark:text-[#91A7FF]",
 }
 
 const alertSeverityLabel: Record<string, string> = {
@@ -239,7 +239,7 @@ export default function SeniorProfilePage({
         <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
           <CardHeader className="pb-3">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-[#1D9E75]" />
+              <Sparkles className="h-4 w-4 text-[#3B5BDB]" />
               <CardTitle className="text-sm font-semibold">
                 Latest AI Summary
               </CardTitle>
@@ -264,7 +264,7 @@ export default function SeniorProfilePage({
                       key={i}
                       className="flex items-start gap-2 text-xs text-gray-600 dark:text-gray-400"
                     >
-                      <span className="w-1.5 h-1.5 rounded-full bg-[#1D9E75] shrink-0 mt-1" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-[#3B5BDB] shrink-0 mt-1" />
                       {action}
                     </li>
                   ))}
@@ -309,7 +309,7 @@ export default function SeniorProfilePage({
           </div>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
             {/* Today — Heart Rate */}
-            <Card className="border-[#1D9E75]/20 dark:border-[#1D9E75]/20 bg-[#1D9E75]/[0.04] dark:bg-[#1D9E75]/[0.08]">
+            <Card className="border-[#3B5BDB]/20 dark:border-[#3B5BDB]/20 bg-[#3B5BDB]/[0.04] dark:bg-[#3B5BDB]/[0.08]">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Heart className="h-4 w-4 text-red-400" />
@@ -337,7 +337,7 @@ export default function SeniorProfilePage({
             </Card>
 
             {/* Today — Blood Pressure */}
-            <Card className="border-[#1D9E75]/20 dark:border-[#1D9E75]/20 bg-[#1D9E75]/[0.04] dark:bg-[#1D9E75]/[0.08]">
+            <Card className="border-[#3B5BDB]/20 dark:border-[#3B5BDB]/20 bg-[#3B5BDB]/[0.04] dark:bg-[#3B5BDB]/[0.08]">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Activity className="h-4 w-4 text-purple-400" />
@@ -365,7 +365,7 @@ export default function SeniorProfilePage({
             </Card>
 
             {/* Today — Sleep */}
-            <Card className="border-[#1D9E75]/20 dark:border-[#1D9E75]/20 bg-[#1D9E75]/[0.04] dark:bg-[#1D9E75]/[0.08]">
+            <Card className="border-[#3B5BDB]/20 dark:border-[#3B5BDB]/20 bg-[#3B5BDB]/[0.04] dark:bg-[#3B5BDB]/[0.08]">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
                   <Moon className="h-4 w-4 text-blue-400" />
@@ -393,10 +393,10 @@ export default function SeniorProfilePage({
             </Card>
 
             {/* Today — Activity */}
-            <Card className="border-[#1D9E75]/20 dark:border-[#1D9E75]/20 bg-[#1D9E75]/[0.04] dark:bg-[#1D9E75]/[0.08]">
+            <Card className="border-[#3B5BDB]/20 dark:border-[#3B5BDB]/20 bg-[#3B5BDB]/[0.04] dark:bg-[#3B5BDB]/[0.08]">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <Footprints className="h-4 w-4 text-[#1D9E75]" />
+                  <Footprints className="h-4 w-4 text-[#3B5BDB]" />
                   <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                     Activity
                   </span>
@@ -515,7 +515,7 @@ export default function SeniorProfilePage({
           <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 mb-2">
-                <Footprints className="h-4 w-4 text-[#1D9E75]" />
+                <Footprints className="h-4 w-4 text-[#3B5BDB]" />
                 <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   Activity
                 </span>
@@ -528,7 +528,7 @@ export default function SeniorProfilePage({
               <div className="mt-2 h-10">
                 <Sparkline
                   data={lastReadings.map((r) => r.activityMinutes)}
-                  color="#1D9E75"
+                  color="#3B5BDB"
                 />
               </div>
             </CardContent>

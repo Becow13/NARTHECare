@@ -2,8 +2,6 @@ import Link from "next/link"
 import {
   Users,
   AlertTriangle,
-  CalendarClock,
-  Activity,
   TrendingUp,
   TrendingDown,
   Minus,
@@ -24,9 +22,9 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { formatRelativeTime, formatDateTime } from "@/lib/utils"
+import { formatRelativeTime } from "@/lib/utils"
 
-// ─── Status config ────────────────────────────────────────────────────────────
+// ─── Status config ───────────────────────────────────────────────────────────
 const statusConfig = {
   routine: {
     label: "Routine",
@@ -48,22 +46,10 @@ const statusConfig = {
   },
 }
 
-const severityBadge = {
-  critical: "destructive" as const,
-  monitor:  "warning"     as const,
-  routine:  "info"        as const,
-}
-
-const severityLabel: Record<string, string> = {
-  critical: "Critical",
-  monitor:  "Monitor",
-  routine:  "Routine",
-}
-
 const avatarBg: Record<string, string> = {
   critical: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
   monitor:  "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
-  routine:  "bg-[#1D9E75]/10 dark:bg-[#1D9E75]/20 text-[#1D9E75] dark:text-[#4DC8A0]",
+  routine:  "bg-[#3B5BDB]/10 dark:bg-[#3B5BDB]/20 text-[#3B5BDB] dark:text-[#91A7FF]",
 }
 
 const overallStatusConfig = {
@@ -87,34 +73,22 @@ const overallStatusConfig = {
   },
 }
 
-// ─── Trend icon ───────────────────────────────────────────────────────────────
+// ─── Trend icon ──────────────────────────────────────────────────────────────
 function TrendIcon({ value }: { value: number }) {
   if (value > 0) return <TrendingUp  className="h-3.5 w-3.5 text-amber-500" />
   if (value < 0) return <TrendingDown className="h-3.5 w-3.5 text-emerald-500" />
   return <Minus className="h-3.5 w-3.5 text-gray-400" />
 }
 
-// ─── Grid column definition (used by BOTH header and every data row) ──────────
-// col 1: status dot  12px
-// col 2: avatar      36px
-// col 3: name        1fr
-// col 4: alerts      80px
-// col 5: appts       80px
-// col 6: trend       60px
-// col 7: status      90px
-// col 8: last update 90px
+// ─── Grid column definition ──────────────────────────────────────────────────
 const GRID = "grid grid-cols-[12px_36px_1fr_80px_80px_60px_90px_90px] gap-x-4 items-center"
 
-// ─── Page ─────────────────────────────────────────────────────────────────────
+// ─── Page ────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
-  const stats          = MOCK_DASHBOARD_STATS
-  const seniors        = MOCK_SENIORS
-  const activeAlerts   = MOCK_ALERTS.filter((a) => a.status === "active")
+  const stats           = MOCK_DASHBOARD_STATS
+  const seniors         = MOCK_SENIORS
+  const activeAlerts    = MOCK_ALERTS.filter((a) => a.status === "active")
   const recentSummaries = MOCK_SUMMARIES.slice(0, 3)
-  const upcomingAppts  = MOCK_APPOINTMENTS
-    .filter((a) => new Date(a.dateTime) > new Date())
-    .sort((a, b) => new Date(a.dateTime).getTime() - new Date(b.dateTime).getTime())
-    .slice(0, 3)
 
   const overallCfg  = overallStatusConfig[stats.overallStatus]
   const OverallIcon = overallCfg.icon
@@ -145,8 +119,8 @@ export default function DashboardPage() {
                   {stats.activeSeniors}
                 </p>
               </div>
-              <div className="w-9 h-9 rounded-lg bg-[#E8F7F2] dark:bg-[#1D9E75]/20 flex items-center justify-center">
-                <Users className="h-4.5 w-4.5 text-[#1D9E75]" />
+              <div className="w-9 h-9 rounded-lg bg-[#EEF0FF] dark:bg-[#3B5BDB]/20 flex items-center justify-center">
+                <Users className="h-4.5 w-4.5 text-[#3B5BDB]" />
               </div>
             </div>
           </CardContent>
@@ -176,7 +150,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-    </div>
+      </div>
 
       {/* ── Care Member Snapshot ── */}
       <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
@@ -187,7 +161,7 @@ export default function DashboardPage() {
             </CardTitle>
             <Link
               href="/seniors"
-              className="text-sm text-[#1D9E75] hover:text-[#187E5D] font-medium flex items-center gap-1"
+              className="text-sm text-[#3B5BDB] hover:text-[#2F4AC4] font-medium flex items-center gap-1"
             >
               View all <ChevronRight className="h-3.5 w-3.5" />
             </Link>
@@ -195,7 +169,7 @@ export default function DashboardPage() {
         </CardHeader>
         <CardContent className="px-6 pb-4">
 
-          {/* Header row — same GRID as each data row */}
+          {/* Header row */}
           <div className={`${GRID} pb-2 border-b border-gray-100 dark:border-gray-800 text-[10px] font-medium text-gray-400 dark:text-gray-500 uppercase tracking-wide`}>
             <span />
             <span />
@@ -211,19 +185,16 @@ export default function DashboardPage() {
           {seniors.map((senior) => {
             const cfg = statusConfig[senior.status]
 
-            // Alert count
             const alertCount = senior.alerts.filter((a) => a.status === "active").length
 
-            // Appointment count + "soon" flag (within 48 h)
-            const now      = new Date()
-            const in48h    = new Date(Date.now() + 48 * 60 * 60 * 1000)
-            const appts    = MOCK_APPOINTMENTS.filter(
+            const now   = new Date()
+            const in48h = new Date(Date.now() + 48 * 60 * 60 * 1000)
+            const appts = MOCK_APPOINTMENTS.filter(
               (a) => a.seniorId === senior.id && new Date(a.dateTime) > now
             )
             const apptCount = appts.length
             const apptSoon  = appts.some((a) => new Date(a.dateTime) < in48h)
 
-            // Trend: compare last two heart-rate readings
             const readings = senior.vitals.readings
             const trendVal =
               readings.length >= 2
@@ -273,7 +244,7 @@ export default function DashboardPage() {
                 <div className="flex justify-center">
                   {apptCount > 0 ? (
                     <Badge
-                      variant={apptSoon ? "secondary"}
+                      variant="secondary"
                       className="text-[10px] px-1.5 py-0 rounded-full min-w-[20px] justify-center bg-slate-800 text-white dark:bg-slate-700 dark:text-white border-0"
                     >
                       {apptCount}
@@ -312,12 +283,12 @@ export default function DashboardPage() {
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
-              <Sparkles className="h-4 w-4 text-[#1D9E75]" />
+              <Sparkles className="h-4 w-4 text-[#3B5BDB]" />
               <CardTitle className="text-base font-semibold">Recent AI Summaries</CardTitle>
             </div>
             <Link
               href="/insights"
-              className="text-sm text-[#1D9E75] hover:text-[#187E5D] font-medium flex items-center gap-1"
+              className="text-sm text-[#3B5BDB] hover:text-[#2F4AC4] font-medium flex items-center gap-1"
             >
               View all <ChevronRight className="h-3.5 w-3.5" />
             </Link>

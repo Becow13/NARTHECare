@@ -343,7 +343,7 @@ export default function AlertsPage() {
                 key={alert.id}
                 className={`border-border dark:border-gray-800 dark:bg-gray-900 transition-all ${
                   isSelected
-                    ? "border-[#1D9E75]/40 bg-[#E8F7F2]/30 dark:bg-[#1D9E75]/5"
+                    ? "border-[#3B5BDB]/40 bg-[#EEF0FF]/30 dark:bg-[#3B5BDB]/5"
                     : isResolved || isSuppressed
                     ? "opacity-55"
                     : ""
@@ -356,11 +356,11 @@ export default function AlertsPage() {
                     {!isResolved && !isSuppressed && (
                       <button
                         onClick={() => toggleSelect(alert.id)}
-                        className="mt-0.5 shrink-0 text-gray-400 hover:text-[#1D9E75] transition-colors"
+                        className="mt-0.5 shrink-0 text-gray-400 hover:text-[#3B5BDB] transition-colors"
                         aria-label={isSelected ? "Deselect" : "Select"}
                       >
                         {isSelected
-                          ? <CheckSquare className="h-[18px] w-[18px] text-[#1D9E75]" />
+                          ? <CheckSquare className="h-[18px] w-[18px] text-[#3B5BDB]" />
                           : <Square className="h-[18px] w-[18px]" />
                         }
                       </button>
@@ -403,7 +403,7 @@ export default function AlertsPage() {
                       <div className="flex flex-wrap items-center gap-2 mb-1">
                         <Link
                           href={`/seniors/${alert.seniorId}`}
-                          className="text-sm font-semibold text-gray-900 dark:text-white hover:text-[#1D9E75] dark:hover:text-[#4DC8A0]"
+                          className="text-sm font-semibold text-gray-900 dark:text-white hover:text-[#3B5BDB] dark:hover:text-[#91A7FF]"
                         >
                           {alert.seniorName}
                         </Link>
@@ -425,7 +425,7 @@ export default function AlertsPage() {
 
                       {/* AI explanation */}
                       <div className="mt-2 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/60 border border-border dark:border-gray-700">
-                        <p className="text-[10px] font-semibold text-[#1D9E75] uppercase tracking-wide mb-1">
+                        <p className="text-[10px] font-semibold text-[#3B5BDB] uppercase tracking-wide mb-1">
                           AI Explanation
                         </p>
                         <p className="text-xs text-gray-600 dark:text-gray-300 leading-relaxed">
@@ -457,7 +457,7 @@ export default function AlertsPage() {
                             Log context to suppress this alert
                           </p>
                           <textarea
-                            className="w-full text-xs rounded-md border border-border dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#1D9E75] resize-none"
+                            className="w-full text-xs rounded-md border border-border dark:border-gray-700 bg-white dark:bg-gray-900 p-2 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#3B5BDB] resize-none"
                             rows={2}
                             placeholder="e.g. I spoke with Eleanor — she was napping, all is well."
                             value={contextNote}
@@ -514,7 +514,7 @@ export default function AlertsPage() {
                             <Button
                               size="sm"
                               variant="ghost"
-                              className="text-xs h-7 text-[#1D9E75] hover:bg-[#E8F7F2] dark:hover:bg-[#1D9E75]/10"
+                              className="text-xs h-7 text-[#3B5BDB] hover:bg-[#EEF0FF] dark:hover:bg-[#3B5BDB]/10"
                             >
                               <ClipboardList className="h-3.5 w-3.5 mr-1" />
                               Create Action Plan

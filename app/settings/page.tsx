@@ -106,14 +106,14 @@ export default function SettingsPage() {
                 onClick={() => setActiveSection(section.key)}
                 className={`w-full flex items-center gap-2.5 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors text-left ${
                   activeSection === section.key
-                    ? "bg-[#E8F7F2] text-[#1D9E75] dark:bg-[#1D9E75]/20 dark:text-[#4DC8A0]"
+                    ? "bg-[#EEF0FF] text-[#3B5BDB] dark:bg-[#3B5BDB]/20 dark:text-[#91A7FF]"
                     : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
                 }`}
               >
                 <span
                   className={
                     activeSection === section.key
-                      ? "text-[#1D9E75] dark:text-[#4DC8A0]"
+                      ? "text-[#3B5BDB] dark:text-[#91A7FF]"
                       : "text-gray-400"
                   }
                 >
@@ -140,7 +140,7 @@ export default function SettingsPage() {
                 <CardContent className="space-y-4">
                   {/* Avatar placeholder */}
                   <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-[#1D9E75]/10 flex items-center justify-center text-xl font-bold text-[#1D9E75]">
+                    <div className="w-16 h-16 rounded-full bg-[#3B5BDB]/10 flex items-center justify-center text-xl font-bold text-[#3B5BDB]">
                       BY
                     </div>
                     <div>
@@ -193,7 +193,7 @@ export default function SettingsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-3">
-                  <div className="flex items-center justify-between p-3 rounded-lg bg-[#E8F7F2] dark:bg-[#1D9E75]/10 border border-[#1D9E75]/20">
+                  <div className="flex items-center justify-between p-3 rounded-lg bg-[#EEF0FF] dark:bg-[#3B5BDB]/10 border border-[#3B5BDB]/20">
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
                         Family Caregiver
@@ -202,7 +202,7 @@ export default function SettingsPage() {
                         Full access to Eleanor Yang&apos;s care dashboard
                       </p>
                     </div>
-                    <span className="text-[10px] px-2 py-1 rounded-full bg-[#1D9E75] text-white font-semibold">
+                    <span className="text-[10px] px-2 py-1 rounded-full bg-[#3B5BDB] text-white font-semibold">
                       Primary
                     </span>
                   </div>

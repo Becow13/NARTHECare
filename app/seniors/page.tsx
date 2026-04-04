@@ -14,7 +14,7 @@ const statusConfig = {
 const avatarBg: Record<string, string> = {
   critical: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
   monitor:  "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
-  routine:  "bg-[#1D9E75]/10 dark:bg-[#1D9E75]/20 text-[#1D9E75] dark:text-[#4DC8A0]",
+  routine:  "bg-[#3B5BDB]/10 dark:bg-[#3B5BDB]/20 text-[#3B5BDB] dark:text-[#91A7FF]",
 }
 
 export default function SeniorsPage() {
@@ -35,7 +35,7 @@ export default function SeniorsPage() {
           ).length
           return (
             <Link key={senior.id} href={`/seniors/${senior.id}`}>
-              <Card className="border-border dark:border-gray-800 dark:bg-gray-900 hover:border-[#1D9E75]/40 transition-colors cursor-pointer">
+              <Card className="border-border dark:border-gray-800 dark:bg-gray-900 hover:border-[#3B5BDB]/40 transition-colors cursor-pointer">
                 <CardContent className="p-5">
                   <div className="flex items-center justify-between gap-4">
                     <div className="flex items-center gap-4 min-w-0">

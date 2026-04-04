@@ -159,7 +159,7 @@ function ActionPlansContent() {
         <select
           value={seniorFilter}
           onChange={(e) => setSeniorFilter(e.target.value)}
-          className="text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/30"
+          className="text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#3B5BDB]/30"
         >
           <option value="all">All care members</option>
           {seniorNames.map(({ id, name }) => (
@@ -170,7 +170,7 @@ function ActionPlansContent() {
         <select
           value={statusFilter}
           onChange={(e) => setStatusFilter(e.target.value)}
-          className="text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/30"
+          className="text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 text-gray-800 dark:text-gray-200 px-3 py-2 focus:outline-none focus:ring-2 focus:ring-[#3B5BDB]/30"
         >
           <option value="all">All statuses</option>
           <option value="open">Open</option>
@@ -240,7 +240,7 @@ function ActionPlansContent() {
                         >
                           <input
                             type="checkbox"
-                            className="accent-[#1D9E75] shrink-0"
+                            className="accent-[#3B5BDB] shrink-0"
                             checked={checkedIds.has(alert.id)}
                             onChange={() => toggleAlert(alert.id)}
                           />
@@ -266,7 +266,7 @@ function ActionPlansContent() {
               {checkedIds.size === 0 ? (
                 <span className="text-gray-400 dark:text-gray-500">No alerts selected</span>
               ) : (
-                <span className="font-medium text-[#1D9E75]">
+                <span className="font-medium text-[#3B5BDB]">
                   {checkedIds.size} alert{checkedIds.size !== 1 ? "s" : ""} selected
                 </span>
               )}
@@ -282,7 +282,7 @@ function ActionPlansContent() {
                 value={context}
                 onChange={(e) => setContext(e.target.value)}
                 placeholder="e.g. budget under $100, preparing for Thursday's appointment"
-                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#1D9E75]/30"
+                className="w-full text-sm rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-gray-800 dark:text-gray-200 placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-[#3B5BDB]/30"
               />
             </div>
 
@@ -291,7 +291,7 @@ function ActionPlansContent() {
               type="button"
               onClick={handleGenerate}
               disabled={checkedIds.size === 0 || isGenerating}
-              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors bg-[#1D9E75] hover:bg-[#187E5D] text-white disabled:bg-gray-200 dark:disabled:bg-gray-700 disabled:text-gray-400 dark:disabled:text-gray-500 disabled:cursor-not-allowed"
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg text-sm font-medium transition-colors bg-[#3B5BDB] hover:bg-[#2F4AC4] text-white disabled:bg-gray-200 dark:disabled:bg-gray-700 disabled:text-gray-400 dark:disabled:text-gray-500 disabled:cursor-not-allowed"
             >
               {isGenerating ? (
                 <>
@@ -370,7 +370,7 @@ function ActionPlansContent() {
                           <div className="flex flex-wrap items-center gap-3 mt-3 pt-3 border-t border-border dark:border-gray-800 text-xs text-gray-500 dark:text-gray-400">
                             {plan.chosenOptionLevel ? (
                               <span className="flex items-center gap-1">
-                                <CheckCircle2 className="h-3 w-3 text-[#1D9E75]" />
+                                <CheckCircle2 className="h-3 w-3 text-[#3B5BDB]" />
                                 Approach:{" "}
                                 <span className="font-medium text-gray-700 dark:text-gray-300 capitalize">
                                   {plan.chosenOptionLevel}
