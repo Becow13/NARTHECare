@@ -259,8 +259,8 @@ export default function DashboardPage() {
                 <div className="flex justify-center">
                   {alertCount > 0 ? (
                     <Badge
-                      variant="destructive"
-                      className="text-[10px] px-1.5 py-0 rounded-full min-w-[20px] justify-center"
+                      variant="secondary"
+                      className="text-[10px] px-1.5 py-0 rounded-full min-w-[20px] justify-center bg-slate-800 text-white dark:bg-slate-700 dark:text-white border-0"
                     >
                       {alertCount}
                     </Badge>
@@ -273,8 +273,8 @@ export default function DashboardPage() {
                 <div className="flex justify-center">
                   {apptCount > 0 ? (
                     <Badge
-                      variant={apptSoon ? "warning" : "secondary"}
-                      className="text-[10px] px-1.5 py-0 rounded-full min-w-[20px] justify-center"
+                      variant={apptSoon ? "secondary"}
+                      className="text-[10px] px-1.5 py-0 rounded-full min-w-[20px] justify-center bg-slate-800 text-white dark:bg-slate-700 dark:text-white border-0"
                     >
                       {apptCount}
                     </Badge>
