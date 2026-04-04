@@ -138,12 +138,12 @@ export default function DashboardPage() {
                   {stats.alertsToday}
                 </p>
               </div>
-              <div className="w-9 h-9 rounded-lg bg-red-50 dark:bg-red-900/20 flex items-center justify-center">
-                <AlertTriangle className="h-4.5 w-4.5 text-red-500" />
+              <div className="w-9 h-9 rounded-lg bg-[#EEF0FF] dark:bg-[#3B5BDB]/20 flex items-center justify-center">
+                <AlertTriangle className="h-4.5 w-4.5 text-[#3B5BDB]" />
               </div>
             </div>
             {activeAlerts.length > 0 && (
-              <p className="text-xs text-red-500 mt-2 font-medium">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
                 {activeAlerts.length} active now
               </p>
             )}
