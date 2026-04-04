@@ -9,8 +9,7 @@ import {
   Sparkles,
   ClipboardList,
   CalendarClock,
-  Settings,
-  Heart,
+  Settings
   Menu,
   X,
 } from "lucide-react"
@@ -91,8 +90,13 @@ export function Sidebar() {
       >
         {/* Wordmark */}
         <div className="flex items-center gap-2.5 px-6 py-5 border-b border-border">
-          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1D9E75]">
-            <Heart className="w-4 h-4 text-white fill-white" />
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#1D9E75] shrink-0">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="10" cy="10" r="7" stroke="white" strokeWidth="1.5" strokeDasharray="9 5" strokeLinecap="round" transform="rotate(-30 10 10)"/>
+              <rect x="6.5" y="6.5" width="7" height="7" rx="1.5" fill="white" opacity="0.9" transform="rotate(45 10 10)"/>
+              <circle cx="10" cy="10" r="2" fill="#1D9E75"/>
+              <circle cx="14.2" cy="5.8" r="1.5" fill="white" opacity="0.7"/>
+            </svg>
           </div>
           <span className="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-white">
             NartheCare
