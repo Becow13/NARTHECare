@@ -176,53 +176,7 @@ export default function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Upcoming Appointments */}
-        <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Upcoming Appts
-                </p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
-                  {stats.upcomingAppointments}
-                </p>
-              </div>
-              <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-900/20 flex items-center justify-center">
-                <CalendarClock className="h-4.5 w-4.5 text-blue-500" />
-              </div>
-            </div>
-            {upcomingAppts[0] && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 truncate">
-                Next: {upcomingAppts[0].seniorName}
-              </p>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Overall Status */}
-        <Card className={`border ${overallCfg.bg} dark:border-gray-800 dark:bg-gray-900`}>
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
-              <div>
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
-                  Overall Status
-                </p>
-                <p className={`text-lg font-bold mt-1 ${overallCfg.color}`}>
-                  {overallCfg.label}
-                </p>
-              </div>
-              <div className={`w-9 h-9 rounded-lg flex items-center justify-center ${overallCfg.bg}`}>
-                <OverallIcon className={`h-4.5 w-4.5 ${overallCfg.color}`} />
-              </div>
-            </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
-              {stats.activeSeniors} care members monitored
-            </p>
-          </CardContent>
-        </Card>
-
-      </div>
+    </div>
 
       {/* ── Care Member Snapshot ── */}
       <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
@@ -427,86 +381,6 @@ export default function DashboardPage() {
               )
             })}
           </div>
-        </CardContent>
-      </Card>
-
-      {/* ── Active Alerts preview ── */}
-      {activeAlerts.length > 0 && (
-        <Card className="border-red-200 dark:border-red-900/50 dark:bg-gray-900">
-          <CardHeader className="pb-3">
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <AlertTriangle className="h-4 w-4 text-red-500" />
-                <CardTitle className="text-base font-semibold text-red-700 dark:text-red-400">
-                  Active Alerts
-                </CardTitle>
-              </div>
-              <Link
-                href="/alerts"
-                className="text-sm text-red-600 dark:text-red-400 hover:text-red-700 font-medium flex items-center gap-1"
-              >
-                Manage all <ChevronRight className="h-3.5 w-3.5" />
-              </Link>
-            </div>
-          </CardHeader>
-          <CardContent className="px-6 pb-6 space-y-2">
-            {activeAlerts.slice(0, 3).map((alert) => (
-              <div
-                key={alert.id}
-                className="flex items-start gap-3 p-3 rounded-lg bg-white dark:bg-gray-800 border border-red-100 dark:border-red-900/30"
-              >
-                <Badge variant={severityBadge[alert.severity]} className="shrink-0 mt-0.5">
-                  {severityLabel[alert.severity] ?? alert.severity}
-                </Badge>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-gray-900 dark:text-white">
-                    {alert.title}
-                  </p>
-                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                    {alert.seniorName} · {formatRelativeTime(alert.timestamp)}
-                  </p>
-                  <p className="text-xs text-gray-600 dark:text-gray-300 mt-1 line-clamp-1">
-                    {alert.aiExplanation}
-                  </p>
-                </div>
-              </div>
-            ))}
-          </CardContent>
-        </Card>
-      )}
-
-      {/* ── Upcoming Appointments ── */}
-      <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
-        <CardHeader className="pb-3">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-base font-semibold">Upcoming Appointments</CardTitle>
-            <Link
-              href="/appointments"
-              className="text-sm text-[#1D9E75] hover:text-[#187E5D] font-medium flex items-center gap-1"
-            >
-              View all <ChevronRight className="h-3.5 w-3.5" />
-            </Link>
-          </div>
-        </CardHeader>
-        <CardContent className="px-6 pb-4 space-y-3">
-          {upcomingAppts.length === 0 ? (
-            <p className="text-sm text-gray-500 dark:text-gray-400">No upcoming appointments.</p>
-          ) : (
-            upcomingAppts.map((appt) => (
-              <div
-                key={appt.id}
-                className="flex flex-col gap-0.5 p-3 rounded-lg bg-gray-50 dark:bg-gray-800/50 border border-border dark:border-gray-700"
-              >
-                <p className="text-sm font-medium text-gray-900 dark:text-white">{appt.title}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-400">
-                  {appt.seniorName} · {appt.provider}
-                </p>
-                <p className="text-xs text-[#1D9E75] font-medium mt-1">
-                  {formatDateTime(appt.dateTime)}
-                </p>
-              </div>
-            ))
-          )}
         </CardContent>
       </Card>
 
