@@ -8,6 +8,8 @@ import {
   AlertTriangle,
   Sparkles,
   ClipboardList,
+  CalendarClock,
+  CalendarClock,
   Settings,
   Heart,
   Menu,
@@ -31,6 +33,11 @@ const navItems = [
     label: "Alerts",
     href: "/alerts",
     icon: AlertTriangle,
+  },
+  {
+    label: "Appointments",
+    href: "/appointments",
+    icon: CalendarClock,
   },
   {
     label: "AI Insights",
