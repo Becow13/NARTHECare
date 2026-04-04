@@ -80,7 +80,7 @@ function TrendIcon({ value }: { value: number }) {
 
 const GRID = "grid grid-cols-[12px_36px_1fr_80px_80px_60px_90px_90px] gap-x-4 items-center"
 
-export default function DashboardPage() {
+export default function Care HubPage() {
   const stats           = MOCK_DASHBOARD_STATS
   const seniors         = MOCK_SENIORS
   const activeAlerts    = MOCK_ALERTS.filter((a) => a.status === "active")
@@ -94,7 +94,7 @@ export default function DashboardPage() {
 
       {/* Page header */}
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Care Hub</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
           Good morning, Becca. Here&apos;s your care overview for today.
         </p>
@@ -285,7 +285,7 @@ export default function DashboardPage() {
               const urgencyBadge =
                 summary.urgency === "critical" ? "destructive"
                 : summary.urgency === "monitor"  ? "warning"
-                : "info"
+                : "routine"
               const urgencyLabel =
                 summary.urgency === "critical" ? "Critical"
                 : summary.urgency === "monitor"  ? "Monitor"
@@ -304,7 +304,11 @@ export default function DashboardPage() {
                         {summary.seniorName}
                       </span>
                     </div>
-                    <Badge variant={urgencyBadge} className="shrink-0">{urgencyLabel}</Badge>
+                    {urgencyBadge === "routine" ? (
+                      <span className="shrink-0 text-xs font-medium px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-900/20 text-emerald-600 dark:text-emerald-400">{urgencyLabel}</span>
+                    ) : (
+                      <Badge variant={urgencyBadge} className="shrink-0">{urgencyLabel}</Badge>
+                    )}
                   </div>
                   <p className="text-sm text-gray-600 dark:text-gray-300 leading-relaxed line-clamp-3">
                     {summary.plainTextSummary}

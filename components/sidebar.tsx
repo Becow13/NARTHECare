@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import {
-  LayoutDashboard,
+  LayoutCare Hub,
   Users,
   AlertTriangle,
   Sparkles,
@@ -18,9 +18,9 @@ import { useState } from "react"
 
 const navItems = [
   {
-    label: "Dashboard",
+    label: "Care Hub",
     href: "/dashboard",
-    icon: LayoutDashboard,
+    icon: LayoutCare Hub,
   },
   {
     label: "Care Members",
