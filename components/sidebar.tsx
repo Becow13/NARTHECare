@@ -9,7 +9,6 @@ import {
   Sparkles,
   ClipboardList,
   CalendarClock,
-  CalendarClock,
   Settings,
   Heart,
   Menu,
