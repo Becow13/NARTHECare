@@ -482,7 +482,7 @@ export const MOCK_SUMMARIES: AISummary[] = [
     keyInsights: ["Sleep averaging 5.4 hours — 5 consecutive nights below her 6.8-hour baseline", "Early waking pattern persisting — worth flagging to Dr. Stein", "Vitals otherwise stable", "Activity levels slightly below her monthly average"],
     recommendedActions: ["Bring sleep pattern data to Thursday's appointment with Dr. Stein", "Ask Margaret about the early waking", "NartheCare will prepare a sleep trend summary for Dr. Stein's review"],
     sourceTags: ["Apple Watch", "Ring Camera", "MyChart — Kaiser"],
-    urgency: "monitor",
+    urgency: "routine",
   },
   {
     id: "summary-004", seniorId: "senior-002", seniorName: "Robert Chen",
