@@ -24,7 +24,6 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { formatRelativeTime } from "@/lib/utils"
 
-// ─── Status config ───────────────────────────────────────────────────────────
 const statusConfig = {
   routine: {
     label: "Routine",
@@ -73,17 +72,14 @@ const overallStatusConfig = {
   },
 }
 
-// ─── Trend icon ──────────────────────────────────────────────────────────────
 function TrendIcon({ value }: { value: number }) {
   if (value > 0) return <TrendingUp  className="h-3.5 w-3.5 text-amber-500" />
   if (value < 0) return <TrendingDown className="h-3.5 w-3.5 text-emerald-500" />
   return <Minus className="h-3.5 w-3.5 text-gray-400" />
 }
 
-// ─── Grid column definition ──────────────────────────────────────────────────
 const GRID = "grid grid-cols-[12px_36px_1fr_80px_80px_60px_90px_90px] gap-x-4 items-center"
 
-// ─── Page ────────────────────────────────────────────────────────────────────
 export default function DashboardPage() {
   const stats           = MOCK_DASHBOARD_STATS
   const seniors         = MOCK_SENIORS
@@ -96,7 +92,7 @@ export default function DashboardPage() {
   return (
     <div className="max-w-7xl mx-auto space-y-6">
 
-      {/* ── Page header ── */}
+      {/* Page header */}
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">
@@ -104,7 +100,7 @@ export default function DashboardPage() {
         </p>
       </div>
 
-      {/* ── Summary stat cards ── */}
+      {/* Stat cards */}
       <div className="flex justify-center gap-4">
 
         {/* Active Care Members */}
@@ -119,8 +115,8 @@ export default function DashboardPage() {
                   {stats.activeSeniors}
                 </p>
               </div>
-              <div className="w-9 h-9 rounded-lg bg-[#EEF0FF] dark:bg-[#3B5BDB]/20 flex items-center justify-center">
-                <Users className="h-4.5 w-4.5 text-[#3B5BDB]" />
+              <div className="w-9 h-9 rounded-lg bg-[#EEF0FF] dark:bg-[#3B5BDB]/20 flex items-center justify-center shrink-0">
+                <Users className="h-4 w-4 text-[#3B5BDB]" />
               </div>
             </div>
           </CardContent>
@@ -128,31 +124,31 @@ export default function DashboardPage() {
 
         {/* Alerts Today */}
         <Card className="border-border dark:border-gray-800 dark:bg-gray-900 w-56">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-6">
               <div>
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   Alerts Today
                 </p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">
                   {stats.alertsToday}
                 </p>
+                {activeAlerts.length > 0 && (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 font-medium">
+                    {activeAlerts.length} active now
+                  </p>
+                )}
               </div>
-              <div className="w-9 h-9 rounded-lg bg-[#EEF0FF] dark:bg-[#3B5BDB]/20 flex items-center justify-center">
-                <AlertTriangle className="h-4.5 w-4.5 text-[#3B5BDB]" />
+              <div className="w-9 h-9 rounded-lg bg-[#EEF0FF] dark:bg-[#3B5BDB]/20 flex items-center justify-center shrink-0">
+                <AlertTriangle className="h-4 w-4 text-[#3B5BDB]" />
               </div>
             </div>
-            {activeAlerts.length > 0 && (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 font-medium">
-                {activeAlerts.length} active now
-              </p>
-            )}
           </CardContent>
         </Card>
 
       </div>
 
-      {/* ── Care Member Snapshot ── */}
+      {/* Care Member Snapshot */}
       <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
@@ -184,17 +180,13 @@ export default function DashboardPage() {
           {/* Data rows */}
           {seniors.map((senior) => {
             const cfg = statusConfig[senior.status]
-
             const alertCount = senior.alerts.filter((a) => a.status === "active").length
-
             const now   = new Date()
             const in48h = new Date(Date.now() + 48 * 60 * 60 * 1000)
             const appts = MOCK_APPOINTMENTS.filter(
               (a) => a.seniorId === senior.id && new Date(a.dateTime) > now
             )
             const apptCount = appts.length
-            const apptSoon  = appts.some((a) => new Date(a.dateTime) < in48h)
-
             const readings = senior.vitals.readings
             const trendVal =
               readings.length >= 2
@@ -208,15 +200,12 @@ export default function DashboardPage() {
                 href={`/seniors/${senior.id}`}
                 className={`${GRID} py-3.5 border-b border-gray-50 dark:border-gray-800/60 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors`}
               >
-                {/* Col 1 — status dot */}
                 <span className={`w-2.5 h-2.5 rounded-full shrink-0 ${cfg.dot}`} />
 
-                {/* Col 2 — avatar */}
                 <div className={`w-9 h-9 rounded-full flex items-center justify-center text-sm font-semibold shrink-0 ${avatarBg[senior.status]}`}>
                   {senior.name.split(" ").map((n) => n[0]).join("")}
                 </div>
 
-                {/* Col 3 — name + conditions */}
                 <div className="min-w-0">
                   <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
                     {senior.name}
@@ -226,7 +215,6 @@ export default function DashboardPage() {
                   </p>
                 </div>
 
-                {/* Col 4 — active alerts */}
                 <div className="flex justify-center">
                   {alertCount > 0 ? (
                     <Badge
@@ -240,7 +228,6 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                {/* Col 5 — appointments */}
                 <div className="flex justify-center">
                   {apptCount > 0 ? (
                     <Badge
@@ -254,19 +241,16 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                {/* Col 6 — health trend */}
                 <div className="flex justify-center">
                   <TrendIcon value={trendVal} />
                 </div>
 
-                {/* Col 7 — care status badge */}
                 <div className="flex justify-center">
                   <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${cfg.bg} ${cfg.color}`}>
                     {cfg.label}
                   </span>
                 </div>
 
-                {/* Col 8 — last update */}
                 <div className="flex items-center justify-center gap-1 text-xs text-gray-400 dark:text-gray-500">
                   <Clock className="h-3 w-3 shrink-0" />
                   <span className="truncate">{formatRelativeTime(senior.lastSeen)}</span>
@@ -278,7 +262,7 @@ export default function DashboardPage() {
         </CardContent>
       </Card>
 
-      {/* ── Recent AI Summaries ── */}
+      {/* Recent AI Summaries */}
       <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
         <CardHeader className="pb-3">
           <div className="flex items-center justify-between">
