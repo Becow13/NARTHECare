@@ -1,8 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useMemo } from "react"
 import Link from "next/link"
-import {
+import { SlidersHorizontal,
   AlertTriangle,
   CheckCircle2,
   Clock,
@@ -26,6 +26,13 @@ import { ALERT_CATEGORY_LABELS } from "@/lib/alert-rules"
 import { Card, CardContent } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
 import { formatRelativeTime } from "@/lib/utils"
 
 // ─── types ────────────────────────────────────────────────────────────────────
@@ -115,6 +122,9 @@ export default function AlertsPage() {
   // context suppression: track which alert has the input open + the typed note
   const [contextOpen, setContextOpen] = useState<string | null>(null)
   const [contextNote, setContextNote] = useState("")
+  const [seniorFilter, setSeniorFilter] = useState("all")
+  const [alertTypeFilter, setAlertTypeFilter] = useState("all")
+  const [urgencyFilter, setUrgencyFilter] = useState("all")
 
   // ── derived counts ──────────────────────────────────────────────────────────
   const active = alerts.filter((a) => a.status !== "resolved" && !a.suppressedBy)
@@ -130,11 +140,23 @@ export default function AlertsPage() {
   ).length
 
   // ── filtered + sorted list ──────────────────────────────────────────────────
+  const alertTypeMap: Record<string, string> = {
+    "Falls & Safety": "falls_safety",
+    "Cardiovascular": "cardiovascular",
+    "Medication": "medication",
+    "Sleep": "sleep",
+    "Activity": "activity_mobility",
+    "Device": "device_connectivity",
+    "Just Goodness": "positive_signal",
+  }
   const filtered = alerts
     .filter((a) => {
       if (severityFilter === "resolved") return a.status === "resolved"
       if (severityFilter !== "all" && a.severity !== severityFilter) return false
       if (categoryFilter && a.category !== categoryFilter) return false
+      if (seniorFilter !== "all" && a.seniorId !== seniorFilter) return false
+      if (alertTypeFilter !== "all" && a.category !== alertTypeMap[alertTypeFilter]) return false
+      if (urgencyFilter !== "all" && a.severity !== urgencyFilter) return false
       return true
     })
     .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
@@ -242,53 +264,55 @@ export default function AlertsPage() {
         </div>
       </div>
 
-      {/* ── Severity filter tabs ──────────────────────────────────────────────── */}
-      <div className="flex items-center gap-1 p-1 bg-gray-100 dark:bg-gray-800 rounded-lg w-fit flex-wrap">
-        {tabs.map((tab) => (
-          <button
-            key={tab.key}
-            onClick={() => setSeverityFilter(tab.key)}
-            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-colors ${
-              severityFilter === tab.key
-                ? "bg-white dark:bg-gray-900 text-gray-900 dark:text-white shadow-sm"
-                : "text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
-            }`}
-          >
-            {tab.label}
-            <span className={`text-xs px-1.5 py-0.5 rounded-full font-medium ${tab.countStyle}`}>
-              {tab.count}
-            </span>
-          </button>
-        ))}
-      </div>
-
-      {/* ── Category pills ────────────────────────────────────────────────────── */}
-      <div className="flex flex-wrap gap-2">
-        {CATEGORY_PILLS.map((pill) => {
-          const active = categoryFilter === pill.key
-          return (
-            <button
-              key={pill.key}
-              onClick={() => setCategoryFilter(active ? null : pill.key)}
-              className={`text-xs px-3 py-1.5 rounded-full font-medium border transition-colors ${
-                active
-                  ? "bg-[#1D9E75] border-[#1D9E75] text-white"
-                  : "bg-white dark:bg-gray-900 border-border dark:border-gray-700 text-gray-600 dark:text-gray-300 hover:border-[#1D9E75]/50 hover:text-[#1D9E75]"
-              }`}
-            >
-              {pill.label}
-            </button>
-          )
-        })}
-        {categoryFilter && (
-          <button
-            onClick={() => setCategoryFilter(null)}
-            className="text-xs px-2 py-1.5 rounded-full font-medium text-gray-400 hover:text-gray-600 dark:hover:text-gray-200 flex items-center gap-1"
-          >
-            <X className="h-3 w-3" />
-            Clear
-          </button>
+      {/* ── Filter bar ── */}
+      <div className="flex flex-wrap items-center gap-3">
+        <div className="flex items-center gap-1.5 text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+          <SlidersHorizontal className="h-3.5 w-3.5" />
+          Filter by
+        </div>
+        <Select value={seniorFilter} onValueChange={setSeniorFilter}>
+          <SelectTrigger className="w-[160px] h-9 text-sm">
+            <SelectValue placeholder="All Care Members" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Care Members</SelectItem>
+            {MOCK_SENIORS.map((s) => (
+              <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+        <Select value={alertTypeFilter} onValueChange={setAlertTypeFilter}>
+          <SelectTrigger className="w-[160px] h-9 text-sm">
+            <SelectValue placeholder="All Types" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Types</SelectItem>
+            <SelectItem value="Falls & Safety">Falls &amp; Safety</SelectItem>
+            <SelectItem value="Cardiovascular">Cardiovascular</SelectItem>
+            <SelectItem value="Medication">Medication</SelectItem>
+            <SelectItem value="Sleep">Sleep</SelectItem>
+            <SelectItem value="Activity">Activity</SelectItem>
+            <SelectItem value="Device">Device</SelectItem>
+            <SelectItem value="Just Goodness">Just Goodness</SelectItem>
+          </SelectContent>
+        </Select>
+        <Select value={urgencyFilter} onValueChange={setUrgencyFilter}>
+          <SelectTrigger className="w-[140px] h-9 text-sm">
+            <SelectValue placeholder="All Urgency" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Urgency</SelectItem>
+            <SelectItem value="critical">Critical</SelectItem>
+            <SelectItem value="monitor">Monitor</SelectItem>
+            <SelectItem value="routine">Routine</SelectItem>
+          </SelectContent>
+        </Select>
+        {(seniorFilter !== "all" || alertTypeFilter !== "all" || urgencyFilter !== "all") && (
+          <Button variant="ghost" size="sm" onClick={() => { setSeniorFilter("all"); setAlertTypeFilter("all"); setUrgencyFilter("all") }} className="text-xs h-9 text-gray-500 hover:text-gray-900 dark:hover:text-white">
+            Clear filters
+          </Button>
         )}
+        <span className="text-xs text-gray-400 dark:text-gray-500 ml-auto">{filtered.length} result{filtered.length !== 1 ? "s" : ""}</span>
       </div>
 
       {/* ── Alerts list ──────────────────────────────────────────────────────── */}
