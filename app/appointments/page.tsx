@@ -115,7 +115,7 @@ export default function AppointmentsPage() {
                     </div>
                     <div>
                       <p className="text-sm font-semibold text-gray-900">{senior.name}</p>
-                      <p className="text-xs text-gray-400">{senior.conditions.join(", ")}</p>
+                      <p className="text-xs text-gray-400">{(senior.conditions ?? []).join(", ")}</p>
                     </div>
                   </div>
                   <DaysUntilBadge days={days} />
