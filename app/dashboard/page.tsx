@@ -80,7 +80,7 @@ function TrendIcon({ value }: { value: number }) {
 
 const GRID = "grid grid-cols-[12px_36px_1fr_80px_80px_60px_90px_90px] gap-x-4 items-center"
 
-export default function Care HubPage() {
+export default function CareHubPage() {
   const stats           = MOCK_DASHBOARD_STATS
   const seniors         = MOCK_SENIORS
   const activeAlerts    = MOCK_ALERTS.filter((a) => a.status === "active")
