@@ -49,7 +49,7 @@ const statusConfig = {
 const avatarBg: Record<string, string> = {
   critical: "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400",
   monitor:  "bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400",
-  routine:  "bg-[#3B5BDB]/10 dark:bg-[#3B5BDB]/20 text-[#3B5BDB] dark:text-[#91A7FF]",
+  routine:  "bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400",
 }
 
 const overallStatusConfig = {
@@ -105,17 +105,17 @@ export default function DashboardPage() {
       </div>
 
       {/* ── Summary stat cards ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="flex justify-center gap-4">
 
         {/* Active Care Members */}
-        <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
-          <CardContent className="p-5">
-            <div className="flex items-start justify-between">
+        <Card className="border-border dark:border-gray-800 dark:bg-gray-900 w-56">
+          <CardContent className="p-4">
+            <div className="flex items-center justify-between gap-6">
               <div>
-                <p className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
+                <p className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">
                   Active Care Members
                 </p>
-                <p className="text-3xl font-bold text-gray-900 dark:text-white mt-1">
+                <p className="text-2xl font-bold text-gray-900 dark:text-white mt-0.5">
                   {stats.activeSeniors}
                 </p>
               </div>
@@ -127,7 +127,7 @@ export default function DashboardPage() {
         </Card>
 
         {/* Alerts Today */}
-        <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
+        <Card className="border-border dark:border-gray-800 dark:bg-gray-900 w-56">
           <CardContent className="p-5">
             <div className="flex items-start justify-between">
               <div>
