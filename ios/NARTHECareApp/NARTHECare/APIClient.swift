@@ -24,7 +24,7 @@ struct HealthDataSuccessResponse: Codable {
 /// Uploads HealthKit-shaped payloads to the Aptible backend.
 struct APIClient: Sendable {
   /// Default production API (no trailing slash).
-  static let defaultBaseURL = "https://app-107449.on-aptible.com"
+  static let defaultBaseURL = "https://app-107635.on-aptible.com"
 
   let baseURL: String
   let urlSession: URLSession
