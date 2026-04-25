@@ -1,0 +1,20 @@
+{
+  "name": "narthecare-api",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Minimal HealthKit ingestion API for Aptible",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js",
+    "test": "node --test",
+    "build": "npm run test && node --check server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "pg": "^8.13.1"
+  }
+}
