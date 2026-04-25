@@ -8,3 +8,4 @@ npm-debug.log*
 xcuserdata/
 DerivedData/
 *.moved-aside
+.DS_Store
