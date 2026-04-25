@@ -1,0 +1,71 @@
+---
+description: Node backend patterns mirrored from v0-interview-gym-ui-main
+globs: **/*.js
+alwaysApply: false
+---
+
+# Backend Style
+
+Every JS file must mirror the reference project's layer for its role.
+
+## Layering (copy this shape)
+
+| Role | Reference example | This repo |
+|---|---|---|
+| Route handler | `app/api/session/create/route.ts` | inside `app.js` |
+| Service (business logic) | `services/sessionService.ts` | `services/<feature>Service.js` |
+| DAO (DB only) | `services/dao/sessionDao.ts` | `services/dao/<feature>Dao.js` |
+| Pure helpers (no I/O) | `lib/trial.ts`, `lib/utils.ts` | `lib/<feature>.js` |
+| Barrel | `services/index.ts` | `services/index.js` |
+
+## Naming
+
+- Service verbs: `createX`, `saveX`, `getX`, `endX`, `claimX`, `ensureX`.
+- DAO verbs: `insertX`, `fetchX`, `updateX`, `countX`.
+- Constants: `UPPER_SNAKE_CASE` at the top of the module.
+- File-private helpers: `_camelCase` at the bottom of the module.
+
+## Route handler shape (mirror `app/api/session/create/route.ts`)
+
+```js
+app.post("/thing", async (req, res) => {
+  try {
+    const userId = req.body?.userId
+    if (!userId || typeof userId !== "string") {
+      return res.status(400).json({ error: "userId (string) is required" })
+    }
+    try {
+      const result = await featureService.doThing(pool, userId, req.body)
+      return res.json({ success: true, ...result })
+    } catch (e) {
+      return res.status(400).json({ error: e instanceof Error ? e.message : "Invalid payload" })
+    }
+  } catch (e) {
+    console.error("[API thing]", e)
+    return res.status(500).json({ error: e instanceof Error ? e.message : "Failed" })
+  }
+})
+```
+
+## JSDoc (intent, not code)
+
+```js
+/**
+ * Persist a batch of HealthKit-shaped rows for a user.
+ *
+ * Combines the pure parsing step with the transactional DB insert so the
+ * route handler only has to deal with auth + response shape.
+ */
+export async function saveHealthData(pool, userId, payload) { ... }
+```
+
+## Pure helper module header (mirror `lib/trial.ts`)
+
+```js
+/**
+ * <Feature> parsing and validation helpers.
+ *
+ * Keep this file free of I/O — it is imported by the route handler, future
+ * background jobs, and unit tests, so it must be safe to import anywhere.
+ */
+```

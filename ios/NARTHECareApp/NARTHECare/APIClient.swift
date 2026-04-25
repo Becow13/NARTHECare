@@ -1,5 +1,11 @@
 import Foundation
 
+/// Structured API error with a user-readable message.
+///
+/// Mirrors the error-handling contract used by the web API client: every
+/// network call either returns the decoded payload or throws one of these
+/// cases, so call-sites can surface `error.localizedDescription` directly
+/// in the UI without additional mapping.
 enum APIClientError: LocalizedError {
   case invalidURL
   case badStatus(Int, String)
@@ -17,11 +23,17 @@ enum APIClientError: LocalizedError {
   }
 }
 
+/// Response shape for `POST /health-data`.
 struct HealthDataSuccessResponse: Codable {
   let success: Bool
+  let inserted: Int?
 }
 
-/// Uploads HealthKit-shaped payloads to the Aptible backend.
+/// Uploads HealthKit-shaped payloads to the NARTHECare backend.
+///
+/// Keeps all transport concerns (URL construction, headers, status-code
+/// checks, error translation) in one place so the view layer only deals in
+/// typed payloads and thrown errors.
 struct APIClient: Sendable {
   /// Default production API (no trailing slash).
   static let defaultBaseURL = "https://app-107635.on-aptible.com"
@@ -34,6 +46,12 @@ struct APIClient: Sendable {
     self.urlSession = urlSession
   }
 
+  /// POST a batch of HealthKit samples to the server.
+  ///
+  /// Returns silently on any 2xx response whose body either decodes as
+  /// `HealthDataSuccessResponse { success: true }` or — for older servers
+  /// that reply with plain text — contains the string "success". Any other
+  /// outcome throws an `APIClientError` describing the exact failure.
   func uploadHealthData(_ payload: HealthUploadPayload) async throws {
     guard let url = URL(string: "\(baseURL)/health-data") else {
       throw APIClientError.invalidURL
@@ -60,7 +78,8 @@ struct APIClient: Sendable {
     {
       return
     }
-    // Some servers return 200 with plain text; treat 2xx as success if decode fails
+    // Fallback for servers that return 2xx with plain text instead of JSON —
+    // treat the response as success if the body mentions "success".
     if http.statusCode == 200, bodyText.contains("success") {
       return
     }

@@ -1,0 +1,165 @@
+---
+alwaysApply: true
+---
+You are working on a healthcare application called NARTHECare.
+
+This is a caregiver-facing health monitoring and AI-assisted care platform that processes sensitive health data (PHI). All code, architecture, and decisions MUST follow healthcare-grade standards, including HIPAA-aligned best practices.
+
+## Core Principle
+
+This is NOT a typical startup app. Treat this as a healthcare system from day 1.
+
+---
+
+## 🔐 Security & Compliance (CRITICAL)
+
+Always assume:
+
+* Data contains PHI (Protected Health Information)
+* System must be HIPAA-compliant (or HIPAA-ready)
+
+You MUST:
+
+1. NEVER log sensitive data
+
+   * No health metrics, tokens, personal identifiers in logs
+   * Logs must be sanitized
+
+2. Enforce strict access control
+
+   * Role-based access (caregiver, patient, clinician, admin)
+   * Always validate user access to resources
+
+3. Use least privilege principle
+
+   * Only access data required for the task
+
+4. Require audit logging for:
+
+   * Data access
+   * Data modification
+   * Authentication events
+
+5. All sensitive data must be:
+
+   * Encrypted in transit (HTTPS)
+   * Encrypted at rest
+
+6. Tokens and credentials:
+
+   * Never hardcode
+   * Always use environment variables
+   * Support secure refresh flows
+
+---
+
+## 🔑 Authentication & Authorization
+
+* Use OAuth 2.0 / SMART on FHIR when applicable
+* Support token refresh
+* Sessions must expire
+* MFA-ready design
+
+---
+
+## 🧠 AI Safety Constraints
+
+AI features MUST:
+
+* NOT provide medical diagnosis
+* NOT provide emergency medical instructions
+* Only:
+
+  * summarize
+  * highlight anomalies
+  * suggest general next steps (e.g., “consider contacting a clinician”)
+
+All AI outputs must:
+
+* include evidence
+* be explainable
+* be conservative in tone
+
+---
+
+## 🧾 Data Handling Rules
+
+* Separate identifiable data from metrics when possible
+* Minimize data retention
+* Always consider:
+
+  * "Do we need to store this?"
+* Support deletion / user data removal
+
+---
+
+## 🧱 Backend Design Guidelines
+
+* Prefer clear, explicit schema (PostgreSQL)
+* Avoid implicit joins on sensitive data
+* Always validate inputs (no trust from client)
+* Use structured error handling (no leaking internals)
+
+---
+
+## 📊 Audit & Observability
+
+* Every critical action must be traceable
+* Include:
+
+  * user_id
+  * action
+  * timestamp
+  * resource_id
+
+---
+
+## 🚫 What NOT to do
+
+* Do NOT build like a casual CRUD app
+* Do NOT skip validation
+* Do NOT expose internal errors
+* Do NOT assume frontend is trusted
+* Do NOT store unnecessary PHI
+
+---
+
+## ✅ What to optimize for
+
+* Safety > speed
+* Clarity > cleverness
+* Explicit > implicit
+* Compliance-ready > hacky MVP
+
+---
+
+## 🧭 When unsure
+
+Always choose:
+
+* safer design
+* more restrictive access
+* less data exposure
+
+---
+
+## Context
+
+This system integrates with:
+
+* Apple Health
+* Epic MyChart (FHIR)
+* Wearables (Fitbit, Garmin)
+* Caregiver inputs
+
+The goal is to:
+
+* detect anomalies
+* generate alerts
+* summarize patient state
+* assist caregivers in decision-making
+
+---
+
+Follow these rules strictly in ALL code, API design, and architecture decisions.
+If a feature conflicts with compliance or safety, you MUST explicitly warn and suggest a safer alternative.

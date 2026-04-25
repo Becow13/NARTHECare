@@ -1,0 +1,58 @@
+---
+description: Swift / iOS patterns mirrored from v0-interview-gym-ui-main's apiClient.ts
+globs: ios/**/*.swift
+alwaysApply: false
+---
+
+# iOS / Swift Style
+
+Swift files mirror the reference project's `services/apiClient.ts` shape.
+
+## API client
+
+- One `APIClient` struct with injectable `URLSession` and `baseURL`.
+- Every method is `async throws` and either returns a decoded payload or
+  throws an `APIClientError` case — no `Result`, no optionals-on-failure.
+- Status-code check pattern (mirror the `if (!res.ok)` block in
+  `apiClient.ts`):
+
+```swift
+guard (200 ... 299).contains(http.statusCode) else {
+  throw APIClientError.badStatus(http.statusCode, bodyText)
+}
+```
+
+## Error type
+
+One `LocalizedError` enum per client. Every case has a concrete
+`errorDescription` so the UI can surface `error.localizedDescription`
+directly — no extra mapping at call-sites.
+
+```swift
+enum APIClientError: LocalizedError {
+  case invalidURL
+  case badStatus(Int, String)
+  case decoding
+  var errorDescription: String? { ... }
+}
+```
+
+## Doc comments (intent, not mechanics)
+
+Every public type and method gets a `///` comment describing **what it's
+for** and any non-obvious constraint. This mirrors the JSDoc on every
+exported function in `services/apiClient.ts`.
+
+```swift
+/// POST a batch of HealthKit samples to the server.
+///
+/// Returns silently on 2xx; throws `APIClientError` on any other outcome.
+func uploadHealthData(_ payload: HealthUploadPayload) async throws { ... }
+```
+
+## Payload types
+
+- One file per feature's payload group (e.g. `HealthUploadPayload.swift`).
+- All payload structs are `Codable, Sendable`.
+- Field names match the JSON contract exactly — no `CodingKeys`
+  remapping unless the server demands it.

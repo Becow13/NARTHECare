@@ -1,0 +1,49 @@
+---
+description: Strict project rule — all code must follow the reference project's patterns
+alwaysApply: true
+---
+
+# Reference Project Rule (strict)
+
+All code in this repository MUST follow the patterns used in the reference
+project:
+
+**`/Users/d2118370gmail.com/Workspace/v0-interview-gym-ui-main`**
+
+## Required Workflow (before writing any code)
+
+1. **Check existing implementations** in this repo (`lib/`, `services/`,
+   `services/dao/`, `app.js`, route handlers, `ios/**/*.swift`).
+2. **Identify the closest matching pattern** in the reference project —
+   look at `services/apiClient.ts`, `services/sessionService.ts`,
+   `services/dao/sessionDao.ts`, `lib/trial.ts`, `lib/utils.ts`,
+   `lib/auth-errors.ts`, `app/api/*/route.ts`, and `lib/__tests__/*.test.ts`.
+3. **Reuse the existing structure and abstractions.**
+   Do not invent a new layer, naming scheme, or error shape when an
+   equivalent already exists.
+
+## Rejection Rule
+
+**Reject any solution that introduces a new pattern unless explicitly
+required** (e.g. a capability the reference project has no equivalent for,
+and the user has confirmed the new pattern is acceptable).
+
+If you are tempted to introduce a new pattern:
+- First state the closest existing pattern you considered.
+- Explain exactly why it cannot be reused.
+- Ask the user before proceeding.
+
+## Non-Negotiables
+
+- Layered architecture: route handler → `services/<feature>Service.js` →
+  `services/dao/<feature>Dao.js`. Pure helpers (no I/O) live in `lib/`.
+- ESM only (`import` / `export`), no trailing semicolons, double-quoted
+  strings, `??` for nullish defaults.
+- Every exported symbol gets a JSDoc (`/** ... */`) block describing
+  **intent and constraints**, not the code.
+- Tagged logs: `console.error("[API <route>]", e)`, `console.log("[server] ...")`.
+- Tests in `lib/__tests__/*.test.js` (unit) and `test/*.integration.test.js`
+  (integration), both using `node:test`.
+
+See `.cursor/rules/backend-style.mdc` and `.cursor/rules/ios-style.mdc`
+for concrete code patterns.

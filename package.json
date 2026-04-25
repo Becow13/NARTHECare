@@ -2,18 +2,21 @@
   "name": "narthecare-api",
   "version": "1.0.0",
   "private": true,
+  "type": "module",
   "description": "Minimal HealthKit ingestion API for Aptible",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "dev": "node --watch server.js",
-    "test": "node --test",
+    "dev": "node scripts/dev.js",
+    "test": "node --test \"test/**/*.test.js\" \"lib/__tests__/**/*.test.js\"",
     "build": "npm run test && node --check server.js"
   },
   "engines": {
     "node": ">=18"
   },
   "dependencies": {
+    "aws-jwt-verify": "^5.1.1",
+    "dotenv": "^17.4.2",
     "express": "^4.21.2",
     "pg": "^8.13.1"
   }

@@ -1,108 +1,279 @@
-const express = require("express");
+import express from "express"
+import {
+  healthDataService,
+  authService,
+  careRecipientService,
+  auditService,
+} from "./services/index.js"
+import { MAX_PAYLOAD_BYTES } from "./lib/health-data.js"
+import { extractBearerToken } from "./lib/cognito-auth.js"
+import { extractRequestContext, AUDIT_ACTIONS, AUDIT_RESOURCE_TYPES } from "./lib/audit.js"
+import { CareRecipientAccessError } from "./services/careRecipientService.js"
 
-function parseRecordedAt(dateStr) {
-  const d = new Date(dateStr);
-  if (Number.isNaN(d.getTime())) {
-    throw new Error(`Invalid date: ${dateStr}`);
-  }
-  return d;
-}
+/**
+ * Build the Express application.
+ *
+ * The `pool` and `cognitoVerifier` are both injected so integration tests can
+ * supply fakes without touching the real database or reaching out to the
+ * Cognito JWKS endpoint. Keeping the app factory separate from the HTTP
+ * bootstrap (see `server.js`) also means `createApp` can be reused by any
+ * future entry point (CLI smoke test, Lambda adapter, etc.).
+ *
+ * `cognitoVerifier` must expose `verify(token)` that resolves with the
+ * verified claims or throws on any failure — mirrors the shape returned by
+ * `authService.createCognitoVerifier`. It may be `null` when the dev auth
+ * bypass is active; the middleware then skips JWT verification entirely.
+ *
+ * `devAuthBypass`, when truthy, must be `{ user, role }` where `user` is a
+ * pre-seeded row from the internal `users` table (see
+ * `authService.ensureDevUser`). The server bootstrap only populates it when
+ * `DEV_AUTH_BYPASS=true` AND `NODE_ENV !== "production"` — the gate lives in
+ * `lib/dev-auth.js` so production can never opt in by accident.
+ */
+export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
+  const app = express()
+  app.use(express.json({ limit: MAX_PAYLOAD_BYTES }))
 
-function collectRows(userId, body) {
-  const rows = [];
-  const { steps = [], heartRate = [], sleep = [] } = body;
+  const requireCognitoUser = _buildRequireCognitoUser({
+    pool,
+    cognitoVerifier,
+    devAuthBypass,
+  })
 
-  for (const item of steps) {
-    rows.push({
-      type: "steps",
-      value: Number(item.value),
-      recorded_at: parseRecordedAt(item.date),
-    });
-  }
-  for (const item of heartRate) {
-    rows.push({
-      type: "heart_rate",
-      value: Number(item.value),
-      recorded_at: parseRecordedAt(item.date),
-    });
-  }
-  for (const item of sleep) {
-    rows.push({
-      type: "sleep",
-      value: Number(item.value),
-      recorded_at: parseRecordedAt(item.date),
-    });
-  }
-
-  for (const r of rows) {
-    if (Number.isNaN(r.value)) {
-      throw new Error("Each metric must have a numeric value");
-    }
-  }
-
-  return rows.map((r) => ({
-    user_id: userId,
-    type: r.type,
-    value: r.value,
-    recorded_at: r.recorded_at,
-  }));
-}
-
-function createApp({ pool }) {
-  const app = express();
-  app.use(express.json({ limit: "1mb" }));
-
+  // ─── Legacy unauthenticated HealthKit ingest ────────────────────────────
+  // Kept on its pre-Cognito contract so the existing iOS client keeps
+  // working while the authenticated endpoints land behind a feature flag.
+  // TODO: move this behind `requireCognitoUser` once the iOS client ships
+  // Cognito tokens.
   app.post("/health-data", async (req, res) => {
     try {
-      const userId = req.body && req.body.userId;
+      const userId = req.body?.userId
       if (!userId || typeof userId !== "string") {
-        return res.status(400).json({ error: "userId (string) is required" });
+        return res.status(400).json({ error: "userId (string) is required" })
       }
 
-      let rows;
+      let result
       try {
-        rows = collectRows(userId, req.body);
+        result = await healthDataService.saveHealthData(pool, userId, req.body)
       } catch (e) {
-        return res.status(400).json({ error: e.message });
+        return res.status(400).json({
+          error: e instanceof Error ? e.message : "Invalid payload",
+        })
       }
 
-      const client = await pool.connect();
-      try {
-        await client.query("BEGIN");
-        const insertText =
-          "INSERT INTO health_data (user_id, type, value, recorded_at) VALUES ($1, $2, $3, $4)";
-        for (const row of rows) {
-          await client.query(insertText, [
-            row.user_id,
-            row.type,
-            row.value,
-            row.recorded_at,
-          ]);
-        }
-        await client.query("COMMIT");
-      } catch (err) {
-        try {
-          await client.query("ROLLBACK");
-        } catch (_) {
-          /* ignore */
-        }
-        throw err;
-      } finally {
-        client.release();
-      }
-
-      return res.json({ success: true });
-    } catch (err) {
-      console.error(err);
-      return res.status(500).json({ error: "Failed to store health data" });
+      return res.json({ success: true, ...result })
+    } catch (e) {
+      console.error("[API health-data]", e)
+      return res.status(500).json({
+        error: e instanceof Error ? e.message : "Failed to store health data",
+      })
     }
-  });
+  })
 
-  return app;
+  // ─── GET /me ────────────────────────────────────────────────────────────
+
+  app.get("/me", requireCognitoUser, async (req, res) => {
+    try {
+      return res.json({ user: _publicUser(req.user) })
+    } catch (e) {
+      console.error("[API me]", e)
+      return res.status(500).json({
+        error: e instanceof Error ? e.message : "Failed to load user",
+      })
+    }
+  })
+
+  // ─── POST /care-recipients ──────────────────────────────────────────────
+
+  app.post("/care-recipients", requireCognitoUser, async (req, res) => {
+    try {
+      let result
+      try {
+        result = await careRecipientService.createCareRecipient(
+          pool,
+          req.user.id,
+          req.body,
+        )
+      } catch (e) {
+        return res.status(400).json({
+          error: e instanceof Error ? e.message : "Invalid payload",
+        })
+      }
+
+      const { ipAddress, userAgent } = extractRequestContext(req)
+      await auditService.logAction(pool, {
+        actorUserId: req.user.id,
+        action: AUDIT_ACTIONS.createCareRecipient,
+        resourceType: AUDIT_RESOURCE_TYPES.careRecipient,
+        resourceId: result.careRecipient.id,
+        metadata: { name: result.careRecipient.name },
+        ipAddress,
+        userAgent,
+      })
+
+      return res.status(201).json({
+        success: true,
+        careRecipient: result.careRecipient,
+        careTeamMember: result.careTeamMember,
+      })
+    } catch (e) {
+      console.error("[API care-recipients POST]", e)
+      return res.status(500).json({
+        error: e instanceof Error ? e.message : "Failed to create care recipient",
+      })
+    }
+  })
+
+  // ─── GET /care-recipients ───────────────────────────────────────────────
+
+  app.get("/care-recipients", requireCognitoUser, async (req, res) => {
+    try {
+      const rows = await careRecipientService.listCareRecipientsForUser(
+        pool,
+        req.user.id,
+      )
+
+      const { ipAddress, userAgent } = extractRequestContext(req)
+      await auditService.logAction(pool, {
+        actorUserId: req.user.id,
+        action: AUDIT_ACTIONS.listCareRecipients,
+        resourceType: AUDIT_RESOURCE_TYPES.careRecipient,
+        resourceId: null,
+        metadata: { count: rows.length },
+        ipAddress,
+        userAgent,
+      })
+
+      return res.json({ careRecipients: rows })
+    } catch (e) {
+      console.error("[API care-recipients GET]", e)
+      return res.status(500).json({
+        error: e instanceof Error ? e.message : "Failed to list care recipients",
+      })
+    }
+  })
+
+  // ─── GET /care-recipients/:id ───────────────────────────────────────────
+
+  app.get("/care-recipients/:id", requireCognitoUser, async (req, res) => {
+    try {
+      const { id } = req.params
+      if (!_isUuid(id)) {
+        return res.status(400).json({ error: "Invalid care recipient id" })
+      }
+
+      try {
+        await careRecipientService.requireCareRecipientAccess(pool, id, req.user.id)
+      } catch (e) {
+        if (e instanceof CareRecipientAccessError) {
+          return res.status(403).json({ error: e.message })
+        }
+        throw e
+      }
+
+      const recipient = await careRecipientService.getCareRecipientForUser(
+        pool,
+        id,
+        req.user.id,
+      )
+      if (!recipient) {
+        return res.status(404).json({ error: "Care recipient not found" })
+      }
+
+      const { ipAddress, userAgent } = extractRequestContext(req)
+      await auditService.logAction(pool, {
+        actorUserId: req.user.id,
+        action: AUDIT_ACTIONS.viewCareRecipient,
+        resourceType: AUDIT_RESOURCE_TYPES.careRecipient,
+        resourceId: recipient.id,
+        metadata: null,
+        ipAddress,
+        userAgent,
+      })
+
+      return res.json({ careRecipient: recipient })
+    } catch (e) {
+      console.error("[API care-recipients/:id]", e)
+      return res.status(500).json({
+        error: e instanceof Error ? e.message : "Failed to load care recipient",
+      })
+    }
+  })
+
+  return app
 }
 
-module.exports = {
-  createApp,
-  collectRows,
-  parseRecordedAt,
-};
+// ─── Internal helpers ───────────────────────────────────────────────────────
+
+/**
+ * Build the Cognito JWT middleware bound to a specific verifier + pool.
+ *
+ * Returned middleware reads `Authorization: Bearer <token>`, verifies the
+ * JWT via `cognitoVerifier.verify`, upserts the internal `users` row, and
+ * attaches `req.user` as the canonical internal identity. Every failure
+ * path returns 401 with a short message so a probing attacker cannot
+ * distinguish between missing token, bad signature, and expired token.
+ *
+ * The verifier is checked lazily at request time (rather than at app build)
+ * so unauthenticated-only entry points — e.g. the existing health-data
+ * integration harness — can still build the app without wiring Cognito.
+ *
+ * When `devAuthBypass` is set the middleware short-circuits Cognito
+ * entirely and attaches the pre-seeded dev user to `req.user`. The bypass
+ * path is gated at bootstrap time (see `lib/dev-auth.js`) so production
+ * can never reach it, even if a caller forgets to set `cognitoVerifier`.
+ *
+ * TODO(cognito): remove the bypass branch once real COGNITO_* env vars
+ * exist in every environment and the iOS client always sends tokens.
+ */
+function _buildRequireCognitoUser({ pool, cognitoVerifier, devAuthBypass }) {
+  return async function requireCognitoUser(req, res, next) {
+    // TODO(cognito): drop this branch when DEV_AUTH_BYPASS is retired.
+    if (devAuthBypass) {
+      req.user = { ...devAuthBypass.user, role: devAuthBypass.role }
+      return next()
+    }
+    if (!cognitoVerifier || typeof cognitoVerifier.verify !== "function") {
+      console.error("[auth] cognitoVerifier not configured")
+      return res.status(500).json({ error: "Auth not configured" })
+    }
+    const token = extractBearerToken(req.headers.authorization)
+    if (!token) {
+      return res.status(401).json({ error: "Missing or malformed Authorization header" })
+    }
+    let claims
+    try {
+      claims = await cognitoVerifier.verify(token)
+    } catch (e) {
+      // Do not leak the verifier's detailed message; log for ops.
+      console.error("[auth] token verification failed", e instanceof Error ? e.message : e)
+      return res.status(401).json({ error: "Invalid or expired token" })
+    }
+    let user
+    try {
+      user = await authService.findOrCreateUserFromCognitoClaims(pool, claims)
+    } catch (e) {
+      console.error("[auth] user upsert failed", e)
+      return res.status(401).json({ error: "Invalid or expired token" })
+    }
+    req.user = user
+    return next()
+  }
+}
+
+function _publicUser(row) {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    created_at: row.created_at,
+    updated_at: row.updated_at,
+  }
+}
+
+// RFC-4122 form — any case, with hyphens. We do not need to validate version.
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+function _isUuid(value) {
+  return typeof value === "string" && UUID_PATTERN.test(value)
+}
