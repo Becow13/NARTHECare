@@ -1,5 +1,5 @@
 const { Pool } = require("pg");
-//const { createApp } = require("./app");
+const { createApp } = require("./app");
 
 const PORT = Number(process.env.PORT) || 3000;
 
@@ -31,7 +31,7 @@ async function ensureSchema() {
   `);
 }
 
-//const app = createApp({ pool });
+const app = createApp({ pool });
 
 async function main() {
   await ensureSchema();
