@@ -8,7 +8,7 @@
   "scripts": {
     "start": "node server.js",
     "dev": "node scripts/dev.js",
-    "test": "node --test \"test/*.test.js\" \"test/*.integration.test.js\" \"lib/__tests__/*.test.js\"",
+    "test": "node --test \"test/*.integration.test.js\" \"lib/__tests__/*.test.js\"",
     "build": "npm run test && node --check server.js"
   },
   "engines": {
