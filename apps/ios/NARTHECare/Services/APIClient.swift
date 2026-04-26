@@ -6,8 +6,13 @@ import Foundation
 /// network call either returns the decoded payload or throws one of these
 /// cases, so call-sites can surface `error.localizedDescription` directly
 /// in the UI without additional mapping.
+///
+/// `unauthorized` is broken out from the generic `badStatus` case so
+/// `AuthSession` can branch on "session expired" vs every other transport
+/// error without parsing status codes back out at the call site.
 enum APIClientError: LocalizedError {
   case invalidURL
+  case unauthorized
   case badStatus(Int, String)
   case decoding
 
@@ -15,6 +20,8 @@ enum APIClientError: LocalizedError {
     switch self {
     case .invalidURL:
       return "Invalid API base URL."
+    case .unauthorized:
+      return "Your session has expired. Please sign in again."
     case .badStatus(let code, let body):
       return "Server returned \(code): \(body)"
     case .decoding:
@@ -35,8 +42,26 @@ struct HealthDataSuccessResponse: Codable {
 /// checks, error translation) in one place so the view layer only deals in
 /// typed payloads and thrown errors.
 struct APIClient: Sendable {
-  /// Default production API (no trailing slash).
-  static let defaultBaseURL = "https://app-107635.on-aptible.com"
+  /// Production API (no trailing slash). Used when no per-build override
+  /// is supplied via the `NARTHECareAPIBaseURL` Info.plist key.
+  static let productionBaseURL = "https://app-107635.on-aptible.com"
+
+  /// Effective default base URL — the build-time `NARTHECareAPIBaseURL`
+  /// Info.plist value when present and non-empty, otherwise
+  /// `productionBaseURL`. The Info.plist value flows from the
+  /// `API_BASE_URL` build setting in `Config.local.xcconfig`, mirroring
+  /// how the Cognito values are injected. This lets a developer point
+  /// the app at `http://localhost:3000` for local backend testing
+  /// without editing source.
+  static var defaultBaseURL: String {
+    if let raw = Bundle.main.object(forInfoDictionaryKey: "NARTHECareAPIBaseURL")
+      as? String,
+      !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    {
+      return raw.trimmingCharacters(in: .whitespacesAndNewlines)
+    }
+    return productionBaseURL
+  }
 
   let baseURL: String
   let urlSession: URLSession
@@ -44,6 +69,50 @@ struct APIClient: Sendable {
   init(baseURL: String = APIClient.defaultBaseURL, urlSession: URLSession = .shared) {
     self.baseURL = baseURL.trimmingCharacters(in: CharacterSet(charactersIn: "/"))
     self.urlSession = urlSession
+  }
+
+  /// GET the authenticated caregiver's backend profile.
+  ///
+  /// Sends `Authorization: Bearer <idToken>` and decodes the response
+  /// into `BackendUser`. The backend route (`GET /api/me`) verifies the
+  /// Cognito JWT, upserts the local `users` row, stamps `last_login_at`,
+  /// writes an `AUTHENTICATE_USER` audit row, and returns the safe
+  /// public profile.
+  ///
+  /// **Security:** the `idToken` value MUST NEVER be logged. We pass it
+  /// in the `Authorization` header only, and the only data we surface
+  /// from this method is a typed `BackendUser` (no token contents, no
+  /// raw response body). On 401 we throw `.unauthorized` so
+  /// `AuthSession` can sign the user out without inspecting the body.
+  func fetchMe(idToken: String) async throws -> BackendUser {
+    guard let url = URL(string: "\(baseURL)/api/me") else {
+      throw APIClientError.invalidURL
+    }
+
+    var request = URLRequest(url: url)
+    request.httpMethod = "GET"
+    request.setValue("application/json", forHTTPHeaderField: "Accept")
+    request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+
+    let (data, response) = try await urlSession.data(for: request)
+    guard let http = response as? HTTPURLResponse else {
+      throw APIClientError.badStatus(-1, "No HTTP response")
+    }
+
+    if http.statusCode == 401 {
+      throw APIClientError.unauthorized
+    }
+    guard (200 ... 299).contains(http.statusCode) else {
+      let bodyText = String(data: data, encoding: .utf8) ?? ""
+      throw APIClientError.badStatus(http.statusCode, bodyText)
+    }
+
+    do {
+      let envelope = try JSONDecoder().decode(BackendUserResponse.self, from: data)
+      return envelope.user
+    } catch {
+      throw APIClientError.decoding
+    }
   }
 
   /// GET the full care-recipient profile for the given id.

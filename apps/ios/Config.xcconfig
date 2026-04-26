@@ -19,4 +19,18 @@
 COGNITO_USER_POOL_ID = 
 COGNITO_CLIENT_ID = 
 COGNITO_REGION = us-east-1
-COGNITO_REDIRECT_URI = narthecare://auth/callback
+// Cognito Hosted UI domain, e.g. narthecare.auth.us-east-1.amazoncognito.com
+COGNITO_DOMAIN = 
+// NOTE: xcconfig treats "//" as a comment. We interpose an empty
+// variable expansion "$()" between the two slashes so the value is
+// stored intact ("narthecare://auth/callback") without triggering the
+// comment lexer. Do not collapse this back to "//".
+COGNITO_REDIRECT_URI = narthecare:/$()/auth/callback
+
+// Backend API base URL (no trailing slash). The production Aptible URL
+// is the safe default committed here so a developer who has not created
+// a Config.local.xcconfig still gets real-backend behavior. Override
+// per developer in Config.local.xcconfig for local backend testing
+// (e.g. API_BASE_URL = http:/$()/localhost:3000 — the "$()" trick is
+// required to keep the "//" intact through the xcconfig parser).
+API_BASE_URL = https:/$()/app-107635.on-aptible.com

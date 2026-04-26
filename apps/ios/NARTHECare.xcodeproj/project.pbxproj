@@ -28,6 +28,10 @@
 		A10000000000000000000206 /* DataSourceRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000226 /* DataSourceRow.swift */; };
 		A10000000000000000000330 /* CognitoCallbackHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000320 /* CognitoCallbackHandler.swift */; };
 		A10000000000000000000331 /* CognitoConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000321 /* CognitoConfig.swift */; };
+		A10000000000000000000500 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000510 /* KeychainHelper.swift */; };
+		A10000000000000000000501 /* AuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000511 /* AuthSession.swift */; };
+		A10000000000000000000502 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000512 /* LoginView.swift */; };
+		A10000000000000000000600 /* BackendUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000610 /* BackendUser.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -55,6 +59,11 @@
 		A10000000000000000000226 /* DataSourceRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DataSourceRow.swift; path = Components/DataSourceRow.swift; sourceTree = "<group>"; };
 		A10000000000000000000320 /* CognitoCallbackHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CognitoCallbackHandler.swift; path = Auth/CognitoCallbackHandler.swift; sourceTree = "<group>"; };
 		A10000000000000000000321 /* CognitoConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CognitoConfig.swift; path = Auth/CognitoConfig.swift; sourceTree = "<group>"; };
+		A10000000000000000000400 /* Config.local.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = "Config.local.xcconfig"; path = "Config.local.xcconfig"; sourceTree = "<group>"; };
+		A10000000000000000000510 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KeychainHelper.swift; path = Auth/KeychainHelper.swift; sourceTree = "<group>"; };
+		A10000000000000000000511 /* AuthSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AuthSession.swift; path = Auth/AuthSession.swift; sourceTree = "<group>"; };
+		A10000000000000000000512 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LoginView.swift; path = Views/LoginView.swift; sourceTree = "<group>"; };
+		A10000000000000000000610 /* BackendUser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackendUser.swift; path = Models/BackendUser.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -73,6 +82,7 @@
 			children = (
 				A10000000000000000000041 /* NARTHECare */,
 				A10000000000000000000042 /* Products */,
+				A10000000000000000000400 /* Config.local.xcconfig */,
 			);
 			sourceTree = "<group>";
 		};
@@ -85,10 +95,12 @@
 				A10000000000000000000013 /* HealthUploadPayload.swift */,
 				A10000000000000000000014 /* APIClient.swift */,
 				A10000000000000000000015 /* HealthKitManager.swift */,
+				A10000000000000000000610 /* BackendUser.swift */,
 				A10000000000000000000120 /* CareRecipientProfile.swift */,
 				A10000000000000000000121 /* CareRecipientProfileMock.swift */,
 				A10000000000000000000122 /* PatientProfileViewModel.swift */,
 				A10000000000000000000123 /* PatientProfileView.swift */,
+				A10000000000000000000512 /* LoginView.swift */,
 				A10000000000000000000124 /* CareHubMock.swift */,
 				A10000000000000000000125 /* CareHubView.swift */,
 				A10000000000000000000220 /* CareRecipientProfileService.swift */,
@@ -116,8 +128,10 @@
 		A10000000000000000000340 /* Auth */ = {
 			isa = PBXGroup;
 			children = (
+				A10000000000000000000511 /* AuthSession.swift */,
 				A10000000000000000000320 /* CognitoCallbackHandler.swift */,
 				A10000000000000000000321 /* CognitoConfig.swift */,
+				A10000000000000000000510 /* KeychainHelper.swift */,
 			);
 			name = Auth;
 			sourceTree = "<group>";
@@ -196,6 +210,7 @@
 				A10000000000000000000023 /* HealthUploadPayload.swift in Sources */,
 				A10000000000000000000024 /* APIClient.swift in Sources */,
 				A10000000000000000000025 /* HealthKitManager.swift in Sources */,
+				A10000000000000000000600 /* BackendUser.swift in Sources */,
 				A10000000000000000000100 /* CareRecipientProfile.swift in Sources */,
 				A10000000000000000000101 /* CareRecipientProfileMock.swift in Sources */,
 				A10000000000000000000102 /* PatientProfileViewModel.swift in Sources */,
@@ -211,6 +226,9 @@
 				A10000000000000000000206 /* DataSourceRow.swift in Sources */,
 				A10000000000000000000330 /* CognitoCallbackHandler.swift in Sources */,
 				A10000000000000000000331 /* CognitoConfig.swift in Sources */,
+				A10000000000000000000500 /* KeychainHelper.swift in Sources */,
+				A10000000000000000000501 /* AuthSession.swift in Sources */,
+				A10000000000000000000502 /* LoginView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -342,6 +360,7 @@
 		};
 		A10000000000000000000091 /* Debug */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000400 /* Config.local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = NARTHECare/NARTHECareApp.entitlements;
@@ -367,6 +386,7 @@
 		};
 		A10000000000000000000092 /* Release */ = {
 			isa = XCBuildConfiguration;
+			baseConfigurationReference = A10000000000000000000400 /* Config.local.xcconfig */;
 			buildSettings = {
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = NARTHECare/NARTHECareApp.entitlements;

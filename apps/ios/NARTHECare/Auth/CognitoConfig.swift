@@ -12,6 +12,10 @@ struct CognitoConfig: Sendable {
   let userPoolId: String
   let clientId: String
   let region: String
+  /// Cognito Hosted UI domain (no scheme), e.g.
+  /// `narthecare.auth.us-west-1.amazoncognito.com`.
+  /// Used to construct the `/login` and `/oauth2/token` endpoint URLs.
+  let domain: String
   /// The Cognito Hosted UI redirect URI registered in the AWS App Client.
   /// Must be `narthecare://auth/callback` for local iOS login.
   let redirectUri: String
@@ -29,6 +33,7 @@ struct CognitoConfig: Sendable {
       let userPoolId = dict["NARTHECareCognitoUserPoolId"] as? String, !userPoolId.isEmpty,
       let clientId = dict["NARTHECareCognitoClientId"] as? String, !clientId.isEmpty,
       let region = dict["NARTHECareCognitoRegion"] as? String, !region.isEmpty,
+      let domain = dict["NARTHECareCognitoDomain"] as? String, !domain.isEmpty,
       let redirectUri = dict["NARTHECareCognitoRedirectUri"] as? String, !redirectUri.isEmpty
     else {
       throw CognitoConfigError.missingConfiguration
@@ -37,6 +42,7 @@ struct CognitoConfig: Sendable {
       userPoolId: userPoolId,
       clientId: clientId,
       region: region,
+      domain: domain,
       redirectUri: redirectUri
     )
   }

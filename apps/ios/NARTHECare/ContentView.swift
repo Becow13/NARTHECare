@@ -1,22 +1,49 @@
 import SwiftUI
 
-/// App-level container for the iOS NARTHECare app.
+/// App-level auth gate and container for the iOS NARTHECare app.
 ///
-/// `ContentView` intentionally stays thin: it just hosts the Care Hub
-/// entry page (`CareHubView`) and exposes the developer / HealthKit
-/// tooling behind a toolbar gear button. The visual language — header,
-/// slogan banner, stat cards, and Care Member Snapshot — is defined by
-/// the web prototype at
-/// `Prototype Code/NARTHECare Dashboard Pages Code/app/dashboard/page.tsx`.
+/// Reads `AuthSession.state` from the environment and switches between three
+/// surfaces:
 ///
-/// The dev tooling (API base URL, user id override, HealthKit grant /
-/// sync, and the mock patient profile link) is kept one tap away
-/// because the product still relies on it until Cognito and the real
-/// Care Hub endpoint ship.
+///  - `.unknown`       — brief splash spinner shown while the Keychain is read
+///                       on launch.
+///  - `.unauthenticated` / `.loading` — `LoginView`, which opens the Cognito
+///                       Hosted UI when the caregiver taps "Sign In".
+///  - `.authenticated` — the full `CareHubView` with the developer-tools sheet.
+///
+/// This is the only place auth state drives navigation; individual views
+/// must not bypass this gate.
 struct ContentView: View {
+  @EnvironmentObject private var authSession: AuthSession
   @State private var showDevTools = false
 
   var body: some View {
+    switch authSession.state {
+    case .unknown:
+      splashView
+
+    case .unauthenticated, .loading:
+      LoginView()
+
+    case .authenticated:
+      mainApp
+    }
+  }
+
+  // MARK: - Surfaces
+
+  /// Momentary loading spinner shown while `AuthSession` checks the Keychain.
+  private var splashView: some View {
+    ZStack {
+      Color.ncBackground.ignoresSafeArea()
+      ProgressView()
+        .progressViewStyle(.circular)
+        .tint(Color.ncAccent)
+    }
+  }
+
+  /// Full caregiver dashboard, shown once a session is confirmed.
+  private var mainApp: some View {
     NavigationStack {
       CareHubView(dashboard: CareHubMock.sample)
         .navigationTitle("NARTHECare")
@@ -51,6 +78,7 @@ struct ContentView: View {
 /// reachable until the auth and backend layers stabilise.
 private struct DevToolsView: View {
   @Environment(\.dismiss) private var dismiss
+  @EnvironmentObject private var authSession: AuthSession
 
   @State private var userId: String = "iphone-user"
   @State private var baseURL: String = APIClient.defaultBaseURL
@@ -61,6 +89,10 @@ private struct DevToolsView: View {
 
   var body: some View {
     Form {
+      Section("Signed in") {
+        signedInRow
+      }
+
       Section("Server") {
         TextField("API base URL (no trailing slash)", text: $baseURL)
           .textInputAutocapitalization(.never)
@@ -93,6 +125,15 @@ private struct DevToolsView: View {
           .foregroundStyle(.secondary)
       }
 
+      Section {
+        Button(role: .destructive) {
+          dismiss()
+          authSession.signOut()
+        } label: {
+          Label("Sign Out", systemImage: "rectangle.portrait.and.arrow.right")
+        }
+      }
+
       Section("Care Recipients") {
         NavigationLink {
           PatientProfileView(
@@ -114,6 +155,38 @@ private struct DevToolsView: View {
       ToolbarItem(placement: .cancellationAction) {
         Button("Done") { dismiss() }
       }
+    }
+  }
+
+  /// Read-only summary of the authenticated caregiver, sourced from
+  /// `AuthSession.currentUser` (populated by `GET /api/me`).
+  ///
+  /// Falls back to a generic "Signed in" line when the backend profile
+  /// has not loaded yet — for example on a slow network during the
+  /// first launch after sign-in. We intentionally never display the
+  /// raw Cognito sub or any token contents here; only the safe,
+  /// caregiver-facing fields the backend has approved for display.
+  @ViewBuilder
+  private var signedInRow: some View {
+    if let user = authSession.currentUser {
+      VStack(alignment: .leading, spacing: 2) {
+        if let name = user.displayName, !name.isEmpty {
+          Text(name)
+            .font(.body)
+        }
+        if let email = user.email, !email.isEmpty {
+          Text(email)
+            .font(.footnote)
+            .foregroundStyle(.secondary)
+        }
+        Text("Role: \(user.role) · Status: \(user.status)")
+          .font(.caption2)
+          .foregroundStyle(.tertiary)
+      }
+    } else {
+      Text("Loading profile…")
+        .font(.footnote)
+        .foregroundStyle(.secondary)
     }
   }
 
@@ -159,4 +232,6 @@ private struct DevToolsView: View {
 
 #Preview {
   ContentView()
+    .environmentObject(AuthSession())
+    .environmentObject(CognitoCallbackHandler())
 }

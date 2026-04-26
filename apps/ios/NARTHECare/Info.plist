@@ -15,8 +15,16 @@
 	<string>$(COGNITO_CLIENT_ID)</string>
 	<key>NARTHECareCognitoRegion</key>
 	<string>$(COGNITO_REGION)</string>
+	<key>NARTHECareCognitoDomain</key>
+	<string>$(COGNITO_DOMAIN)</string>
 	<key>NARTHECareCognitoRedirectUri</key>
 	<string>$(COGNITO_REDIRECT_URI)</string>
+	<!-- Backend API base URL (no trailing slash). Defaults to the
+	     production Aptible endpoint via Config.xcconfig; override per
+	     developer in Config.local.xcconfig (e.g. http://localhost:3000)
+	     for local backend testing. APIClient.defaultBaseURL reads this. -->
+	<key>NARTHECareAPIBaseURL</key>
+	<string>$(API_BASE_URL)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -48,6 +56,26 @@
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<!-- Narrow ATS exception so local-only http://localhost:3000 can be
+	     reached for backend dev testing on the iOS Simulator. Real
+	     backends still go over HTTPS — this exception only covers the
+	     `localhost` host and explicitly does NOT relax ATS for any
+	     other domain (no NSAllowsArbitraryLoads). Production builds
+	     should never set API_BASE_URL to a localhost value, so the
+	     exception is effectively unused outside of local dev. -->
+	<key>NSAppTransportSecurity</key>
+	<dict>
+		<key>NSExceptionDomains</key>
+		<dict>
+			<key>localhost</key>
+			<dict>
+				<key>NSExceptionAllowsInsecureHTTPLoads</key>
+				<true/>
+				<key>NSIncludesSubdomains</key>
+				<false/>
+			</dict>
+		</dict>
+	</dict>
 	<key>NSHealthShareUsageDescription</key>
 	<string>This app reads steps, heart rate, and sleep to send them to your NARTHECare backend.</string>
 	<key>NSHealthUpdateUsageDescription</key>
