@@ -7,6 +7,10 @@ npm-debug.log*
 *.xcuserstate
 xcuserdata/
 DerivedData/
+apps/ios/DerivedData-cibuild/
 .build/
 *.moved-aside
 .DS_Store
+
+# Local iOS xcconfig — contains real Cognito credentials, never commit
+apps/ios/Config.local.xcconfig

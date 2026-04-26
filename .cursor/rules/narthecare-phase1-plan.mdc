@@ -1,0 +1,205 @@
+---
+alwaysApply: false
+description: Use this when planning or implementing NARTHECare Phase 1 features.
+---
+
+# NARTHECare Phase 1 Implementation Plan
+
+Use this order for Phase 1 work. Do not build random features out of order unless explicitly requested.
+
+## Phase 1 Order
+
+1. Auth, RBAC, audit, and security foundation
+2. Minimal care recipient model + dashboard shell
+3. HealthKit ingestion
+4. Nightly baseline job
+5. Claude daily summary from HealthKit + baseline data
+6. Epic FHIR R4 sandbox OAuth foundation
+7. Epic sandbox resource fetch
+8. Doctor visit plain-language summary
+9. Minimal beta onboarding
+
+---
+
+## 0. Epic Registration
+
+Epic App Orchard / Epic on FHIR registration should start manually in Week 1.
+
+Engineering should not block on production approval.
+
+Build Epic sandbox first.
+
+---
+
+## 1. Auth, RBAC, Audit, Security Foundation
+
+Build:
+
+- AWS Cognito-based app authentication if available
+- Backend JWT verification
+- Local `users` table mapped to Cognito `sub`
+- Care recipient access model
+- RBAC / permission checks
+- Audit logging
+- PHI-safe logger
+- Encryption utility
+- Core PostgreSQL schema
+
+Do not implement custom password auth if Cognito is used.
+
+---
+
+## 2. Minimal Care Recipient + Dashboard Shell
+
+Dashboard is required in Phase 1.
+
+Build a minimal Care Hub dashboard with these cards:
+
+1. Today’s Care Summary
+2. Health Signals
+3. Baseline Status
+4. Data Sources
+5. Care Actions
+
+Requirements:
+
+- All dashboard routes require authentication.
+- All care-recipient dashboard data must validate access.
+- Cards must have safe empty states.
+- Do not build full analytics yet.
+- Do not polish UI before data flow works.
+
+---
+
+## 3. HealthKit Ingestion
+
+HealthKit is the first real data source.
+
+Initial metrics:
+
+- Resting heart rate
+- HRV
+- SpO₂
+- Steps
+- Sleep duration / stages
+- Respiratory rate
+- Walking steadiness
+- Fall detection events if available
+
+Store normalized observations in `health_observations`.
+
+Dashboard should show latest HealthKit values.
+
+---
+
+## 4. Nightly Baseline Job
+
+Build:
+
+- `metric_baselines`
+- Rolling 14-day baseline computation
+- Baseline readiness status
+- Scheduled/background job
+- Safe job logs without PHI
+
+Do not build full alerting or predictive risk scoring in Phase 1.
+
+---
+
+## 5. Claude Daily Summary
+
+Build conservative daily status summaries from real HealthKit + baseline data.
+
+Store in `ai_summaries` with:
+
+- care recipient ID
+- summary type
+- summary text
+- evidence JSON
+- prompt version
+- model
+- created timestamp
+
+Show the latest summary in the dashboard.
+
+Do not diagnose or give treatment instructions.
+
+---
+
+## 6. Epic FHIR R4 Sandbox OAuth
+
+Build Epic sandbox OAuth after auth/security foundation.
+
+Build:
+
+- `epic_oauth_states`
+- `epic_connections`
+- SMART on FHIR connect flow
+- Callback flow
+- Token refresh
+- Connection status
+- Disconnect flow
+- Encrypted token storage
+- Sandbox `Patient.read` test first
+
+Endpoints may include:
+
+- `GET /api/integrations/epic/connect`
+- `GET /api/integrations/epic/callback`
+- `POST /api/integrations/epic/refresh`
+- `GET /api/integrations/epic/status`
+- `DELETE /api/integrations/epic/disconnect`
+
+Do not build full production Epic sync first.
+
+---
+
+## 7. Epic Sandbox Resource Fetch
+
+After OAuth works, fetch these sandbox FHIR R4 resources:
+
+- Patient
+- Observation
+- Condition
+- MedicationRequest
+- MedicationStatement
+- DocumentReference
+- Binary
+- Encounter
+- CareTeam
+
+Highest-value demo path:
+
+DocumentReference / Binary → plain-language doctor visit summary.
+
+---
+
+## 8. Doctor Visit Plain-Language Summary
+
+Build:
+
+- Fetch latest visit summary document from Epic sandbox
+- Extract safe text
+- Generate caregiver-friendly plain-language summary
+- Store AI summary with prompt version and evidence
+- Show latest visit summary on dashboard
+
+AI must not diagnose or give treatment instructions.
+
+---
+
+## Not In Phase 1
+
+Do NOT build these unless explicitly requested:
+
+- Full alert notification delivery
+- Predictive risk scoring
+- Camera / Ring integration
+- Full clinician portal
+- Full admin console
+- Production Epic sync
+- Complex invitation workflow
+- Complex MFA policy engine
+- Full analytics dashboard
+- Custom password auth if Cognito is used
+- Diagnosis or treatment recommendation engine

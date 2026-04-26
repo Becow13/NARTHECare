@@ -1,0 +1,22 @@
+// NARTHECare iOS — Cognito Hosted UI configuration template
+//
+// This file defines the build settings that are injected into Info.plist
+// at compile time via $(VAR_NAME) expansions.
+//
+// HOW TO USE
+// ----------
+// 1. Copy this file:
+//      cp apps/ios/Config.xcconfig apps/ios/Config.local.xcconfig
+// 2. Fill in the real values in Config.local.xcconfig.
+// 3. In Xcode: Project → Info → Configurations → expand Debug and Release
+//    → set the configuration file for the NARTHECareApp target to
+//    "Config.local" (Xcode strips the .xcconfig extension in the picker).
+// 4. Config.local.xcconfig is gitignored — never commit real credentials.
+//
+// COGNITO_REDIRECT_URI must exactly match the value registered in the
+// Cognito App Client's "Allowed callback URLs" in the AWS console.
+
+COGNITO_USER_POOL_ID = 
+COGNITO_CLIENT_ID = 
+COGNITO_REGION = us-east-1
+COGNITO_REDIRECT_URI = narthecare://auth/callback

@@ -26,6 +26,8 @@
 		A10000000000000000000204 /* RiskBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000224 /* RiskBadge.swift */; };
 		A10000000000000000000205 /* StatusBadge.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000225 /* StatusBadge.swift */; };
 		A10000000000000000000206 /* DataSourceRow.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000226 /* DataSourceRow.swift */; };
+		A10000000000000000000330 /* CognitoCallbackHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000320 /* CognitoCallbackHandler.swift */; };
+		A10000000000000000000331 /* CognitoConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000321 /* CognitoConfig.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -51,6 +53,8 @@
 		A10000000000000000000224 /* RiskBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RiskBadge.swift; path = Components/RiskBadge.swift; sourceTree = "<group>"; };
 		A10000000000000000000225 /* StatusBadge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = StatusBadge.swift; path = Components/StatusBadge.swift; sourceTree = "<group>"; };
 		A10000000000000000000226 /* DataSourceRow.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DataSourceRow.swift; path = Components/DataSourceRow.swift; sourceTree = "<group>"; };
+		A10000000000000000000320 /* CognitoCallbackHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CognitoCallbackHandler.swift; path = Auth/CognitoCallbackHandler.swift; sourceTree = "<group>"; };
+		A10000000000000000000321 /* CognitoConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CognitoConfig.swift; path = Auth/CognitoConfig.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -75,6 +79,7 @@
 		A10000000000000000000041 /* NARTHECare */ = {
 			isa = PBXGroup;
 			children = (
+				A10000000000000000000340 /* Auth */,
 				A10000000000000000000011 /* NARTHECareAppApp.swift */,
 				A10000000000000000000012 /* ContentView.swift */,
 				A10000000000000000000013 /* HealthUploadPayload.swift */,
@@ -106,6 +111,15 @@
 				A10000000000000000000001 /* NARTHECare.app */,
 			);
 			name = Products;
+			sourceTree = "<group>";
+		};
+		A10000000000000000000340 /* Auth */ = {
+			isa = PBXGroup;
+			children = (
+				A10000000000000000000320 /* CognitoCallbackHandler.swift */,
+				A10000000000000000000321 /* CognitoConfig.swift */,
+			);
+			name = Auth;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -195,6 +209,8 @@
 				A10000000000000000000204 /* RiskBadge.swift in Sources */,
 				A10000000000000000000205 /* StatusBadge.swift in Sources */,
 				A10000000000000000000206 /* DataSourceRow.swift in Sources */,
+				A10000000000000000000330 /* CognitoCallbackHandler.swift in Sources */,
+				A10000000000000000000331 /* CognitoConfig.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

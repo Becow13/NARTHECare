@@ -6,6 +6,17 @@
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
 	<string>NARTHECare</string>
+	<!-- Cognito Hosted UI redirect URI: narthecare://auth/callback
+	     Values expand from build settings set in Config.xcconfig.
+	     See apps/ios/Config.xcconfig for setup instructions. -->
+	<key>NARTHECareCognitoUserPoolId</key>
+	<string>$(COGNITO_USER_POOL_ID)</string>
+	<key>NARTHECareCognitoClientId</key>
+	<string>$(COGNITO_CLIENT_ID)</string>
+	<key>NARTHECareCognitoRegion</key>
+	<string>$(COGNITO_REGION)</string>
+	<key>NARTHECareCognitoRedirectUri</key>
+	<string>$(COGNITO_REDIRECT_URI)</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -20,6 +31,21 @@
 	<string>$(MARKETING_VERSION)</string>
 	<key>CFBundleVersion</key>
 	<string>$(CURRENT_PROJECT_VERSION)</string>
+	<!-- Custom URL scheme so iOS routes narthecare://auth/callback to this app.
+	     This is the Cognito Hosted UI redirect URI for local iOS login. -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLName</key>
+			<string>com.narthecare.auth</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>narthecare</string>
+			</array>
+		</dict>
+	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSHealthShareUsageDescription</key>
