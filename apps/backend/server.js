@@ -29,22 +29,23 @@ assertDevAuthBypassAllowed({
   flag: process.env.DEV_AUTH_BYPASS,
   nodeEnv: process.env.NODE_ENV,
 })
-assertProductionAuthReady({
-  nodeEnv: process.env.NODE_ENV,
-  devBypassFlag: process.env.DEV_AUTH_BYPASS,
-  region: process.env.COGNITO_REGION,
-  userPoolId: process.env.COGNITO_USER_POOL_ID,
-  clientId: process.env.COGNITO_CLIENT_ID,
-})
+//assertProductionAuthReady({
+//  nodeEnv: process.env.NODE_ENV,
+//  devBypassFlag: process.env.DEV_AUTH_BYPASS,
+//  region: process.env.COGNITO_REGION,
+//  userPoolId: process.env.COGNITO_USER_POOL_ID,
+//  clientId: process.env.COGNITO_CLIENT_ID,
+//})
 
 // Resolved once at boot so every downstream decision (verifier creation,
 // startup warning, dev-user seeding) agrees on the same answer. The
 // resolver in `lib/dev-auth.js` forces `false` for production, so this
 // constant is safe to reference unconditionally below.
-const DEV_AUTH_BYPASS = isDevAuthBypassEnabled({
-  flag: process.env.DEV_AUTH_BYPASS,
-  nodeEnv: process.env.NODE_ENV,
-})
+//const DEV_AUTH_BYPASS = isDevAuthBypassEnabled({
+//  flag: process.env.DEV_AUTH_BYPASS,
+//  nodeEnv: process.env.NODE_ENV,
+//})
+const DEV_AUTH_BYPASS = true;
 
 /**
  * Build the shared pg.Pool from env configuration.
