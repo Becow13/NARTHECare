@@ -11,6 +11,9 @@
 
 /** Canonical audit-log actions. Every new write must use a value from here. */
 export const AUDIT_ACTIONS = Object.freeze({
+  authenticateUser: "AUTHENTICATE_USER",
+  /** Cognito `sub` moved onto an existing row after verified-email collision. */
+  mergeCognitoIdentity: "AUTH_MERGE_COGNITO_IDENTITY",
   createCareRecipient: "CREATE_CARE_RECIPIENT",
   viewCareRecipient: "VIEW_CARE_RECIPIENT",
   viewCareRecipientProfile: "VIEW_CARE_RECIPIENT_PROFILE",
@@ -19,6 +22,7 @@ export const AUDIT_ACTIONS = Object.freeze({
 
 /** Canonical resource types so analytics queries can filter by kind. */
 export const AUDIT_RESOURCE_TYPES = Object.freeze({
+  user: "user",
   careRecipient: "care_recipient",
 })
 

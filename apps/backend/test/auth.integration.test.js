@@ -48,24 +48,48 @@ function createFakePool() {
   async function query(sql, params = []) {
     const s = sql.trim()
 
-    // Schema migrations (ignored by the fake — tables exist by virtue of state).
-    if (s.startsWith("CREATE ")) return { rows: [] }
+    // Schema migrations (ignored by the fake — tables exist by virtue of
+    // state). The DAOs run a mix of CREATE/ALTER/DO statements at boot
+    // and we treat all of them as no-ops. The `users` migration block
+    // begins with `ALTER TABLE users ADD COLUMN ...` so the ALTER prefix
+    // covers it; the `name -> display_name` backfill is wrapped in a
+    // `DO $$ ... $$` block on production so it never reaches the fake
+    // as a standalone statement.
+    if (s.startsWith("CREATE ") || s.startsWith("ALTER ")) return { rows: [] }
+    if (s.startsWith("DO ")) return { rows: [] }
 
     // ── users ────────────────────────────────────────────────────────────
     if (s.startsWith("INSERT INTO users")) {
-      const [cognitoSub, email, name] = params
+      const [cognitoSub, email, emailVerified, displayName] = params
       const existing = state.users.find((u) => u.cognito_sub === cognitoSub)
       if (existing) {
         if (email) existing.email = email
-        if (name) existing.name = name
+        existing.email_verified = Boolean(emailVerified)
+        if (displayName) existing.display_name = displayName
         existing.updated_at = new Date()
         return { rows: [existing] }
+      }
+      if (email != null && typeof email === "string") {
+        const emailDup = state.users.find(
+          (u) => u.email != null && u.email === email,
+        )
+        if (emailDup) {
+          const err = new Error("duplicate key value violates unique constraint")
+          err.code = "23505"
+          err.constraint = "users_email_key"
+          err.detail = `Key (email)=(${email}) already exists.`
+          throw err
+        }
       }
       const row = {
         id: nextId(),
         cognito_sub: cognitoSub,
-        email,
-        name: name ?? null,
+        email: email ?? null,
+        email_verified: Boolean(emailVerified),
+        display_name: displayName ?? null,
+        role: "caregiver",
+        status: "active",
+        last_login_at: null,
         created_at: new Date(),
         updated_at: new Date(),
       }
@@ -73,7 +97,52 @@ function createFakePool() {
       return { rows: [row] }
     }
 
-    if (s.startsWith("SELECT id, cognito_sub, email, name")) {
+    if (
+      s.startsWith("UPDATE users") &&
+      s.includes("cognito_sub = $1") &&
+      s.includes("WHERE id = $4 AND cognito_sub = $5")
+    ) {
+      const [nextSub, emailVerified, displayName, userId, prevSub] = params
+      const row = state.users.find(
+        (u) => u.id === userId && u.cognito_sub === prevSub,
+      )
+      if (!row) return { rows: [] }
+      row.cognito_sub = nextSub
+      row.email_verified = Boolean(emailVerified)
+      if (displayName != null) row.display_name = displayName
+      row.updated_at = new Date()
+      return { rows: [row] }
+    }
+
+    if (
+      s.includes("SELECT id, cognito_sub") &&
+      s.includes("FROM users") &&
+      s.includes("email IS NOT DISTINCT FROM $1")
+    ) {
+      const [em] = params
+      const matches = state.users.filter((u) =>
+        em === null || em === undefined
+          ? u.email == null
+          : u.email === em,
+      )
+      return {
+        rows: matches.slice(0, 2).map((u) => ({
+          id: u.id,
+          cognito_sub: u.cognito_sub,
+        })),
+      }
+    }
+
+    if (s.startsWith("UPDATE users") && s.includes("last_login_at = NOW()")) {
+      const [userId] = params
+      const row = state.users.find((u) => u.id === userId)
+      if (!row) return { rows: [] }
+      row.last_login_at = new Date()
+      row.updated_at = new Date()
+      return { rows: [row] }
+    }
+
+    if (s.startsWith("SELECT") && s.includes("FROM users") && s.includes("cognito_sub = $1")) {
       const [cognitoSub] = params
       const row = state.users.find((u) => u.cognito_sub === cognitoSub)
       return { rows: row ? [row] : [] }
@@ -209,19 +278,42 @@ const OTHER_TOKEN = "other.jwt.token"
 const VALID_CLAIMS = {
   sub: "cog-sub-1",
   email: "alice@example.com",
+  email_verified: true,
   name: "Alice Example",
 }
 const OTHER_CLAIMS = {
   sub: "cog-sub-2",
   email: "bob@example.com",
+  email_verified: false,
   name: "Bob Example",
 }
 
-function buildApp() {
+const MERGED_SUB_TOKEN = "merged.jwt.token"
+const MERGED_SUB_CLAIMS = {
+  sub: "cog-sub-merged",
+  email: "alice@example.com",
+  email_verified: true,
+  name: "Alice Merged",
+}
+
+const CONFLICT_SUB_TOKEN = "conflict.jwt.token"
+const CONFLICT_SUB_CLAIMS = {
+  sub: "cog-sub-conflict",
+  email: "alice@example.com",
+  email_verified: false,
+  name: "Alice Other",
+}
+
+/**
+ * @param {Record<string, Record<string, unknown>>} [extraTokenClaims]
+ *   Additional `token -> claims` entries for `makeVerifier`.
+ */
+function buildApp(extraTokenClaims = {}) {
   const { pool, state } = createFakePool()
   const cognitoVerifier = makeVerifier({
     [VALID_TOKEN]: VALID_CLAIMS,
     [OTHER_TOKEN]: OTHER_CLAIMS,
+    ...extraTokenClaims,
   })
   const app = createApp({ pool, cognitoVerifier })
   return { app, pool, state }
@@ -229,11 +321,11 @@ function buildApp() {
 
 // ─── Middleware: unauthenticated cases ──────────────────────────────────────
 
-test("GET /me returns 401 when no Authorization header is present", async () => {
+test("GET /api/me returns 401 when no Authorization header is present", async () => {
   const { app } = buildApp()
   const { server, baseUrl } = await startServer(app)
   try {
-    const res = await fetch(`${baseUrl}/me`)
+    const res = await fetch(`${baseUrl}/api/me`)
     assert.equal(res.status, 401)
     const body = await res.json()
     assert.match(body.error, /Authorization/)
@@ -242,11 +334,11 @@ test("GET /me returns 401 when no Authorization header is present", async () => 
   }
 })
 
-test("GET /me returns 401 for a non-Bearer scheme", async () => {
+test("GET /api/me returns 401 for a non-Bearer scheme", async () => {
   const { app } = buildApp()
   const { server, baseUrl } = await startServer(app)
   try {
-    const res = await fetch(`${baseUrl}/me`, {
+    const res = await fetch(`${baseUrl}/api/me`, {
       headers: { authorization: "Basic abc" },
     })
     assert.equal(res.status, 401)
@@ -255,11 +347,11 @@ test("GET /me returns 401 for a non-Bearer scheme", async () => {
   }
 })
 
-test("GET /me returns 401 when the token fails verification", async () => {
+test("GET /api/me returns 401 when the token fails verification", async () => {
   const { app } = buildApp()
   const { server, baseUrl } = await startServer(app)
   try {
-    const res = await fetch(`${baseUrl}/me`, {
+    const res = await fetch(`${baseUrl}/api/me`, {
       headers: { authorization: "Bearer not.a.real.token" },
     })
     assert.equal(res.status, 401)
@@ -270,10 +362,8 @@ test("GET /me returns 401 when the token fails verification", async () => {
   }
 })
 
-// ─── GET /me ─────────────────────────────────────────────────────────────────
-
-test("GET /me upserts the user and returns their internal identity", async () => {
-  const { app, state } = buildApp()
+test("GET /me alias preserves backward compatibility", async () => {
+  const { app } = buildApp()
   const { server, baseUrl } = await startServer(app)
   try {
     const res = await fetch(`${baseUrl}/me`, {
@@ -282,8 +372,33 @@ test("GET /me upserts the user and returns their internal identity", async () =>
     assert.equal(res.status, 200)
     const body = await res.json()
     assert.equal(body.user.email, "alice@example.com")
-    assert.equal(body.user.name, "Alice Example")
+  } finally {
+    await stopServer(server)
+  }
+})
+
+// ─── GET /api/me ─────────────────────────────────────────────────────────────
+
+test("GET /api/me upserts the user and returns the safe public profile", async () => {
+  const { app, state } = buildApp()
+  const { server, baseUrl } = await startServer(app)
+  try {
+    const res = await fetch(`${baseUrl}/api/me`, {
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    })
+    assert.equal(res.status, 200)
+    const body = await res.json()
+
+    assert.equal(body.user.email, "alice@example.com")
+    assert.equal(body.user.email_verified, true)
+    assert.equal(body.user.display_name, "Alice Example")
+    assert.equal(body.user.role, "caregiver")
+    assert.equal(body.user.status, "active")
     assert.ok(body.user.id, "internal id is returned")
+    assert.ok(body.user.last_login_at, "last_login_at is stamped on first call")
+    assert.ok(body.user.created_at, "created_at is returned")
+    // The handler must never echo Cognito claims back to the client.
+    assert.equal(body.user.cognito_sub, undefined)
 
     assert.equal(state.users.length, 1)
     assert.equal(state.users[0].cognito_sub, "cog-sub-1")
@@ -292,17 +407,87 @@ test("GET /me upserts the user and returns their internal identity", async () =>
   }
 })
 
-test("GET /me is idempotent — a second call does not duplicate the user row", async () => {
+test("GET /api/me writes an AUTHENTICATE_USER audit row with no PHI metadata", async () => {
   const { app, state } = buildApp()
   const { server, baseUrl } = await startServer(app)
   try {
-    await fetch(`${baseUrl}/me`, {
+    await fetch(`${baseUrl}/api/me`, {
       headers: { authorization: `Bearer ${VALID_TOKEN}` },
     })
-    await fetch(`${baseUrl}/me`, {
+    const audit = state.auditLogs.find((a) => a.action === "AUTHENTICATE_USER")
+    assert.ok(audit, "AUTHENTICATE_USER audit row was written")
+    assert.equal(audit.resource_type, "user")
+    assert.equal(audit.resource_id, state.users[0].id)
+    assert.equal(audit.metadata, null, "no PHI metadata leaks to audit row")
+  } finally {
+    await stopServer(server)
+  }
+})
+
+test("GET /api/me is idempotent — second call does not duplicate the user row", async () => {
+  const { app, state } = buildApp()
+  const { server, baseUrl } = await startServer(app)
+  try {
+    await fetch(`${baseUrl}/api/me`, {
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    })
+    await fetch(`${baseUrl}/api/me`, {
       headers: { authorization: `Bearer ${VALID_TOKEN}` },
     })
     assert.equal(state.users.length, 1)
+    // Both calls should each write an audit row.
+    const audits = state.auditLogs.filter((a) => a.action === "AUTHENTICATE_USER")
+    assert.equal(audits.length, 2)
+  } finally {
+    await stopServer(server)
+  }
+})
+
+test("GET /api/me merges a new verified Cognito sub onto the existing email row", async () => {
+  const { app, state } = buildApp({
+    [MERGED_SUB_TOKEN]: MERGED_SUB_CLAIMS,
+  })
+  const { server, baseUrl } = await startServer(app)
+  try {
+    await fetch(`${baseUrl}/api/me`, {
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    })
+    const res = await fetch(`${baseUrl}/api/me`, {
+      headers: { authorization: `Bearer ${MERGED_SUB_TOKEN}` },
+    })
+    assert.equal(res.status, 200)
+    assert.equal(state.users.length, 1)
+    assert.equal(state.users[0].cognito_sub, "cog-sub-merged")
+    assert.equal(state.users[0].email, "alice@example.com")
+
+    const mergeAudits = state.auditLogs.filter(
+      (a) => a.action === "AUTH_MERGE_COGNITO_IDENTITY",
+    )
+    assert.equal(mergeAudits.length, 1)
+    assert.equal(mergeAudits[0].resource_id, state.users[0].id)
+  } finally {
+    await stopServer(server)
+  }
+})
+
+test("GET /api/me returns 409 when the email is taken by another sub and email is not verified", async () => {
+  const { app, state } = buildApp({
+    [CONFLICT_SUB_TOKEN]: CONFLICT_SUB_CLAIMS,
+  })
+  const { server, baseUrl } = await startServer(app)
+  try {
+    await fetch(`${baseUrl}/api/me`, {
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    })
+    const res = await fetch(`${baseUrl}/api/me`, {
+      headers: { authorization: `Bearer ${CONFLICT_SUB_TOKEN}` },
+    })
+    assert.equal(res.status, 409)
+    const body = await res.json()
+    assert.match(body.error, /already linked/)
+
+    assert.equal(state.users.length, 1)
+    assert.equal(state.users[0].cognito_sub, "cog-sub-1")
   } finally {
     await stopServer(server)
   }
@@ -562,15 +747,17 @@ async function buildBypassApp() {
   return { app, pool, state, devUser: user }
 }
 
-test("DEV_AUTH_BYPASS: GET /me succeeds without Authorization header", async () => {
+test("DEV_AUTH_BYPASS: GET /api/me succeeds without Authorization header", async () => {
   const { app, devUser } = await buildBypassApp()
   const { server, baseUrl } = await startServer(app)
   try {
-    const res = await fetch(`${baseUrl}/me`)
+    const res = await fetch(`${baseUrl}/api/me`)
     assert.equal(res.status, 200)
     const body = await res.json()
     assert.equal(body.user.email, "dev@narthecare.local")
-    assert.equal(body.user.name, "Dev User")
+    assert.equal(body.user.display_name, "Dev User")
+    assert.equal(body.user.role, "caregiver")
+    assert.equal(body.user.status, "active")
     assert.equal(body.user.id, devUser.id)
   } finally {
     await stopServer(server)

@@ -14,7 +14,8 @@ import {
 test("DEV_MOCK_USER carries the canonical dev identity", () => {
   assert.equal(DEV_MOCK_USER.cognitoSub, "dev-bypass")
   assert.equal(DEV_MOCK_USER.email, "dev@narthecare.local")
-  assert.equal(DEV_MOCK_USER.name, "Dev User")
+  assert.equal(DEV_MOCK_USER.emailVerified, true)
+  assert.equal(DEV_MOCK_USER.displayName, "Dev User")
   assert.equal(DEV_MOCK_USER.role, "caregiver")
 })
 

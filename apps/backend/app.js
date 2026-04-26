@@ -9,6 +9,7 @@ import {
 import { MAX_PAYLOAD_BYTES } from "./lib/health-data.js"
 import { extractBearerToken } from "./lib/cognito-auth.js"
 import { extractRequestContext, AUDIT_ACTIONS, AUDIT_RESOURCE_TYPES } from "./lib/audit.js"
+import { IdentityEmailConflictError } from "./lib/identity-errors.js"
 import { CareRecipientAccessError } from "./services/careRecipientService.js"
 import { CareRecipientProfileAccessError } from "./services/careRecipientProfileService.js"
 
@@ -88,11 +89,48 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
     }
   })
 
-  // ─── GET /me ────────────────────────────────────────────────────────────
+  // ─── GET /api/me (and legacy /me alias) ────────────────────────────────
+  //
+  // The middleware already upserted the `users` row from the verified
+  // Cognito claims. This handler only needs to:
+  //
+  //   1. Stamp `last_login_at = NOW()` so the column reflects "last
+  //      completed Cognito sign-in" rather than "last authenticated
+  //      request" (which would tick on every API call).
+  //   2. Write an `AUTHENTICATE_USER` audit row with NO PHI in the
+  //      metadata column — every actor / resource id is already
+  //      indexed for ops queries, and emails / tokens / Cognito claims
+  //      must never land in `audit_logs`.
+  //   3. Return the safe public profile to the iOS client.
+  //
+  // The legacy `/me` alias is preserved because earlier integration
+  // tests and the in-flight iOS build target it; new clients should
+  // call `/api/me`. TODO(api): retire `/me` once every shipped iOS
+  // build targets `/api/me`.
 
-  app.get("/me", requireCognitoUser, async (req, res) => {
+  app.get(["/api/me", "/me"], requireCognitoUser, async (req, res) => {
     try {
-      return res.json({ user: _publicUser(req.user) })
+      const refreshed = await authService.recordLogin(pool, req.user.id)
+      // If the row vanished between middleware and handler (e.g. a delete
+      // ran in another connection), fail closed with 401 instead of 200.
+      if (!refreshed) {
+        return res.status(401).json({ error: "Invalid or expired token" })
+      }
+
+      const { ipAddress, userAgent } = extractRequestContext(req)
+      await auditService.logAction(pool, {
+        actorUserId: refreshed.id,
+        action: AUDIT_ACTIONS.authenticateUser,
+        resourceType: AUDIT_RESOURCE_TYPES.user,
+        resourceId: refreshed.id,
+        // Intentionally null — never log emails, sub values, or Cognito
+        // claim contents in audit metadata.
+        metadata: null,
+        ipAddress,
+        userAgent,
+      })
+
+      return res.json({ user: _publicUser(refreshed) })
     } catch (e) {
       console.error("[API me]", e)
       return res.status(500).json({
@@ -320,8 +358,15 @@ function _buildRequireCognitoUser({ pool, cognitoVerifier, devAuthBypass }) {
     }
     let user
     try {
-      user = await authService.findOrCreateUserFromCognitoClaims(pool, claims)
+      user = await authService.findOrCreateUserFromCognitoClaims(pool, claims, {
+        req,
+      })
     } catch (e) {
+      if (e instanceof IdentityEmailConflictError) {
+        return res.status(409).json({
+          error: e instanceof Error ? e.message : "Account conflict",
+        })
+      }
       console.error("[auth] user upsert failed", e)
       return res.status(401).json({ error: "Invalid or expired token" })
     }
@@ -330,13 +375,25 @@ function _buildRequireCognitoUser({ pool, cognitoVerifier, devAuthBypass }) {
   }
 }
 
+/**
+ * Project a `users` row to the safe shape returned to the iOS client.
+ *
+ * Intentionally excludes `cognito_sub`, raw Cognito claims, tokens, and
+ * any operational columns the client has no business seeing. The result
+ * is passed through `JSON.stringify`, so any future column added to the
+ * table is omitted by default — fail-closed against accidental PHI
+ * leakage through new schema fields.
+ */
 function _publicUser(row) {
   return {
     id: row.id,
-    email: row.email,
-    name: row.name,
+    email: row.email ?? null,
+    email_verified: Boolean(row.email_verified),
+    display_name: row.display_name ?? null,
+    role: row.role,
+    status: row.status,
+    last_login_at: row.last_login_at ?? null,
     created_at: row.created_at,
-    updated_at: row.updated_at,
   }
 }
 

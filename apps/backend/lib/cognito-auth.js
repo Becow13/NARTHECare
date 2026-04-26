@@ -55,10 +55,22 @@ export function buildCognitoIssuer(region, userPoolId) {
 /**
  * Pull the minimal identity fields out of a verified Cognito claim set.
  *
- * `aws-jwt-verify` already enforced issuer / audience / signature before this
- * runs, so the only remaining work is to shape the claims into the canonical
- * fields the rest of the app uses. `sub` is required; everything else is
- * optional because ID tokens and access tokens expose different subsets.
+ * `aws-jwt-verify` already enforced issuer / audience / signature before
+ * this runs, so the only remaining work is to shape the claims into the
+ * canonical fields the rest of the app uses. `sub` is required; the rest
+ * are optional because ID tokens and access tokens expose different
+ * subsets:
+ *
+ *   - ID tokens carry `email`, `email_verified`, `name`, `given_name`,
+ *     `family_name`, and `cognito:username`.
+ *   - Access tokens carry `username` / `cognito:username` only.
+ *
+ * `emailVerified` is normalised to a strict boolean — Cognito sometimes
+ * serializes it as the string `"true"` / `"false"` depending on token
+ * type, and we need a real boolean to land in the DB column. The
+ * display-name fallback ladder mirrors what caregivers will see in the
+ * iOS app: a configured `name` first, then `given_name + family_name`,
+ * then the Cognito username as a last resort.
  */
 export function extractIdentity(claims) {
   if (!claims || typeof claims !== "object") {
@@ -69,11 +81,37 @@ export function extractIdentity(claims) {
     throw new Error("Cognito claims missing `sub`")
   }
   const email = typeof claims.email === "string" ? claims.email : null
-  const name =
-    typeof claims.name === "string" && claims.name.length > 0
-      ? claims.name
-      : typeof claims["cognito:username"] === "string"
-        ? claims["cognito:username"]
-        : null
-  return { cognitoSub: sub, email, name }
+  const emailVerified = _coerceBoolean(claims.email_verified)
+  const displayName = _pickDisplayName(claims)
+  return { cognitoSub: sub, email, emailVerified, displayName }
+}
+
+// ─── Internal helpers ────────────────────────────────────────────────────────
+
+function _coerceBoolean(value) {
+  if (typeof value === "boolean") return value
+  if (typeof value === "string") return value.toLowerCase() === "true"
+  return false
+}
+
+function _pickDisplayName(claims) {
+  const candidates = [
+    claims.name,
+    _joinNameParts(claims.given_name, claims.family_name),
+    claims["cognito:username"],
+    claims.username,
+  ]
+  for (const candidate of candidates) {
+    if (typeof candidate === "string" && candidate.trim().length > 0) {
+      return candidate.trim()
+    }
+  }
+  return null
+}
+
+function _joinNameParts(given, family) {
+  const left = typeof given === "string" ? given.trim() : ""
+  const right = typeof family === "string" ? family.trim() : ""
+  const joined = `${left} ${right}`.trim()
+  return joined.length > 0 ? joined : null
 }

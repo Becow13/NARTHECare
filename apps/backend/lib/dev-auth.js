@@ -31,7 +31,8 @@
 export const DEV_MOCK_USER = Object.freeze({
   cognitoSub: "dev-bypass",
   email: "dev@narthecare.local",
-  name: "Dev User",
+  emailVerified: true,
+  displayName: "Dev User",
   role: "caregiver",
 })
 

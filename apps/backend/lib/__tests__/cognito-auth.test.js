@@ -67,17 +67,39 @@ test("buildCognitoIssuer throws when userPoolId is missing", () => {
 // extractIdentity
 // ---------------------------------------------------------------------------
 
-test("extractIdentity pulls sub, email and name from an ID token claim set", () => {
+test("extractIdentity pulls sub, email, email_verified and display name from an ID token", () => {
   const id = extractIdentity({
     sub: "cog-sub-1",
     email: "user@example.com",
+    email_verified: true,
     name: "Jane Doe",
   })
   assert.deepEqual(id, {
     cognitoSub: "cog-sub-1",
     email: "user@example.com",
-    name: "Jane Doe",
+    emailVerified: true,
+    displayName: "Jane Doe",
   })
+})
+
+test("extractIdentity coerces a string `email_verified` to a real boolean", () => {
+  assert.equal(
+    extractIdentity({ sub: "s", email: "e", email_verified: "true" }).emailVerified,
+    true,
+  )
+  assert.equal(
+    extractIdentity({ sub: "s", email: "e", email_verified: "false" }).emailVerified,
+    false,
+  )
+})
+
+test("extractIdentity falls back to given_name + family_name when name is absent", () => {
+  const id = extractIdentity({
+    sub: "cog-sub-1",
+    given_name: "Jane",
+    family_name: "Doe",
+  })
+  assert.equal(id.displayName, "Jane Doe")
 })
 
 test("extractIdentity falls back to cognito:username when name is absent", () => {
@@ -86,14 +108,15 @@ test("extractIdentity falls back to cognito:username when name is absent", () =>
     email: "user@example.com",
     "cognito:username": "jdoe",
   })
-  assert.equal(id.name, "jdoe")
+  assert.equal(id.displayName, "jdoe")
 })
 
-test("extractIdentity returns null email and name when only sub is present", () => {
+test("extractIdentity returns null email + displayName + false emailVerified when only sub is present", () => {
   const id = extractIdentity({ sub: "cog-sub-1" })
   assert.equal(id.cognitoSub, "cog-sub-1")
   assert.equal(id.email, null)
-  assert.equal(id.name, null)
+  assert.equal(id.emailVerified, false)
+  assert.equal(id.displayName, null)
 })
 
 test("extractIdentity throws when claims is not an object", () => {

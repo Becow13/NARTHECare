@@ -11,6 +11,8 @@ import {
 // ---------------------------------------------------------------------------
 
 test("AUDIT_ACTIONS exposes the canonical action strings", () => {
+  assert.equal(AUDIT_ACTIONS.authenticateUser, "AUTHENTICATE_USER")
+  assert.equal(AUDIT_ACTIONS.mergeCognitoIdentity, "AUTH_MERGE_COGNITO_IDENTITY")
   assert.equal(AUDIT_ACTIONS.createCareRecipient, "CREATE_CARE_RECIPIENT")
   assert.equal(AUDIT_ACTIONS.viewCareRecipient, "VIEW_CARE_RECIPIENT")
   assert.equal(AUDIT_ACTIONS.listCareRecipients, "LIST_CARE_RECIPIENTS")
@@ -22,6 +24,7 @@ test("AUDIT_ACTIONS is frozen so callers cannot mutate it", () => {
 
 test("AUDIT_RESOURCE_TYPES is frozen", () => {
   assert.ok(Object.isFrozen(AUDIT_RESOURCE_TYPES))
+  assert.equal(AUDIT_RESOURCE_TYPES.user, "user")
   assert.equal(AUDIT_RESOURCE_TYPES.careRecipient, "care_recipient")
 })
 
