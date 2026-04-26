@@ -7,5 +7,6 @@ npm-debug.log*
 *.xcuserstate
 xcuserdata/
 DerivedData/
+.build/
 *.moved-aside
 .DS_Store

@@ -1,7 +1,48 @@
-node_modules
-npm-debug.log
-.env
-.env.*
+# Build artifacts and local-only files.
+**/node_modules
+**/npm-debug.log*
+**/.env
+**/.env.*
 .git
 .gitignore
-*.md
+**/*.md
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Aptible builds this context from the repo root. Everything below is
+# defense-in-depth: the root Dockerfile uses selective COPY, but listing
+# these paths means any future refactor that switches to `COPY . .`
+# still keeps iOS/web source, docs, tests, scripts, and the PHI-aware
+# contract examples out of the production image.
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Other workspaces (not backend).
+apps/ios/
+apps/web/
+
+# Backend's own tests + scripts + schema bootstrap are not needed at runtime.
+apps/backend/test/
+apps/backend/lib/__tests__/
+apps/backend/scripts/
+apps/backend/schema.sql
+apps/backend/.env
+apps/backend/.env.*
+apps/backend/node_modules/
+
+# Docs (no runtime role).
+docs/
+
+# From shared/, ship only the JS mirrors the backend actually imports.
+# The JSON Schema source of truth, TS mirrors, barrels, and READMEs
+# are build-time-only.
+shared/contracts/
+shared/models/README.md
+shared/models/index.js
+shared/models/index.ts
+shared/models/CareRecipientProfile.ts
+
+# CI / editor config.
+.github/
+.cursor/
+
+# Legacy top-level ios/ directory (pre-monorepo, being deleted).
+ios/

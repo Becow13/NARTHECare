@@ -1,0 +1,238 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://narthecare.dev/schemas/careRecipientProfile.schema.json",
+  "title": "CareRecipientProfile",
+  "description": "Canonical shape of the Patient / Care Recipient Profile returned by GET /care-recipients/:id/profile. This file is the single source of truth — the TypeScript mirror (shared/models/CareRecipientProfile.ts), the JS mirror (shared/models/CareRecipientProfile.js), and the Swift model (apps/ios/NARTHECare/Models/CareRecipientProfile.swift) all exist to match this schema. If they disagree, the schema wins.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "age",
+    "dateOfBirth",
+    "primaryConditions",
+    "riskLevel",
+    "contact",
+    "emergencyContact",
+    "careTeam",
+    "healthBackground",
+    "dataSources",
+    "baseline",
+    "recentNotes",
+    "lastUpdated"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "format": "uuid",
+      "description": "Stable UUID. Matches the :id in the route."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Display name. PHI — never log."
+    },
+    "age": {
+      "type": "integer",
+      "minimum": 0,
+      "maximum": 130,
+      "description": "Pre-computed server-side from dateOfBirth."
+    },
+    "dateOfBirth": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+      "description": "ISO calendar date (YYYY-MM-DD). Not a datetime."
+    },
+    "gender": {
+      "type": "string",
+      "description": "Free-text descriptor. Optional."
+    },
+    "primaryConditions": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 },
+      "description": "Conditions surfaced as chips in the profile header."
+    },
+    "riskLevel": {
+      "type": "string",
+      "enum": ["low", "moderate", "high"],
+      "description": "Clinical risk classification. Drives RiskBadge color."
+    },
+    "contact": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "phone": {
+          "type": "string",
+          "description": "PHI. E.164 preferred (+14155550142)."
+        },
+        "address": {
+          "type": "string",
+          "description": "PHI. Free-text postal address."
+        }
+      }
+    },
+    "emergencyContact": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["name", "phone"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1 },
+        "phone": { "type": "string", "minLength": 1 },
+        "relationship": { "type": "string" }
+      }
+    },
+    "careTeam": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["primaryCaregiver", "members"],
+      "properties": {
+        "primaryCaregiver": {
+          "type": "string",
+          "description": "Display name of the care-team member flagged primary."
+        },
+        "members": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/CareTeamMember" }
+        }
+      }
+    },
+    "healthBackground": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["conditions", "allergies", "medications"],
+      "properties": {
+        "conditions": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "allergies": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "medications": {
+          "type": "array",
+          "items": { "type": "string", "minLength": 1 }
+        },
+        "mobilityStatus": { "type": "string" },
+        "fallRiskNotes": { "type": "string" }
+      }
+    },
+    "dataSources": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/DataSource" },
+      "description": "One row per integration family. The backend never returns two rows with the same type."
+    },
+    "baseline": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "steps": { "$ref": "#/$defs/BaselineRange" },
+        "sleepHours": { "$ref": "#/$defs/BaselineRange" },
+        "restingHeartRate": { "$ref": "#/$defs/BaselineRange" },
+        "bloodPressure": {
+          "type": "string",
+          "description": "Baseline BP as a display string, e.g. \"125/78\". Not a range — systolic/diastolic always travel together."
+        },
+        "lastUpdated": {
+          "type": "string",
+          "pattern": "^\\d{4}-\\d{2}-\\d{2}$",
+          "description": "ISO calendar date the clinician last calibrated the baseline."
+        }
+      }
+    },
+    "recentNotes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/RecentNote" },
+      "description": "Caregiver / clinician notes. PHI."
+    },
+    "lastUpdated": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 datetime; server updated_at for the profile row."
+    }
+  },
+  "$defs": {
+    "CareTeamMember": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "name", "role", "permission"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "name": { "type": "string", "minLength": 1 },
+        "role": {
+          "type": "string",
+          "enum": [
+            "primary_caregiver",
+            "family_member",
+            "clinician",
+            "care_coordinator"
+          ]
+        },
+        "permission": {
+          "type": "string",
+          "enum": [
+            "full_access",
+            "limited_access",
+            "clinical_access",
+            "view_only"
+          ]
+        }
+      }
+    },
+    "DataSource": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["type", "status"],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "apple_health",
+            "epic",
+            "fitbit",
+            "garmin",
+            "ring",
+            "fall_detection"
+          ]
+        },
+        "status": {
+          "type": "string",
+          "enum": ["connected", "not_connected", "error"]
+        },
+        "lastSyncedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Present when status=connected. Absent otherwise."
+        },
+        "errorMessage": {
+          "type": "string",
+          "description": "Present when status=error. Must not leak stack traces or credentials."
+        }
+      }
+    },
+    "BaselineRange": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["min", "max"],
+      "properties": {
+        "min": { "type": "number" },
+        "max": { "type": "number" }
+      }
+    },
+    "RecentNote": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "content", "author", "createdAt"],
+      "properties": {
+        "id": { "type": "string", "minLength": 1 },
+        "content": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Free-text note. PHI — never log."
+        },
+        "author": { "type": "string", "minLength": 1 },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  }
+}

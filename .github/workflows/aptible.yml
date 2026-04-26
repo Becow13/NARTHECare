@@ -12,15 +12,32 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
+
+    # Node setup caches the apps/backend lockfile — the only JS package
+    # in the monorepo today. Add more cache-dependency-path entries if
+    # we add apps/web/package.json or similar.
     - name: Set up Node.js
       uses: actions/setup-node@v4
       with:
         node-version: 20
         cache: npm
-    - name: Install dependencies
+        cache-dependency-path: apps/backend/package-lock.json
+
+    # Install, lint, and test the backend from its package root. The
+    # Aptible deploy step below uses the whole repo as the build context
+    # because the root Dockerfile is still the auto-detected entry point
+    # — see Dockerfile header for the migration notes.
+    - name: Install backend dependencies
+      working-directory: apps/backend
       run: npm ci
-    - name: Build and test
+
+    - name: Build and test backend
+      working-directory: apps/backend
       run: npm run build
+
+    # Aptible git deploy. App + environment names and the secret pair
+    # are unchanged from the pre-monorepo layout so the existing
+    # Aptible-side config keeps working.
     - name: Deploy to Aptible
       uses: aptible/aptible-deploy-action@v4
       with:
