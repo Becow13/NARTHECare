@@ -1,0 +1,65 @@
+<svg width="680" height="470" viewBox="0 0 680 470" xmlns="http://www.w3.org/2000/svg">
+<style>
+  .nc { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-style: italic; }
+  .name { font-family: system-ui, sans-serif; font-weight: 700; fill: #EEF0FF; letter-spacing: 4px; font-size: 20px; }
+  .tagline { font-family: system-ui, sans-serif; font-weight: 600; fill: #91A7FF; letter-spacing: 2.5px; font-size: 10px; }
+  .tm { font-family: system-ui, sans-serif; font-size: 12px; font-weight: 700; fill: #91A7FF; opacity: 0.85; }
+</style>
+
+<rect width="680" height="470" fill="#0d0f2b" rx="24"/>
+
+<circle cx="130" cy="100" r="130" fill="#3B5BDB" opacity="0.16"/>
+<circle cx="550" cy="390" r="140" fill="#91A7FF" opacity="0.10"/>
+<circle cx="560" cy="85"  r="65"  fill="#3B5BDB" opacity="0.12"/>
+
+<!-- SHIELD -->
+<ellipse cx="340" cy="228" rx="116" ry="108" fill="#3B5BDB" opacity="0.14"/>
+<path d="M 296 124  L 384 124  L 432 150  L 432 228  C 432 292 394 332 340 348  C 286 332 248 292 248 228  L 248 150 Z"
+  fill="#0f1235" stroke="#3B5BDB" stroke-width="2.2"/>
+<path d="M 302 134  L 378 134  L 420 156  L 420 228  C 420 284 386 320 340 336  C 294 320 260 284 260 228  L 260 156 Z"
+  fill="#161b45" stroke="#91A7FF" stroke-width="0.8" stroke-opacity="0.28"/>
+
+<!-- Scan lines -->
+<line x1="252" y1="190" x2="428" y2="190" stroke="#3B5BDB" stroke-width="0.7" opacity="0.28"/>
+<line x1="252" y1="205" x2="428" y2="205" stroke="#3B5BDB" stroke-width="0.4" opacity="0.16"/>
+<line x1="252" y1="292" x2="428" y2="292" stroke="#3B5BDB" stroke-width="0.7" opacity="0.28"/>
+<line x1="252" y1="307" x2="428" y2="307" stroke="#3B5BDB" stroke-width="0.4" opacity="0.16"/>
+
+<!-- NC -->
+<text x="295" y="256" class="nc" font-size="65px" fill="#EEF0FF">N</text>
+<text x="344" y="256" class="nc" font-size="56px" fill="#91A7FF">C</text>
+
+<!-- HEARTBEAT -->
+<line x1="252" y1="276" x2="272" y2="276" stroke="#91A7FF" stroke-width="1.8" stroke-linecap="round" opacity="0.55"/>
+<polyline points="272,276 284,276 296,246 310,306 320,266 332,266 344,276 372,276"
+  fill="none" stroke="#EEF0FF" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="372" y1="276" x2="428" y2="276" stroke="#91A7FF" stroke-width="1.8" stroke-linecap="round" opacity="0.55"/>
+
+<circle cx="296" cy="246" r="3.5" fill="#EEF0FF"/>
+<circle cx="310" cy="306" r="3.5" fill="#3B5BDB" stroke="#91A7FF" stroke-width="1.5"/>
+<circle cx="272" cy="276" r="2.5" fill="#91A7FF" opacity="0.65"/>
+<circle cx="372" cy="276" r="2.5" fill="#91A7FF" opacity="0.65"/>
+
+<!-- EDGE NODES -->
+<circle cx="340" cy="124" r="4.5" fill="#3B5BDB"/>
+<circle cx="340" cy="124" r="8.5" fill="none" stroke="#3B5BDB" stroke-width="1.4" opacity="0.45"/>
+<line   x1="318" y1="124" x2="318" y2="132" stroke="#91A7FF" stroke-width="1" opacity="0.4"/>
+<line   x1="362" y1="124" x2="362" y2="132" stroke="#91A7FF" stroke-width="1" opacity="0.4"/>
+<circle cx="248" cy="172" r="3.5" fill="#91A7FF" opacity="0.7"/>
+<circle cx="248" cy="172" r="6.5" fill="none" stroke="#91A7FF" stroke-width="1" opacity="0.32"/>
+<circle cx="432" cy="172" r="3.5" fill="#91A7FF" opacity="0.7"/>
+<circle cx="432" cy="172" r="6.5" fill="none" stroke="#91A7FF" stroke-width="1" opacity="0.32"/>
+<circle cx="340" cy="348" r="3.5" fill="#3B5BDB" opacity="0.6"/>
+
+<!-- WORDMARK -->
+<line x1="200" y1="368" x2="480" y2="368" stroke="#3B5BDB" stroke-width="1.5" opacity="0.55"/>
+<text x="340" y="398" text-anchor="middle" class="name">NARTHECare</text>
+<text x="474" y="390" class="tm">&#8482;</text>
+<line x1="200" y1="411" x2="480" y2="411" stroke="#3B5BDB" stroke-width="1.5" opacity="0.55"/>
+<text x="340" y="433" text-anchor="middle" class="tagline">UNIFIED &#183; INTELLIGENT &#183; CAREGIVER FOCUSED</text>
+
+<!-- Side accent bars -->
+<rect x="40" y="40" width="5" height="390" rx="2.5" fill="#3B5BDB"/>
+<rect x="635" y="40" width="5" height="390" rx="2.5" fill="#91A7FF"/>
+
+</svg>

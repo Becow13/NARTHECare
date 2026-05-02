@@ -1,0 +1,88 @@
+<svg width="1200" height="180" viewBox="0 0 1200 180" xmlns="http://www.w3.org/2000/svg">
+<defs>
+  <radialGradient id="shieldGlow" cx="50%" cy="40%" r="60%">
+    <stop offset="0%" stop-color="#1e2a6e"/>
+    <stop offset="100%" stop-color="#0a0d24"/>
+  </radialGradient>
+</defs>
+<style>
+  .nc-n  { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-style: italic; font-size: 52px; fill: #dde4ff; }
+  .nc-c  { font-family: Georgia, 'Times New Roman', serif; font-weight: 700; font-style: italic; font-size: 44px; fill: #7b96e8; }
+  .name  { font-family: system-ui, sans-serif; font-weight: 700; fill: #EEF0FF; letter-spacing: 5px; font-size: 26px; }
+  .sub   { font-family: system-ui, sans-serif; font-weight: 600; fill: #91A7FF; letter-spacing: 2.5px; font-size: 10px; }
+  .tm    { font-family: system-ui, sans-serif; font-size: 10px; font-weight: 700; fill: #91A7FF; opacity: 0.85; }
+  .sl    { font-family: system-ui, sans-serif; font-weight: 700; font-size: 18px; letter-spacing: 1px; }
+</style>
+
+<rect width="1200" height="180" fill="#0a0d24"/>
+
+<!-- Background glows -->
+<circle cx="140"  cy="90"  r="130" fill="#2236a0" opacity="0.25"/>
+<circle cx="1160" cy="90"  r="110" fill="#4455cc" opacity="0.15"/>
+<circle cx="620"  cy="180" r="100" fill="#3344bb" opacity="0.10"/>
+
+<!-- Left / right accent bars -->
+<rect x="0"    y="0" width="5" height="180" fill="#3B5BDB"/>
+<rect x="1195" y="0" width="5" height="180" fill="#5577ee"/>
+
+<!-- Top + bottom rules -->
+<line x1="0" y1="0.5"   x2="1200" y2="0.5"   stroke="#3B5BDB" stroke-width="1" opacity="0.5"/>
+<line x1="0" y1="179.5" x2="1200" y2="179.5" stroke="#5577ee" stroke-width="1" opacity="0.5"/>
+
+<!-- SHIELD centred at x=148, y=90 -->
+<path d="M 148 18  C 148 18 194 22 210 44  L 210 100  C 210 132 180 152 148 164  C 116 152 86 132 86 100  L 86 44  C 102 22 148 18 148 18 Z"
+  fill="url(#shieldGlow)" stroke="#4466dd" stroke-width="1.8"/>
+<path d="M 148 28  C 148 28 188 32 200 50  L 200 100  C 200 128 174 146 148 156  C 122 146 96 128 96 100  L 96 50  C 108 32 148 28 148 28 Z"
+  fill="none" stroke="#3a5acc" stroke-width="1" stroke-dasharray="4 3" opacity="0.7"/>
+
+<!-- Circuit lines -->
+<line x1="90"  y1="90" x2="104" y2="90" stroke="#4466dd" stroke-width="1" opacity="0.6"/>
+<line x1="192" y1="90" x2="206" y2="90" stroke="#4466dd" stroke-width="1" opacity="0.6"/>
+<line x1="104" y1="90" x2="192" y2="90" stroke="#3a5acc" stroke-width="0.5" opacity="0.3"/>
+
+<!-- Top node -->
+<circle cx="148" cy="18" r="4"   fill="#0a0d24" stroke="#4466dd" stroke-width="1.5"/>
+<circle cx="148" cy="18" r="2"   fill="#4466dd"/>
+<line x1="128" y1="20" x2="128" y2="26" stroke="#4466dd" stroke-width="1" opacity="0.5"/>
+<line x1="168" y1="20" x2="168" y2="26" stroke="#4466dd" stroke-width="1" opacity="0.5"/>
+
+<!-- Left node -->
+<circle cx="86"  cy="68" r="4"   fill="#0a0d24" stroke="#4466dd" stroke-width="1.5"/>
+<circle cx="86"  cy="68" r="2"   fill="#4466dd"/>
+
+<!-- Right node -->
+<circle cx="210" cy="68" r="4"   fill="#0a0d24" stroke="#4466dd" stroke-width="1.5"/>
+<circle cx="210" cy="68" r="2"   fill="#4466dd"/>
+
+<!-- NC letters -->
+<text x="112" y="107" class="nc-n">N</text>
+<text x="152" y="107" class="nc-c">c</text>
+
+<!-- Heartbeat -->
+<line x1="90"  y1="128" x2="104" y2="128" stroke="#5577ee" stroke-width="1.4" stroke-linecap="round" opacity="0.6"/>
+<polyline points="104,128 111,128 118,114 126,142 132,122 138,122 144,128 166,128"
+  fill="none" stroke="#c8d4ff" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
+<line x1="166" y1="128" x2="206" y2="128" stroke="#5577ee" stroke-width="1.4" stroke-linecap="round" opacity="0.6"/>
+<circle cx="118" cy="114" r="2.5" fill="#c8d4ff"/>
+<circle cx="126" cy="142" r="3"   fill="#1e2a6e" stroke="#5577ee" stroke-width="1.5"/>
+<circle cx="166" cy="128" r="2.5" fill="#5577ee"/>
+
+<!-- Divider 1 -->
+<line x1="232" y1="22" x2="232" y2="158" stroke="#3B5BDB" stroke-width="1.2" opacity="0.5"/>
+
+<!-- WORDMARK centred at x=430 -->
+<text x="430" y="76" text-anchor="middle" class="name">NARTHECare</text>
+<text x="562" y="67" class="tm">&#8482;</text>
+<line x1="248" y1="87" x2="612" y2="87" stroke="#3B5BDB" stroke-width="1" opacity="0.4"/>
+<text x="430" y="106" text-anchor="middle" class="sub">UNIFIED &#183; INTELLIGENT &#183; CAREGIVER FOCUSED</text>
+
+<!-- Divider 2 -->
+<line x1="632" y1="22" x2="632" y2="158" stroke="#3B5BDB" stroke-width="1.2" opacity="0.35"/>
+
+<!-- SLOGAN left-aligned against bar -->
+<rect x="652" y="38" width="3" height="104" rx="1.5" fill="#3B5BDB" opacity="0.8"/>
+<text x="668" y="71"  class="sl" fill="#EEF0FF">Clear AIs,</text>
+<text x="668" y="97"  class="sl" fill="#91A7FF">Full Care,</text>
+<text x="668" y="123" class="sl" fill="#5b7fff">Can&#39;t Lose.</text>
+
+</svg>

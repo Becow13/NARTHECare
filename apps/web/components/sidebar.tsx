@@ -1,0 +1,163 @@
+"use client"
+
+import Link from "next/link"
+import { usePathname } from "next/navigation"
+import {
+  LayoutDashboard,
+  Users,
+  AlertTriangle,
+  Sparkles,
+  ClipboardList,
+  CalendarClock,
+  Settings,
+  Menu,
+  X,
+} from "lucide-react"
+import { cn } from "@/lib/utils"
+import { useState } from "react"
+
+const navItems = [
+  {
+    label: "Care Hub",
+    href: "/dashboard",
+    icon: LayoutDashboard,
+  },
+  {
+    label: "Care Members",
+    href: "/seniors",
+    icon: Users,
+  },
+  {
+    label: "Alerts",
+    href: "/alerts",
+    icon: AlertTriangle,
+  },
+  {
+    label: "Appointments",
+    href: "/appointments",
+    icon: CalendarClock,
+  },
+  {
+    label: "AI Insights",
+    href: "/insights",
+    icon: Sparkles,
+  },
+  {
+    label: "Action Plans",
+    href: "/action-plans",
+    icon: ClipboardList,
+  },
+  {
+    label: "Settings",
+    href: "/settings",
+    icon: Settings,
+  },
+]
+
+export function Sidebar() {
+  const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false)
+
+  return (
+    <>
+      {/* Mobile toggle */}
+      <button
+        className="fixed top-4 left-4 z-50 lg:hidden p-2 rounded-md bg-white dark:bg-gray-900 border border-border shadow-sm"
+        onClick={() => setMobileOpen(!mobileOpen)}
+        aria-label="Toggle menu"
+      >
+        {mobileOpen ? (
+          <X className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+        ) : (
+          <Menu className="h-5 w-5 text-gray-600 dark:text-gray-300" />
+        )}
+      </button>
+
+      {/* Mobile overlay */}
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/40 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+        />
+      )}
+
+      {/* Sidebar panel */}
+      <aside
+        className={cn(
+          "fixed top-0 left-0 z-40 h-full w-60 flex flex-col bg-white dark:bg-gray-950 border-r border-border transition-transform duration-200 ease-in-out",
+          mobileOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
+        )}
+      >
+        {/* Wordmark */}
+        <div className="flex items-center gap-2.5 px-6 py-5 border-b border-border">
+          <div className="flex items-center justify-center w-8 h-8 rounded-lg bg-[#3B5BDB] shrink-0">
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <circle cx="10" cy="10" r="7" stroke="white" strokeWidth="1.5" strokeDasharray="9 5" strokeLinecap="round" transform="rotate(-30 10 10)"/>
+              <rect x="6.5" y="6.5" width="7" height="7" rx="1.5" fill="white" opacity="0.9" transform="rotate(45 10 10)"/>
+              <circle cx="10" cy="10" r="2" fill="#3B5BDB"/>
+              <circle cx="14.2" cy="5.8" r="1.5" fill="white" opacity="0.7"/>
+            </svg>
+          </div>
+          <div className="flex flex-col">
+            <span className="text-[15px] font-semibold tracking-tight text-gray-900 dark:text-white">NARTHECare</span>
+            <span className="text-[9px] font-medium tracking-widest text-gray-400 dark:text-[#91A7FF] uppercase">◆ Unified ◆ Intelligent ◆ Caregiver Focused</span>
+          </div>
+        </div>
+
+        {/* Nav */}
+        <nav className="flex-1 px-3 py-4 space-y-0.5">
+          {navItems.map((item) => {
+            const Icon = item.icon
+            const isActive =
+              pathname === item.href || pathname.startsWith(item.href + "/")
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setMobileOpen(false)}
+                className={cn(
+                  "flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors",
+                  isActive
+                    ? "bg-[#EEF0FF] text-[#3B5BDB] dark:bg-[#3B5BDB]/20 dark:text-[#91A7FF]"
+                    : "text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100"
+                )}
+              >
+                <Icon
+                  className={cn(
+                    "h-4 w-4 shrink-0",
+                    isActive
+                      ? "text-[#3B5BDB] dark:text-[#91A7FF]"
+                      : "text-gray-500 dark:text-gray-500"
+                  )}
+                />
+                {item.label}
+              </Link>
+            )
+          })}
+        </nav>
+
+        {/* Footer
+            TODO(phase-2): replace hardcoded display name + role with the
+            authenticated session user. Source: server-side `getCurrentUser()`
+            from `lib/auth.ts`. Avatar initials should derive from
+            `display_name`; never render the user's email here. */}
+        <div className="px-4 py-4 border-t border-border">
+          <div className="flex items-center gap-3">
+            <div className="w-8 h-8 rounded-full bg-[#3B5BDB]/10 flex items-center justify-center shrink-0">
+              <span className="text-xs font-semibold text-[#3B5BDB]">CG</span>
+            </div>
+            <div className="min-w-0">
+              <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
+                Caregiver
+              </p>
+              <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
+                Signed in (mock)
+              </p>
+            </div>
+          </div>
+        </div>
+      </aside>
+    </>
+  )
+}
+

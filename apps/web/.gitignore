@@ -1,0 +1,18 @@
+# Next.js
+.next/
+out/
+build/
+.swc/
+
+# Dependencies
+node_modules/
+
+# Environment files (never commit secrets or PHI-shaped envs)
+.env
+.env.local
+.env.*.local
+
+# Editor / OS
+.DS_Store
+*.tsbuildinfo
+next-env.d.ts

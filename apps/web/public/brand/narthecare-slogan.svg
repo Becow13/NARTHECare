@@ -1,0 +1,33 @@
+<svg width="680" height="380" viewBox="0 0 680 380" xmlns="http://www.w3.org/2000/svg">
+
+<rect width="680" height="380" fill="#0d0f2b" rx="20"/>
+
+<circle cx="60" cy="60" r="90" fill="#3B5BDB" opacity="0.35"/>
+<circle cx="620" cy="320" r="110" fill="#91A7FF" opacity="0.2"/>
+<circle cx="340" cy="10" r="50" fill="#91A7FF" opacity="0.2"/>
+<circle cx="610" cy="55" r="35" fill="#3B5BDB" opacity="0.35"/>
+<circle cx="70" cy="330" r="55" fill="#91A7FF" opacity="0.2"/>
+
+<rect x="40" y="30" width="600" height="320" rx="16" fill="#131630" opacity="0.75"/>
+
+<rect x="40" y="30" width="7" height="320" rx="3" fill="#3B5BDB"/>
+<rect x="633" y="30" width="7" height="320" rx="3" fill="#91A7FF"/>
+
+<text x="340" y="88" text-anchor="middle" font-family="system-ui, sans-serif" font-size="32" font-weight="700" fill="#EEF0FF" letter-spacing="4">NARTHECare</text>
+
+<rect x="160" y="100" width="360" height="2" rx="1" fill="#3B5BDB" opacity="0.6"/>
+
+<text x="340" y="168" text-anchor="middle" font-family="system-ui, sans-serif" font-size="46" font-weight="700" fill="#EEF0FF" letter-spacing="-1">Clear AIs,</text>
+<text x="340" y="224" text-anchor="middle" font-family="system-ui, sans-serif" font-size="46" font-weight="700" fill="#91A7FF" letter-spacing="-1">Full Care,</text>
+<text x="340" y="280" text-anchor="middle" font-family="system-ui, sans-serif" font-size="46" font-weight="700" fill="#3B5BDB" letter-spacing="-1">Can't Lose.</text>
+
+<rect x="160" y="296" width="360" height="2" rx="1" fill="#3B5BDB" opacity="0.6"/>
+
+<text x="340" y="326" text-anchor="middle" font-family="system-ui, sans-serif" font-size="13" font-weight="600" fill="#91A7FF" letter-spacing="2">&#9670; UNIFIED &#9670; INTELLIGENT &#9670; CAREGIVER FOCUSED</text>
+
+<circle cx="195" cy="210" r="4" fill="#3B5BDB" opacity="0.5"/>
+<circle cx="485" cy="210" r="4" fill="#91A7FF" opacity="0.5"/>
+<circle cx="155" cy="235" r="2.5" fill="#3B5BDB" opacity="0.35"/>
+<circle cx="525" cy="235" r="2.5" fill="#91A7FF" opacity="0.35"/>
+
+</svg>

@@ -1,64 +1,113 @@
-# apps/web — stub
+# apps/web — NARTHECare caregiver dashboard
 
-> **Status: not runnable yet.** This folder holds a single Next.js-style
-> `page.tsx` stub that describes the intended route shape for the
-> Caregiver Web UI. There is no `package.json`, no `tsconfig.json`, and
-> no build step here — wiring it into a real Next.js app is a separate
-> task.
+Next.js 14 + React 18 + Tailwind 3 + shadcn-style primitives. This is
+the **primary MVP** for NARTHECare. The iOS app is a HealthKit sync
+companion only during the web MVP phase — see
+[`../../docs/web-mvp-plan.md`](../../docs/web-mvp-plan.md).
 
-## What's here today
+## Quick start
+
+```bash
+cd apps/web
+cp .env.example .env.local            # set NEXT_PUBLIC_ALLOW_MOCKS=true
+npm install
+npm run dev                           # http://localhost:3000
+```
+
+The app boots into `/dashboard` (Care Hub) and renders all eight prototype
+screens from `lib/mock-data.ts`. There is no real backend wiring yet — that
+arrives in Phase 3.
+
+## Routes
+
+| Path | Page | Notes |
+| --- | --- | --- |
+| `/` | redirect | → `/dashboard` |
+| `/dashboard` | Care Hub | Stat cards + Care Member Snapshot table |
+| `/seniors` | Care Members list | |
+| `/seniors/[id]` | Care Member detail | Header, vitals, alerts, AI summary, CTAs |
+| `/alerts` | Alert feed | Filters by severity / category / member |
+| `/appointments` | Appointments | Days-until pill |
+| `/insights` | AI summary feed | Filter by member / type / urgency |
+| `/action-plans` | Action plans | Grouped Open / In Progress / Complete |
+| `/settings` | Settings | Save disabled in Phase 1 |
+| `/patients/[id]` | redirect | → `/seniors/[id]` (legacy) |
+
+## Phase status
+
+| Phase | Status | What lands |
+| --- | --- | --- |
+| 1 | **Done** | Visual port. All routes render from mocks. |
+| 2 | Pending | Cognito Hosted UI, `lib/apiClient.ts`, httpOnly cookie session, `middleware.ts` |
+| 3 | Pending | Per-route swap: mocks → real backend calls |
+| 4 | Pending (backend) | New tables: observations, alerts, summaries, appointments, action plans |
+| 5 | Pending | Web deploy target (Vercel or 2nd Aptible app), separate from backend |
+
+## Healthcare rules (non-negotiable)
+
+These mirror the global rules in
+[`../../.cursor/rules/narthecare-general-healthcare.mdc`](../../.cursor/rules/narthecare-general-healthcare.mdc):
+
+- **No PHI in any log** — name, contact info, vitals, conditions, medications,
+  notes, AI summary text, FHIR or HealthKit payloads. Browser console too.
+- **No tokens in any log or `NEXT_PUBLIC_*` env** — JWTs, cookies, bearer
+  headers stay server-side. Phase 2 wires httpOnly cookies via
+  `lib/apiClient.ts`; never reach for `document.cookie` or
+  `window.localStorage` for auth state.
+- **UUIDs only in URL paths** — `/seniors/[id]` is fine because `id` is a UUID.
+  Never put a name, email, or other identifier in a URL segment or query
+  string.
+- **Sanitized error surfaces** — render generic error pages on 4xx/5xx. Do
+  not display raw backend error messages to users.
+- **AI surfaces (`/insights`, `/action-plans`)** — never diagnostic. Keep the
+  prototype's "Ways To Support" framing. Always cite evidence.
+- **Mock gate** — `lib/mock-mode.ts` throws at module load if a production
+  build ever loads `lib/mock-data.ts` without `NEXT_PUBLIC_ALLOW_MOCKS=true`.
+
+## Cross-workspace imports
+
+The web app may import from `shared/models/` via the `@models/*` path alias
+in `tsconfig.json`. Do **not** import from `apps/backend/`. Cross-app talk
+goes over HTTP only.
+
+## What lives where
 
 ```
 apps/web/
-  app/
-    patients/
-      [id]/
-        profile/
-          page.tsx   ← stub React component for the patient profile page
-          mock.ts    ← local mock data matching the shared contract
-  README.md          ← this file
-```
-
-## When a Next.js app is added
-
-The intended target layout (copied here so future work does not drift):
-
-```
-apps/web/
-  package.json          next, react, typescript, tailwindcss
-  tsconfig.json         paths: "@models/*" → "../../shared/models/*"
-  next.config.mjs
-  postcss.config.mjs
-  tailwind.config.ts
-  app/
-    layout.tsx
-    globals.css
-    patients/[id]/profile/page.tsx
+  app/                    Route segments (Next.js App Router)
+    layout.tsx            Sidebar + main shell
+    page.tsx              Redirect to /dashboard
+    dashboard/            Care Hub
+    seniors/              Care Members list + detail
+    alerts/               Alert feed
+    appointments/         Appointments
+    insights/             AI summaries
+    action-plans/         Action plans
+    settings/             Settings (Save disabled)
+    patients/[id]/        Legacy redirect
   components/
-    patient-profile/    reusable cards mirroring the iOS components
-  public/
+    sidebar.tsx           Persistent left nav
+    care-team-list.tsx    "show all N" collapsible list
+    data-sources-list.tsx
+    data-freshness-badge.tsx
+    senior-tabs.tsx
+    sparkline.tsx
+    vitals-legend.tsx
+    ui/                   shadcn primitives
+  lib/
+    mock-data.ts          Synthetic Care Member fixtures (gated)
+    mock-mode.ts          Production safety gate
+    alert-rules.ts        Alert taxonomy + thresholds
+    utils.ts              cn(), formatRelativeTime, etc.
+  public/brand/           Brand SVGs
+  docs/web-app.md         App-level architecture notes
 ```
 
-When wiring this up:
+## Useful commands
 
-1. Import types from the shared contract
-   (`shared/models/CareRecipientProfile.ts`) — never duplicate the
-   shape in this folder.
-2. Replace `mock.ts` with a real fetch to
-   `GET /care-recipients/:id/profile` (TODO comment in `page.tsx`).
-3. Match the caregiver dashboard prototype's visual language: soft card
-   borders, `#3B5BDB` accent, emerald/amber/red for risk states,
-   calm typography.
-4. Keep the session Cognito JWT in an httpOnly cookie — never in
-   `localStorage`. Forward the `Authorization: Bearer <token>` header
-   server-side.
-5. Respect the same RBAC the backend enforces: the page must render a
-   friendly 403 screen when the API returns 403.
-
-## Rule: no schema drift
-
-Because the web page will import the TS contract directly from
-`shared/models/`, any field rename or retype MUST be made in the
-`.ts` file first. The backend's JS mirror (`CareRecipientProfile.js`)
-and the iOS `CareRecipientProfile.swift` must be updated in the same
-change. See `shared/models/README.md`.
+```bash
+npm run dev            # next dev with hot reload
+npm run build          # production build
+npm run lint           # next lint
+npm run typecheck      # tsc --noEmit
+```
