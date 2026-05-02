@@ -15,9 +15,12 @@
  *      status code only — no headers, no payloads, no path params that
  *      might be PHI-shaped.
  *
- * Phase 2 ships this surface but no caller wires up real endpoints yet
- * (Phase 3 swaps mock data per route). The `getJson` / `postJson`
- * primitives are the minimal surface Phase 3 will consume.
+ * Phase 3 calls these primitives from Route Handlers under `/api/data/**`.
+ * Do NOT invoke them from Server Components when the session might need a
+ * Cognito silent refresh — `rotateSessionTokens` writes to the sealed cookie,
+ * which Next.js only permits inside Route Handlers / Server Actions (never
+ * during an RSC render). Browser `fetch("/api/data/…")` reaches handlers that
+ * may refresh safely.
  */
 
 import "server-only"

@@ -7,7 +7,8 @@
  * let the request through; the layout still decrypts + validates and
  * boots back to `/auth/sign-in` if the cookie is corrupt or expired.
  * If no, we redirect immediately so the user never sees the dashboard
- * shell flicker.
+ * shell flicker — except `/api/data/**`, where anonymous traffic must
+ * reach Route Handlers so `fetch()` receives JSON (`401`) instead of HTML.
  *
  * What this middleware does NOT do:
  *
@@ -33,7 +34,13 @@ import { SESSION_COOKIE_NAME } from "@/lib/auth/session-cookie"
  *   - `/auth/**`       — sign-in / error pages
  *   - `/api/auth/**`   — login / callback / logout routes
  *
- * Everything else (including future API proxies) is gated.
+ * `/api/data/**` is NOT public — it authenticates inside each Route Handler
+ * via iron-session + `apiClient`. We intentionally skip the Edge cookie
+ * redirect for this prefix so browser `fetch()` receives JSON (`401`, …)
+ * instead of an HTML redirect body when the sealed cookie is absent.
+ *
+ * Everything else (including future API proxies outside `/api/data/**`)
+ * applies the sealed-cookie presence check below.
  */
 const PUBLIC_PREFIXES = ["/auth/", "/api/auth/"] as const
 
@@ -43,6 +50,11 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl
 
   if (_isPublicPath(pathname)) {
+    return NextResponse.next()
+  }
+
+  // Same rationale as `PUBLIC_PREFIXES` comment — handlers fail closed with 401.
+  if (pathname.startsWith("/api/data/")) {
     return NextResponse.next()
   }
 
@@ -70,9 +82,10 @@ export function middleware(req: NextRequest) {
 /**
  * Skip the middleware on Next.js internals + static assets so build
  * artifacts and fonts do not pay the cookie-lookup cost. We do NOT
- * exclude `/api/**` wholesale — only `/api/auth/**` is public; future
- * server-side proxies under `/api/**` need the same auth treatment as
- * pages.
+ * exclude `/api/**` wholesale — only `/api/auth/**` is public; `/api/data/**`
+ * skips the cookie redirect but still hits Route Handlers that enforce auth;
+ * future proxies outside those prefixes default to the same Edge cookie gate
+ * as pages unless explicitly exempted above.
  */
 export const config = {
   matcher: [

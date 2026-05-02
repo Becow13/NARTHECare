@@ -10,3 +10,4 @@
 export * as cognitoService from "./cognitoService"
 export * as sessionService from "./sessionService"
 export * as apiClient from "./apiClient"
+export * as careRecipientService from "./careRecipientService"

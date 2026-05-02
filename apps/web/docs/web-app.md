@@ -3,10 +3,14 @@
 > **Phase 1 (Done):** verbatim port of the founder's Next.js prototype
 > under `apps/web/`. All eight routes render from `lib/mock-data.ts`.
 > **Phase 2 (Done):** Cognito Hosted UI sign-in, sealed httpOnly session
-> cookie, edge auth middleware, server-side `apiClient` foundation. Mock
-> data still drives every dashboard screen — Phase 3 swaps routes one
-> by one. The plan that drives this work lives at
-> [`../../docs/web-mvp-plan.md`](../../docs/web-mvp-plan.md).
+> cookie, edge auth middleware, server-side `apiClient` foundation.
+> **Phase 3 (Done):** `/seniors` and the `/seniors/[id]` profile rail load
+> through `GET /api/data/**` Route Handlers that call `services/
+> careRecipientService.ts` + `apiClient` (browser `fetch` keeps Cognito
+> silent-refresh cookie writes legal — see §Real-data surface). The rest of
+> the detail page and the other routes stay on `lib/mock-data.ts` pending
+> Phase 4 tables. The plan that drives this
+> work lives at [`../../docs/web-mvp-plan.md`](../../docs/web-mvp-plan.md).
 
 ## Tech choices
 
@@ -17,15 +21,20 @@
 | Styling | Tailwind 3.4 + shadcn primitives | Direct prototype port |
 | Charts | `recharts` | Sparklines on member detail (40px lines) |
 | Icons | `lucide-react` | Used throughout prototype |
-| Data (today) | `lib/mock-data.ts` | Synthetic fixtures, gated by `NEXT_PUBLIC_ALLOW_MOCKS` |
-| Data (Phase 3) | `lib/apiClient.ts` server fetch | Forwards Cognito JWT, never logs body |
+| Data (`/seniors`, `/seniors/[id]` header) | `GET /api/data/**` Route Handlers → `careRecipientService` → `apiClient` | Browser pages `fetch` JSON proxies so token refresh may mutate cookies |
+| Data (everything else) | `lib/mock-data.ts` | Synthetic fixtures, gated by `NEXT_PUBLIC_ALLOW_MOCKS` |
 
 ## Routing model
 
 Next.js App Router under `app/`. Each route is a folder with `page.tsx`.
 Pages that consume client interactivity (filters, expandable lists, the
 mobile sidebar toggle) opt into `"use client"`; the rest stay server
-components so Phase 3 can do server-side fetches without re-architecture.
+components for cheap SSR where possible. `/seniors` and `/seniors/[id]`
+are Client Components **only** so their `fetch("/api/data/…")` calls
+receive JSON plus rotated session cookies — calling `careRecipientService`
+directly from an RSC would throw because Cognito silent refresh writes to
+iron-session (`cookies can only be modified in a Server Action or Route
+Handler`).
 
 Phase 2 split the route tree into two route groups so the auth surface
 can render full-bleed without the sidebar:
@@ -39,6 +48,9 @@ can render full-bleed without the sidebar:
 - `app/api/auth/**` — server route handlers for the OAuth flow.
   Marked `dynamic = "force-dynamic"` so Next never tries to prerender
   them.
+- `app/api/data/**` — authenticated JSON proxies for Aptible reads used by
+  Phase 3 (`care-recipients`, …). Same runtime constraints — Node +
+  `force-dynamic`.
 
 The legacy `app/(app)/patients/[id]/page.tsx` is a permanent redirect to
 `/seniors/[id]`. We collapsed the old `apps/web/app/patients/[id]/profile/`
@@ -55,19 +67,23 @@ Cognito ──► /api/auth/callback?code=…  (code exchange + ID token verify)
 Browser ──► /dashboard                 ((app)/layout.tsx fetches session)
 ```
 
-The middleware at `apps/web/middleware.ts` runs on the Edge and only
-checks **whether the sealed cookie is present**. It cannot decrypt
-because iron-session needs Node APIs. The real validation happens in
-`(app)/layout.tsx`, which calls `getSessionUser()` and redirects on
-miss. This is by design: the middleware short-circuits the obvious
-"no cookie at all" case so unauthenticated traffic never reaches a
-dashboard render, while the Node-side decryption stays in one place.
+The middleware at `apps/web/middleware.ts` runs on the Edge and checks
+**whether any sealed-session cookie chunk is present** before dashboard
+navigation so anonymous traffic never flashes the caregiver shell.
+`/api/data/**` bypasses that redirect so browser `fetch()` receives JSON
+status codes (`401`, …) instead of an HTML redirect body — Route Handlers
+still authenticate via iron-session + `apiClient`. The middleware cannot
+decrypt the cookie (iron-session needs Node).
 
-Refresh handling lives in `services/apiClient.ts`. Before every
-backend call we look at the cached `idTokenExpiresAt`; if it is within
-60 s, we exchange the stored refresh token for a fresh ID token via
-`cognitoService.refreshTokens()` and persist the rotation back to the
-session cookie via `sessionService.rotateSessionTokens()`.
+`(app)/layout.tsx` calls `getSessionUser()` for the real decrypt +
+identity gate and redirects to `/auth/sign-in` on miss.
+
+Refresh handling lives in `services/apiClient.ts`, invoked from Route
+Handlers (`app/api/data/**`) so `sessionService.rotateSessionTokens()` may
+call iron-session `save()` legally. Before each Aptible hop we reuse an
+in-memory ID-token cache keyed by Cognito `sub`; inside the leeway window we
+exchange the refresh token at Cognito and persist the rotated refresh /
+expiry back into the sealed cookie.
 
 ### What we deliberately store in the cookie
 
@@ -130,13 +146,76 @@ Senior IDs are UUIDs (`11111111-1111-4111-a111-111111111111`,
 `22222222-…`, `33333333-…`) so the same `[id]` slug works for both the
 mock and the eventual `care_recipients.id` column on the backend.
 
+## Real-data surface (Phase 3)
+
+`services/careRecipientService.ts` is the single service entry for Aptible
+care-recipient reads. **Call it from Route Handlers (or Server Actions), not
+from React Server Components**, whenever `apiClient` might need to refresh —
+`rotateSessionTokens` writes cookies, which Next forbids during RSC render.
+
+Phase 3 ships two handlers + matching browser clients:
+
+| Method | Aptible endpoint | Next route | Browser consumer |
+| --- | --- | --- | --- |
+| `listCareRecipients()` | `GET /care-recipients` | `GET /api/data/care-recipients` | `app/(app)/seniors/page.tsx` |
+| `getCareRecipientProfile(id)` | `GET /care-recipients/:id/profile` | `GET /api/data/care-recipients/[id]/profile` | `app/(app)/seniors/[id]/page.tsx` |
+
+Phase 4 will add sibling methods (`listAlerts`, `listObservations`,
+`listSummaries`, `listAppointments`, `listActionPlans`,
+`listDataSources`) on the same module; every URL stays rooted at
+`/care-recipients/:id/...` so `care_recipient_id` remains the
+single partition key.
+
+### Shape translation (`lib/adapters/careRecipientToSenior.ts`)
+
+The backend list endpoint returns a deliberately thin row
+(`id, name, date_of_birth, primary_condition, role, permission_level,
+created_at, updated_at`). The prototype UI was written against a
+rich `Senior` view model. The adapter is a **one-way, pure**
+module that bridges the two:
+
+- `careRecipientListRowToItem` — thin backend row → list view row.
+- `careRecipientProfileToHeader` — full `CareRecipientProfile`
+  contract → header-card view model.
+
+Rules this adapter follows (and Phase 4 readers must too):
+
+1. Never throw on missing fields. A half-populated row must still
+   render something reasonable — a thrown adapter error would mask
+   auth-layer failures as server errors.
+2. Never fabricate PHI. Unknown phone / email / organization /
+   lastSync fall through as empty strings or `null`; the UI
+   components (`CareTeamList`, `DataSourcesList`) have been taught
+   to skip those rows rather than echo "unknown".
+3. Map enum → display exactly once, in this file. `riskLevel →
+   status` ("low"/"moderate"/"high" → "routine"/"monitor"/
+   "critical") and `DataSourceType → UI type` + `display name` live
+   in named constants so Phase 4 readers can import the same maps.
+4. Pure. No I/O, no logs, no dependencies on `server-only`. Safe
+   for unit tests and future server-or-client-side reuse.
+
+### Phase 3 error handling (browser + proxies)
+
+Client pages issue `fetch("/api/data/…", { cache: "no-store" })` with
+same-origin credentials. They **never** parse error JSON bodies into UI
+copy (messages may be PHI-adjacent):
+
+- `401` → `router.replace("/auth/sign-in")`.
+- List: any other non-OK → generic “unable to load” card.
+- Detail: `404` from the proxy → “not found / no access” (Aptible `403` is
+  mapped to `404` inside the proxy). Non-UUID `[id]` → same copy without
+  calling the proxy.
+- Proxies log only tagged status / error class — **no payloads, no cookies**.
+
 ## What's intentionally not here yet
 
-- **Backend calls** — no `fetch` to Aptible from any UI page yet.
-  `services/apiClient.ts` exists as the Phase 3 entry point.
-- **`/api/me` proxy** — Phase 3 wires the sidebar / settings up to a
-  server-fetched user row. Today the sidebar reads display name from
-  the session cookie (which already holds the verified Cognito claims).
+- **Below-header on `/seniors/[id]`** — AI summary, vitals
+  cards, 7-day panel, alert history, tabs all render empty states.
+  `seniors/[id]/senior-profile-client.tsx` is the single place
+  Phase 4 will swap in real data.
+- **`/api/me` proxy** — still future work. Today the sidebar reads
+  display name from the session cookie (which already holds the
+  verified Cognito claims).
 - **Settings persistence** — Save button is rendered disabled. Backend
   endpoint `PATCH /api/me` does not exist yet.
 - **`apps/web` deploy target** — Phase 5 adds a Dockerfile and CI workflow

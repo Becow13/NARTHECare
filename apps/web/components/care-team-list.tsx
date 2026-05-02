@@ -25,13 +25,15 @@ export function CareTeamList({ members }: CareTeamListProps) {
           <p className="text-xs text-gray-500 dark:text-gray-400">
             {member.role}
           </p>
-          <a
-            href={`tel:${member.phone}`}
-            className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 hover:text-[#1D9E75]"
-          >
-            <Phone className="h-2.5 w-2.5" />
-            {member.phone}
-          </a>
+          {member.phone ? (
+            <a
+              href={`tel:${member.phone}`}
+              className="flex items-center gap-1 text-xs text-gray-400 dark:text-gray-500 hover:text-[#1D9E75]"
+            >
+              <Phone className="h-2.5 w-2.5" />
+              {member.phone}
+            </a>
+          ) : null}
         </div>
       ))}
       {hasMore && (

@@ -152,16 +152,133 @@ Tests: 46 unit tests (`vitest run`) across `lib/auth/__tests__/**`.
 
 **Backend impact:** none. **Aptible impact:** none.
 
-### Phase 3 — Real data, one route at a time
+### Phase 3 — Real data, one route at a time ✅
 
-Replace mock with real backend calls starting with:
-1. `/seniors` → `GET /care-recipients`
-2. `/seniors/[id]` profile rail → `GET /care-recipients/:id/profile`
+**Done.** Browser pages load Care Hub list + detail headers via JSON
+proxies under `GET /api/data/**`. Those Route Handlers call `services/
+careRecipientService.ts`, which forwards the caregiver's Cognito ID token
+through `services/apiClient.ts`.
 
-Remaining routes stay mocked until Phase 4 adds the required backend tables.
+Why not call `careRecipientService` directly from React Server Components?
+Silent Cognito refresh persists rotation through `sessionService.
+rotateSessionTokens` → iron-session `save()`. Next.js only permits cookie
+mutation inside Route Handlers / Server Actions — never during an RSC render,
+which surfaced as `Cookies can only be modified in a Server Action or Route
+Handler` when `/seniors` was a Server Component. Browser `fetch("/api/data/
+…")` hits handlers where refresh + `Set-Cookie` are legal; middleware skips
+the HTML redirect gate for `/api/data/**` so unauthenticated responses stay
+JSON (`401`) instead of a sign-in redirect body.
 
-**Backend impact:** none (consuming existing endpoints).
-**Aptible impact:** none.
+Wired in Phase 3:
+1. `/seniors` → browser `fetch("/api/data/care-recipients")` → Aptible
+   `GET /care-recipients` — list page renders the thin list-endpoint shape
+   (`id`, `name`, `date_of_birth`, `primary_condition`, `role`,
+   `permission_level`, `updated_at`). Fields with no backend source yet
+   (status, alert counts, last-seen) render honest neutral defaults — no
+   fabricated PHI.
+2. `/seniors/[id]` **profile rail** → browser `fetch("/api/data/
+   care-recipients/:id/profile")` → Aptible `GET /care-recipients/:id/
+   profile` — header card (avatar, name, age, conditions, care team,
+   connected sources) maps 1:1 from the `CareRecipientProfile` contract
+   via `lib/adapters/careRecipientToSenior.ts`.
+
+Still mocked (Phase 4):
+- Everything below the header on `/seniors/[id]` (AI summary card,
+  vitals cards, vitals 7-day panel, alert history, tabs). The detail page
+  mounts `seniors/[id]/senior-profile-client.tsx` which renders empty states
+  rather than pulling from `lib/mock-data.ts` — we deliberately decoupled
+  the detail page from the mock module so a production build can render the
+  route without `NEXT_PUBLIC_ALLOW_MOCKS=true`.
+- `/dashboard`, `/alerts`, `/appointments`, `/insights`,
+  `/action-plans` still read from `lib/mock-data.ts`.
+
+Error handling (client pages + proxies):
+- Proxy `401` → list/detail replace to `/auth/sign-in`.
+- Proxy `404` on profile → caregiver-facing “not found / no access” copy;
+  Aptible `403` is collapsed into `404` JSON so existence is not leaked.
+- Invalid `:id` (non-UUID) → immediate inline not-found — no fetch.
+- Other proxy failures → generic inline error copy (no response bodies logged).
+
+PHI / logging:
+- `apiClient` log format already excludes bodies. Proxies never log payloads;
+  pages never `console.log(profile)` or `console.log(list)`.
+- The adapter is a pure module — no I/O, no logs.
+- `CareTeamList` and `DataSourcesList` gracefully skip phone / lastSync rows
+  the contract does not carry, rather than echo fake or misleading values.
+
+Tests: 10 unit tests in `lib/adapters/__tests__/
+careRecipientToSenior.test.ts` (56 passing across the suite).
+
+**Backend impact:** none. **Aptible impact:** none.
+
+#### Phase 4 schema sketch (forward-looking — NOT built in Phase 3)
+
+The tables below are **sketches** so Phase 3 adapters, page props,
+and URL shapes do not lock us out of the eventual backend. No SQL
+or migration lands in this phase.
+
+Design rules carried forward:
+- `care_recipient_id UUID NOT NULL REFERENCES care_recipients(id)
+  ON DELETE CASCADE` on every row — single partition key.
+- `source_type TEXT` (`"apple_health" | "epic" | "manual" | …`) +
+  `source_id TEXT NULL` (integration instance) + `source_record_id
+  TEXT NULL` (provider's id) so any row can trace back to its
+  origin without storing the raw payload.
+- Optional `metadata JSONB` for non-PHI structured extensions only.
+  Never for raw HealthKit / FHIR / LLM payloads.
+- Timestamps: `created_at` / `updated_at` on every table;
+  `observed_at` / `generated_at` on event-shaped tables.
+- `requireCareRecipientAccess` gate on every read/write.
+- Audit every read of these tables — `audit_logs.metadata` never
+  contains PHI.
+- TODO(embeddings): vector columns may be added in a later phase
+  for longitudinal retrieval. Leave the door open; do not create
+  empty `embedding` columns now.
+
+Sketch — `health_observations`:
+`id, care_recipient_id, metric_type` (`resting_heart_rate`, `hrv`,
+`spo2`, `steps`, `sleep_duration`, `respiratory_rate`,
+`walking_steadiness`, `fall_event` …), `value_numeric`,
+`value_unit`, `observed_at`, `source_type`, `source_id`,
+`source_record_id`, `metadata JSONB`, `created_at`. Unique
+`(source_type, source_record_id)` for idempotent ingest.
+
+Sketch — `ai_summaries`:
+`id, care_recipient_id, summary_type` (`daily`, `anomaly`,
+`post_visit`, …), `summary_text TEXT`, `evidence JSONB`,
+`recommended_actions JSONB`, `model TEXT`, `prompt_version TEXT`,
+`generated_at TIMESTAMPTZ`, `source_window_start TIMESTAMPTZ`,
+`source_window_end TIMESTAMPTZ`, `metadata JSONB`, `created_at`.
+Read via `GET /care-recipients/:id/summaries?type=daily&limit=…`.
+
+Sketch — `alerts`:
+`id, care_recipient_id, severity` (`critical` | `monitor` |
+`routine`), `category`, `title`, `explanation`, `status` (`active`
+| `acknowledged` | `resolved`), `observed_at`, `source_type`,
+`source_record_id`, `metadata JSONB`, `created_at`,
+`resolved_at`. Read via `GET /care-recipients/:id/alerts`.
+
+Sketch — `metric_baselines`:
+`id, care_recipient_id, metric_type, window_days`, `p10_numeric`,
+`p50_numeric`, `p90_numeric`, `sample_count`, `computed_at`,
+`metadata JSONB`. Recomputed nightly; never blocks a read path.
+
+Sketch — `care_recipient_data_sources` (registry, not a copy):
+`id, care_recipient_id, source_type`, `status` (`connected` |
+`not_connected` | `error`), `last_synced_at`, `external_id TEXT`,
+`error_message`, `created_at`, `updated_at`. Epic credentials live
+in a separate `epic_connections` table (Phase 6+) — this registry
+row points to it by `external_id`.
+
+Read endpoint naming (fixed now for adapter siblings):
+`GET /care-recipients/:id/observations`,
+`GET /care-recipients/:id/summaries`,
+`GET /care-recipients/:id/alerts`,
+`GET /care-recipients/:id/appointments`,
+`GET /care-recipients/:id/action-plans`,
+`GET /care-recipients/:id/data-sources`. Every handler must chain
+`requireCognitoUser → requireCareRecipientAccess → service →
+auditService.logAction`.
 
 ### Phase 4 — Backend: data domain for the full dashboard
 

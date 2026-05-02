@@ -10,6 +10,23 @@ interface DataSourcesListProps {
   sources: DataSource[]
 }
 
+/**
+ * Format the one-line sync status shown under each source.
+ *
+ * Real backend data sources can arrive with no `lastSync` (e.g. a
+ * care recipient that has connected Apple Health but never synced
+ * yet). Rather than fall through to "Invalid Date" we render a
+ * neutral "never synced" / "not connected" label.
+ */
+function renderSyncLine(connected: boolean, lastSync: string): string {
+  if (!lastSync) {
+    return connected ? "never synced" : "not connected"
+  }
+  return connected
+    ? `synced ${formatRelativeTime(lastSync)}`
+    : `offline ${formatRelativeTime(lastSync)}`
+}
+
 export function DataSourcesList({ sources }: DataSourcesListProps) {
   const [showAll, setShowAll] = useState(false)
 
@@ -30,9 +47,7 @@ export function DataSourcesList({ sources }: DataSourcesListProps) {
               {source.name}
             </p>
             <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug">
-              {source.connected
-                ? `synced ${formatRelativeTime(source.lastSync)}`
-                : `offline ${formatRelativeTime(source.lastSync)}`}
+              {renderSyncLine(source.connected, source.lastSync)}
             </p>
           </div>
         </div>
