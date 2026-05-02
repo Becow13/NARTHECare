@@ -12,9 +12,11 @@ import {
   Settings,
   Menu,
   X,
+  LogOut,
 } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useState } from "react"
+import type { SessionUser } from "@/lib/auth/session-cookie"
 
 const navItems = [
   {
@@ -54,9 +56,16 @@ const navItems = [
   },
 ]
 
-export function Sidebar() {
+interface SidebarProps {
+  /** The verified caregiver session, fetched server-side in `app/(app)/layout.tsx`. */
+  user: SessionUser
+}
+
+export function Sidebar({ user }: SidebarProps) {
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const initials = _initialsFor(user)
+  const displayName = user.displayName ?? "Caregiver"
 
   return (
     <>
@@ -136,28 +145,47 @@ export function Sidebar() {
           })}
         </nav>
 
-        {/* Footer
-            TODO(phase-2): replace hardcoded display name + role with the
-            authenticated session user. Source: server-side `getCurrentUser()`
-            from `lib/auth.ts`. Avatar initials should derive from
-            `display_name`; never render the user's email here. */}
-        <div className="px-4 py-4 border-t border-border">
+        {/* Footer — display name only. Email is intentionally omitted so the
+            sidebar never echoes a contact handle in screenshots. The signed-in
+            indicator is a status word, not a tooltip with claim details. */}
+        <div className="px-4 py-4 border-t border-border space-y-3">
           <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-full bg-[#3B5BDB]/10 flex items-center justify-center shrink-0">
-              <span className="text-xs font-semibold text-[#3B5BDB]">CG</span>
+            <div
+              className="w-8 h-8 rounded-full bg-[#3B5BDB]/10 flex items-center justify-center shrink-0"
+              aria-hidden
+            >
+              <span className="text-xs font-semibold text-[#3B5BDB]">{initials}</span>
             </div>
             <div className="min-w-0">
               <p className="text-sm font-medium text-gray-900 dark:text-white truncate">
-                Caregiver
+                {displayName}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                Signed in (mock)
+                Signed in
               </p>
             </div>
           </div>
+          <Link
+            href="/api/auth/logout"
+            className="flex items-center gap-2 px-2 py-2 rounded-md text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"
+          >
+            <LogOut className="h-3.5 w-3.5" aria-hidden />
+            Sign out
+          </Link>
         </div>
       </aside>
     </>
   )
+}
+
+function _initialsFor(user: SessionUser): string {
+  const source = user.displayName ?? user.email ?? ""
+  const parts = source
+    .trim()
+    .split(/\s+/)
+    .filter((p) => p.length > 0)
+  if (parts.length === 0) return "CG"
+  if (parts.length === 1) return parts[0].slice(0, 2).toUpperCase()
+  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 

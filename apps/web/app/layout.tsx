@@ -1,6 +1,5 @@
 import type { Metadata } from "next"
 import "./globals.css"
-import { Sidebar } from "@/components/sidebar"
 
 export const metadata: Metadata = {
   title: "NARTHECare — Caregiver Care Hub",
@@ -10,6 +9,14 @@ export const metadata: Metadata = {
     "Informational only — never diagnostic.",
 }
 
+/**
+ * Root layout — intentionally minimal.
+ *
+ * The sidebar shell lives in `app/(app)/layout.tsx` so the public auth
+ * routes (`/auth/sign-in`, `/auth/error`) can render full-bleed without
+ * the caregiver navigation. Both layouts compose through this one for
+ * `<html>` / `<body>` / global styles.
+ */
 export default function RootLayout({
   children,
 }: {
@@ -18,16 +25,8 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <body className="font-sans bg-gray-50 dark:bg-gray-950 antialiased">
-        <div className="flex min-h-screen">
-          <Sidebar />
-         <main className="flex-1 lg:pl-60 min-w-0 overflow-x-hidden">
-            <div className="px-3 py-4 pt-16 lg:pt-4 max-w-full">
-              {children}
-            </div>
-          </main>
-        </div>
+        {children}
       </body>
     </html>
   )
 }
-

@@ -2,7 +2,10 @@
 
 > **Phase 1 (Done):** verbatim port of the founder's Next.js prototype
 > under `apps/web/`. All eight routes render from `lib/mock-data.ts`.
-> No backend calls, no auth. The plan that drives this work lives at
+> **Phase 2 (Done):** Cognito Hosted UI sign-in, sealed httpOnly session
+> cookie, edge auth middleware, server-side `apiClient` foundation. Mock
+> data still drives every dashboard screen — Phase 3 swaps routes one
+> by one. The plan that drives this work lives at
 > [`../../docs/web-mvp-plan.md`](../../docs/web-mvp-plan.md).
 
 ## Tech choices
@@ -24,10 +27,71 @@ Pages that consume client interactivity (filters, expandable lists, the
 mobile sidebar toggle) opt into `"use client"`; the rest stay server
 components so Phase 3 can do server-side fetches without re-architecture.
 
-The legacy `app/patients/[id]/page.tsx` is a permanent redirect to
+Phase 2 split the route tree into two route groups so the auth surface
+can render full-bleed without the sidebar:
+
+- `app/(app)/**` — authenticated routes. The group's `layout.tsx`
+  fetches the session via `getSessionUser()`, redirects to
+  `/auth/sign-in` if missing, and renders the sidebar shell around the
+  child page.
+- `app/auth/**` — public auth pages (`/auth/sign-in`, `/auth/error`).
+  Inherits the minimal root `layout.tsx` (just `<html><body>`).
+- `app/api/auth/**` — server route handlers for the OAuth flow.
+  Marked `dynamic = "force-dynamic"` so Next never tries to prerender
+  them.
+
+The legacy `app/(app)/patients/[id]/page.tsx` is a permanent redirect to
 `/seniors/[id]`. We collapsed the old `apps/web/app/patients/[id]/profile/`
 stub into the prototype's unified Care Member detail page so there is
 exactly one canonical detail screen per recipient.
+
+## Auth surface (Phase 2)
+
+```
+Browser ──► /api/auth/login            (state cookie set, 302 to Cognito)
+Cognito ──► /api/auth/callback?code=…  (code exchange + ID token verify)
+            └─ services/sessionService.createSessionFromTokens()
+               └─ iron-session sealed cookie (__nc_session)
+Browser ──► /dashboard                 ((app)/layout.tsx fetches session)
+```
+
+The middleware at `apps/web/middleware.ts` runs on the Edge and only
+checks **whether the sealed cookie is present**. It cannot decrypt
+because iron-session needs Node APIs. The real validation happens in
+`(app)/layout.tsx`, which calls `getSessionUser()` and redirects on
+miss. This is by design: the middleware short-circuits the obvious
+"no cookie at all" case so unauthenticated traffic never reaches a
+dashboard render, while the Node-side decryption stays in one place.
+
+Refresh handling lives in `services/apiClient.ts`. Before every
+backend call we look at the cached `idTokenExpiresAt`; if it is within
+60 s, we exchange the stored refresh token for a fresh ID token via
+`cognitoService.refreshTokens()` and persist the rotation back to the
+session cookie via `sessionService.rotateSessionTokens()`.
+
+### What we deliberately store in the cookie
+
+Only the verified Cognito ID token + refresh token + the minimal
+identity fields the sidebar needs (`displayName`, `email`,
+`emailVerified`, `cognitoSub`). No PHI. No backend response payloads.
+No access token (we forward the ID token to our backend).
+
+### Dev bypass
+
+`DEV_AUTH_BYPASS=true` mirrors the backend env var of the same name.
+When set on a non-production node env, `/api/auth/login` skips Cognito
+entirely and seeds a stable "Dev Caregiver" session. Production fails
+boot if the flag is set (`assertDevAuthBypassAllowed`).
+
+### Logging rules (PHI / token safety)
+
+- **Never** logged: response bodies, request bodies, `Authorization`
+  headers, the cookie value, ID / refresh tokens, raw Cognito error
+  bodies (which can echo the request).
+- **Allowed** in logs: HTTP method, path, status code, error class
+  name, truncated (≤ 120 char) error messages from helpers we control.
+- The auth pages NEVER render raw Cognito output — every user-visible
+  failure mode passes through `lib/auth/errors.ts#authErrorMessage`.
 
 ## Visual language
 
@@ -68,8 +132,11 @@ mock and the eventual `care_recipients.id` column on the backend.
 
 ## What's intentionally not here yet
 
-- **Authentication** — no Cognito, no session middleware. Phase 2.
-- **Backend calls** — no `fetch` to Aptible. Phase 3.
+- **Backend calls** — no `fetch` to Aptible from any UI page yet.
+  `services/apiClient.ts` exists as the Phase 3 entry point.
+- **`/api/me` proxy** — Phase 3 wires the sidebar / settings up to a
+  server-fetched user row. Today the sidebar reads display name from
+  the session cookie (which already holds the verified Cognito claims).
 - **Settings persistence** — Save button is rendered disabled. Backend
   endpoint `PATCH /api/me` does not exist yet.
 - **`apps/web` deploy target** — Phase 5 adds a Dockerfile and CI workflow

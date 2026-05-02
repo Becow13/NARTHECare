@@ -120,14 +120,35 @@ Key constraints:
 **Backend impact:** none. **Aptible impact:** none
 (`.dockerignore` already excludes `apps/web/`).
 
-### Phase 2 — Auth, env, and thin API client
+### Phase 2 — Auth, env, and thin API client ✅
 
-Add Cognito Hosted UI (NextAuth or hand-rolled), httpOnly cookie session,
-`apps/web/lib/apiClient.ts`, and `middleware.ts`. Mock data still displayed;
-this is the foundation for route-by-route swaps in Phase 3.
+**Done.** Hand-rolled Cognito Hosted UI (Authorization Code flow), sealed
+httpOnly session cookie via `iron-session`, edge auth `middleware.ts`,
+and the `services/apiClient.ts` foundation. Mock data still drives every
+dashboard screen — Phase 3 swaps routes one by one.
 
-Never log: response body, JWT, Authorization header, cookie. Server-side fetch
-only. `COGNITO_*` envs are server-only (no `NEXT_PUBLIC_` prefix).
+Layout and routing changes:
+
+- Authenticated routes moved into the `app/(app)/` route group, whose
+  `layout.tsx` fetches the session via `getSessionUser()` and redirects
+  to `/auth/sign-in` if missing.
+- Public auth pages live at `app/auth/sign-in` and `app/auth/error`.
+- OAuth route handlers at `app/api/auth/{login,callback,logout}` are
+  marked `dynamic = "force-dynamic"`.
+- `services/apiClient.ts` exposes `getJson` / `postJson` with inline
+  refresh-token rotation (60 s leeway).
+
+PHI / token safety verified:
+
+- ID + refresh tokens stay in the sealed cookie; never reach the browser.
+- Apps logs include only method + path + status. No bodies, no headers,
+  no cookies, no tokens, no raw Cognito error bodies.
+- Auth errors render through `lib/auth/errors.ts` only — no Cognito
+  output ever reaches the user.
+- `assertDevAuthBypassAllowed` mirrors the backend so production fails
+  boot if `DEV_AUTH_BYPASS=true` is set.
+
+Tests: 46 unit tests (`vitest run`) across `lib/auth/__tests__/**`.
 
 **Backend impact:** none. **Aptible impact:** none.
 
@@ -225,7 +246,38 @@ Aptible app `narthecare-web`). The root `Dockerfile` and `aptible.yml`
 | D | `apps/web/docs/patient-profile-stub.md` |
 | N | `apps/web/docs/web-app.md` |
 
-### Phases 2–5
+### Phase 2 (done)
+
+| Op | Path |
+| --- | --- |
+| M | `apps/web/package.json` (add `iron-session`, `aws-jwt-verify`, `vitest`, `vite-tsconfig-paths`) |
+| M | `apps/web/.env.example` (Cognito + `SESSION_COOKIE_SECRET` + dev bypass) |
+| N | `apps/web/middleware.ts` |
+| N | `apps/web/vitest.config.mts` |
+| N | `apps/web/lib/auth/cognito-config.ts` |
+| N | `apps/web/lib/auth/cognito-identity.ts` |
+| N | `apps/web/lib/auth/dev-bypass.ts` |
+| N | `apps/web/lib/auth/errors.ts` |
+| N | `apps/web/lib/auth/session-cookie.ts` |
+| N | `apps/web/lib/auth/session.ts` |
+| N | `apps/web/lib/auth/__tests__/{cognito-config,cognito-identity,dev-bypass,errors,session-cookie}.test.ts` |
+| N | `apps/web/services/cognitoService.ts` |
+| N | `apps/web/services/sessionService.ts` |
+| N | `apps/web/services/apiClient.ts` |
+| N | `apps/web/services/index.ts` |
+| N | `apps/web/app/(app)/layout.tsx` (sidebar shell, auth gate) |
+| N | `apps/web/app/auth/sign-in/page.tsx` |
+| N | `apps/web/app/auth/error/page.tsx` |
+| N | `apps/web/app/api/auth/login/route.ts` |
+| N | `apps/web/app/api/auth/callback/route.ts` |
+| N | `apps/web/app/api/auth/logout/route.ts` |
+| R | `apps/web/app/{dashboard,seniors,alerts,appointments,insights,action-plans,settings,patients}/` → `apps/web/app/(app)/<same>/` |
+| M | `apps/web/app/layout.tsx` (minimal — sidebar moved to `(app)/layout.tsx`) |
+| M | `apps/web/components/sidebar.tsx` (accepts `SessionUser`, real avatar + sign-out link) |
+| M | `apps/web/app/(app)/settings/page.tsx` (Phase 2 TODO refresh) |
+| M | `apps/web/README.md`, `apps/web/docs/web-app.md` |
+
+### Phases 3–5
 
 See §3 above. File lists will be expanded in the PR for each phase.
 

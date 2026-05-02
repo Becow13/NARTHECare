@@ -31,9 +31,14 @@ export default function SettingsPage() {
   const [activeSection, setActiveSection] = useState<SettingSection>("account")
   const [saved, setSaved] = useState(false)
 
-  // Account state — placeholder values only.
-  // TODO(phase-2): seed from the authenticated session via `getCurrentUser()`
-  // and disable any field the backend treats as Cognito-managed (email).
+  // Account state — Phase 2 reads display name + email from the session
+  // via the parent server component (passed down here would require lifting
+  // this page to a server/client split). Until the backend exposes
+  // `PATCH /api/me`, the inputs stay fully editable but the Save button
+  // remains disabled at the bottom of the form. Email is the Cognito
+  // identifier and would be read-only once persistence ships.
+  // TODO(phase-3): pass session user as a prop from a server wrapper so
+  // these defaults reflect the verified Cognito identity.
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")

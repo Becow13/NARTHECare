@@ -16,9 +16,9 @@ unless explicitly requested.
 ## Phase 1 Order (web-first)
 
 1. Auth, RBAC, audit, and security foundation *(backend — largely done)*
-2. **Web Care Hub dashboard — scaffold Next.js + prototype port** *(web MVP)*
-3. **Web auth — Cognito Hosted UI, httpOnly cookie, API client** *(web)*
-4. **Web data wiring — replace mock per route** *(web + backend endpoints)*
+2. **Web Care Hub dashboard — scaffold Next.js + prototype port** *(web MVP — done)*
+3. **Web auth — Cognito Hosted UI, httpOnly cookie, API client** *(web — done)*
+4. **Web data wiring — replace mock per route** *(web + backend endpoints — next)*
 5. HealthKit ingestion / `health_observations` table *(backend)*
 6. Nightly baseline job *(backend)*
 7. Claude daily summary from HealthKit + baseline data *(backend + web insights)*

@@ -1,5 +1,6 @@
 "use client"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   Users,
   AlertTriangle,
@@ -82,6 +83,7 @@ function TrendIcon({ value }: { value: number }) {
 const GRID = "grid grid-cols-[12px_36px_minmax(150px,25%)_minmax(60px,8%)_minmax(60px,8%)_minmax(80px,10%)_minmax(80px,10%)_minmax(70px,8%)_1fr] gap-x-3 items-start"
 
 export default function CareHubPage() {
+  const router = useRouter()
   const stats           = MOCK_DASHBOARD_STATS
   const seniors         = MOCK_SENIORS
   const activeAlerts    = MOCK_ALERTS.filter((a) => a.status === "active")
@@ -214,11 +216,25 @@ export default function CareHubPage() {
                   readings[readings.length - 2].heartRate
                 : 0
 
+            const rowHref = `/seniors/${senior.id}`
             return (
-              <Link
+              // Outer row is a div (not <Link>) so the inner Links below
+              // are not nested inside an <a>. HTML forbids <a> inside <a>;
+              // browsers re-parse the DOM and React's hydration sees a
+              // mismatch. We keep the "click anywhere on the row" UX via
+              // role="link" + onClick + keyboard handler.
+              <div
                 key={senior.id}
-                href={`/seniors/${senior.id}`}
-                className={`${GRID} py-3.5 border-b border-gray-50 dark:border-gray-800/60 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors`}
+                role="link"
+                tabIndex={0}
+                onClick={() => router.push(rowHref)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" || e.key === " ") {
+                    e.preventDefault()
+                    router.push(rowHref)
+                  }
+                }}
+                className={`${GRID} py-3.5 border-b border-gray-50 dark:border-gray-800/60 hover:bg-gray-50 dark:hover:bg-gray-800/40 transition-colors cursor-pointer focus:outline-none focus-visible:ring-2 focus-visible:ring-[#3B5BDB] rounded`}
               >
                <span className={`w-2.5 h-2.5 rounded-full shrink-0 self-start mt-3 ${cfg.dot}`} />
 
@@ -286,12 +302,16 @@ export default function CareHubPage() {
                   <span className="truncate">{formatRelativeTime(senior.lastSeen)}</span>
                 </div>
 
-          <div className="py-1" onClick={(e) => { e.preventDefault(); e.stopPropagation(); window.location.href = `/insights?seniorId=${senior.id}`; }}>
+                <Link
+                  href={`/insights?seniorId=${senior.id}`}
+                  onClick={(e) => e.stopPropagation()}
+                  className="py-1 block"
+                >
                   <p className="text-xs text-gray-600 dark:text-gray-300 line-clamp-2 leading-relaxed hover:text-[#3B5BDB] cursor-pointer">
-                      {MOCK_SUMMARIES.find((s) => s.seniorId === senior.id)?.plainTextSummary ?? "No summary available."}
+                    {MOCK_SUMMARIES.find((s) => s.seniorId === senior.id)?.plainTextSummary ?? "No summary available."}
                   </p>
-                </div>
-              </Link>
+                </Link>
+              </div>
             )
           })}
 
