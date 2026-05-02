@@ -3,20 +3,34 @@
 Caregiver-facing health monitoring and AI-assisted care platform
 processing sensitive health data (PHI). Treated as a healthcare
 system from day 1 — HIPAA-aligned best practices are enforced in
-`.cursor/rules/healthcare.mdc` and honored by every PR.
+`.cursor/rules/narthecare-general-healthcare.mdc` and honored by every PR.
+
+## Platform roles
+
+| Platform | Role | Status |
+| --- | --- | --- |
+| `apps/web/` | **Primary MVP** — full caregiver dashboard (Next.js) | Active |
+| `apps/backend/` | Shared API — Aptible deployment | Active |
+| `apps/ios/` | **HealthKit sync companion only** — no new UI screens during web MVP | Paused UI |
+
+The web app is the primary product surface. The iOS app ingests HealthKit data
+via `POST /health-data` and will not receive new caregiver-facing UI until the
+web MVP ships. See [`docs/web-mvp-plan.md`](docs/web-mvp-plan.md) for the
+full phase plan.
 
 ## Repository layout
 
 ```
 NARTHECare/
 ├─ apps/
-│  ├─ backend/          Node / Express API (the Aptible deployment target)
-│  ├─ ios/              Swift / SwiftUI client
-│  └─ web/              Next.js caregiver web UI (stub)
+│  ├─ backend/          Node / Express API (Aptible deployment target)
+│  ├─ ios/              Swift / SwiftUI — HealthKit ingest companion
+│  └─ web/              Next.js caregiver dashboard (primary MVP)
 ├─ shared/
 │  ├─ contracts/        JSON Schema source of truth for cross-platform payloads
 │  └─ models/           JS / TS mirrors of the contracts consumed by apps
 ├─ docs/
+│  ├─ web-mvp-plan.md   Web-first MVP phase plan (start here)
 │  ├─ deploy.md         Aptible deployment guide
 │  ├─ repo-structure.md Repo structure + conventions
 │  ├─ prototype-analysis.md
@@ -34,14 +48,17 @@ rationale and the rules that govern this layout.
 
 - **Backend** — see [`apps/backend/README.md`](apps/backend/README.md).
   TL;DR: `cd apps/backend && npm install && npm run dev`.
-- **iOS** — open `apps/ios/NARTHECare.xcodeproj` in Xcode.
 - **Web** — see [`apps/web/README.md`](apps/web/README.md).
+  TL;DR: `cd apps/web && npm install && npm run dev`.
+- **iOS** — open `apps/ios/NARTHECare.xcodeproj` in Xcode.
+  Scope: HealthKit sync only. Do not build new caregiver UI screens.
 
 ## Deployment
 
 The backend deploys to Aptible via the GitHub Action at
 `.github/workflows/aptible.yml`. Aptible's git-deploy reads the root
-`Dockerfile`, which wraps `apps/backend/`. Full walkthrough:
+`Dockerfile`, which wraps `apps/backend/`. `apps/web/` is excluded from the
+Aptible image (see `.dockerignore`). Full walkthrough:
 [`docs/deploy.md`](docs/deploy.md).
 
 ## Healthcare-grade rules (non-negotiable)

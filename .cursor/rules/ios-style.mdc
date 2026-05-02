@@ -6,6 +6,15 @@ alwaysApply: false
 
 # iOS / Swift Style
 
+> **SCOPE FREEZE (web-first MVP phase):**
+> `apps/ios/` is a **HealthKit sync companion only**.
+> Its sole production function is submitting HealthKit observations to
+> `POST /health-data`. Do NOT add new caregiver-facing SwiftUI views,
+> navigation flows, or UI screens until the web MVP has shipped and the
+> team explicitly lifts this freeze. The existing `ContentView.swift` and
+> supporting code may be maintained for bug fixes and HealthKit ingest only.
+> See `docs/web-mvp-plan.md` for the full rationale.
+
 Swift files mirror the reference project's `services/apiClient.ts` shape.
 
 ## API client

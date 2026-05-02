@@ -1,165 +1,212 @@
 ---
 alwaysApply: true
 ---
-You are working on a healthcare application called NARTHECare.
 
-This is a caregiver-facing health monitoring and AI-assisted care platform that processes sensitive health data (PHI). All code, architecture, and decisions MUST follow healthcare-grade standards, including HIPAA-aligned best practices.
+You are working on a healthcare application called **NARTHECare**.
 
-## Core Principle
+NARTHECare is a caregiver-facing health monitoring and AI-assisted care platform that processes sensitive health data, including PHI. Treat this as a healthcare system from day 1, not a casual CRUD app.
 
-This is NOT a typical startup app. Treat this as a healthcare system from day 1.
+## Core Product Principle
+
+NARTHECare helps caregivers understand a care recipient’s health and care status by organizing health signals, care notes, appointments, medications, and clinical data into safe, caregiver-friendly summaries and action suggestions.
+
+The app may integrate with:
+
+- Apple Health / HealthKit
+- Epic MyChart / Epic FHIR R4
+- Wearables
+- Caregiver manual inputs
+- AI summary services
+
+NARTHECare must summarize and explain information. It must NOT diagnose, prescribe, or replace clinicians.
 
 ---
 
-## 🔐 Security & Compliance (CRITICAL)
+## Security & Compliance Requirements
 
-Always assume:
-
-* Data contains PHI (Protected Health Information)
-* System must be HIPAA-compliant (or HIPAA-ready)
+Always assume health-related data is PHI.
 
 You MUST:
 
-1. NEVER log sensitive data
-
-   * No health metrics, tokens, personal identifiers in logs
-   * Logs must be sanitized
-
-2. Enforce strict access control
-
-   * Role-based access (caregiver, patient, clinician, admin)
-   * Always validate user access to resources
-
-3. Use least privilege principle
-
-   * Only access data required for the task
-
-4. Require audit logging for:
-
-   * Data access
-   * Data modification
-   * Authentication events
-
-5. All sensitive data must be:
-
-   * Encrypted in transit (HTTPS)
-   * Encrypted at rest
-
-6. Tokens and credentials:
-
-   * Never hardcode
-   * Always use environment variables
-   * Support secure refresh flows
+- Never log PHI, health metrics, OAuth tokens, JWTs, cookies, Authorization headers, patient identifiers, FHIR payloads, visit notes, medication names, diagnosis details, or AI prompts/responses containing PHI.
+- Enforce strict access control on every care-recipient-scoped resource.
+- Never trust frontend-provided ownership or role information.
+- Use least privilege for database access, API scopes, and external integrations.
+- Store secrets only in environment variables or approved secret stores.
+- Encrypt sensitive tokens and external integration credentials before storing.
+- Use TLS in transit and encrypted storage at rest.
+- Minimize PHI retention. Store only what is needed.
+- Support deletion / user data removal where applicable.
+- Use structured error handling and never expose internals to the frontend.
 
 ---
 
-## 🔑 Authentication & Authorization
+## Authentication & Authorization
 
-* Use OAuth 2.0 / SMART on FHIR when applicable
-* Support token refresh
-* Sessions must expire
-* MFA-ready design
+Preferred app authentication is AWS Cognito.
 
----
+Cognito is for **NARTHECare app login** only.
 
-## 🧠 AI Safety Constraints
+Epic SMART on FHIR OAuth is separate and is for **MyChart authorization** only.
 
-AI features MUST:
+Do NOT mix Epic OAuth tokens into Cognito.
 
-* NOT provide medical diagnosis
-* NOT provide emergency medical instructions
-* Only:
+Backend must:
 
-  * summarize
-  * highlight anomalies
-  * suggest general next steps (e.g., “consider contacting a clinician”)
+- Verify Cognito JWTs using JWKS.
+- Validate issuer, audience/client ID, expiration, and token use.
+- Map Cognito `sub` to a local `users` table.
+- Enforce app-level permissions from PostgreSQL, not from frontend state.
 
-All AI outputs must:
+Required authorization helpers:
 
-* include evidence
-* be explainable
-* be conservative in tone
+- `requireAuth(req)`
+- `getCurrentUser(req)`
+- `requireCareRecipientAccess(userId, careRecipientId, minimumPermission)`
+
+Every care-recipient-scoped endpoint must call `requireCareRecipientAccess`.
 
 ---
 
-## 🧾 Data Handling Rules
+## Database Principles
 
-* Separate identifiable data from metrics when possible
-* Minimize data retention
-* Always consider:
+Prefer clear, explicit PostgreSQL schemas.
 
-  * "Do we need to store this?"
-* Support deletion / user data removal
+Core tables should be explicit and auditable, including:
 
----
+- `users`
+- `care_recipients`
+- `care_team_members`
+- `audit_logs`
+- `health_observations`
+- `metric_baselines`
+- `ai_summaries`
+- external integration connection tables, such as `epic_connections`
 
-## 🧱 Backend Design Guidelines
+Avoid vague tables that mix unrelated PHI.
 
-* Prefer clear, explicit schema (PostgreSQL)
-* Avoid implicit joins on sensitive data
-* Always validate inputs (no trust from client)
-* Use structured error handling (no leaking internals)
-
----
-
-## 📊 Audit & Observability
-
-* Every critical action must be traceable
-* Include:
-
-  * user_id
-  * action
-  * timestamp
-  * resource_id
+Do not store raw external API payloads unless clearly necessary. If raw payloads are stored, encrypt them, restrict access, minimize retention, and audit access.
 
 ---
 
-## 🚫 What NOT to do
+## Audit Logging
 
-* Do NOT build like a casual CRUD app
-* Do NOT skip validation
-* Do NOT expose internal errors
-* Do NOT assume frontend is trusted
-* Do NOT store unnecessary PHI
+Every critical action must be traceable.
+
+Audit log:
+
+- Authentication events
+- Care recipient reads/writes
+- Dashboard access
+- Health data imports
+- AI summary generation
+- External integration connection events
+- Token refresh events
+- Sensitive data access
+
+Audit logs must include:
+
+- actor user ID when available
+- action
+- resource type
+- resource ID
+- timestamp
+
+Do not put PHI, tokens, raw payloads, or clinical details in audit metadata.
 
 ---
 
-## ✅ What to optimize for
+## PHI-Safe Logging
 
-* Safety > speed
-* Clarity > cleverness
-* Explicit > implicit
-* Compliance-ready > hacky MVP
+Implement or use a PHI-safe logger.
+
+Always redact sensitive keys, including:
+
+- password
+- token
+- access_token
+- refresh_token
+- id_token
+- authorization
+- cookie
+- jwt
+- patient
+- patient_id
+- name
+- email when unnecessary
+- dob
+- date_of_birth
+- health
+- metric
+- observation
+- fhir
+- document
+- medication
+- condition
+- diagnosis
+- note
+- summary
+
+Never log raw request bodies for healthcare endpoints.
+
+Never log external API responses from HealthKit, Epic, wearables, or AI providers if they may contain PHI.
 
 ---
 
-## 🧭 When unsure
+## AI Safety Rules
+
+AI features must ONLY:
+
+- Summarize
+- Highlight anomalies
+- Explain evidence
+- Suggest general next steps
+- Help caregivers understand information
+
+AI features must NOT:
+
+- Diagnose
+- Prescribe treatment
+- Provide emergency medical instructions
+- Replace clinician judgment
+- Overstate risk
+- Present uncertain inference as fact
+
+All AI outputs should be conservative, caregiver-friendly, and evidence-based.
+
+Use wording like:
+
+- “Consider checking in with the care recipient.”
+- “Consider contacting a clinician if this continues.”
+- “This summary is informational and not a medical diagnosis.”
+
+Never log prompts or model responses if they contain PHI.
+
+---
+
+## Error Handling
+
+Use structured error handling.
+
+Frontend-facing errors must be generic, such as:
+
+- “Unable to complete request.”
+- “Connection failed.”
+- “You do not have access to this resource.”
+
+Internal errors must still avoid PHI and secrets.
+
+---
+
+## When Unsure
 
 Always choose:
 
-* safer design
-* more restrictive access
-* less data exposure
+- Safer design
+- More restrictive access
+- Less data exposure
+- More explicit validation
+- More auditability
+- Less PHI retention
 
----
-
-## Context
-
-This system integrates with:
-
-* Apple Health
-* Epic MyChart (FHIR)
-* Wearables (Fitbit, Garmin)
-* Caregiver inputs
-
-The goal is to:
-
-* detect anomalies
-* generate alerts
-* summarize patient state
-* assist caregivers in decision-making
-
----
-
-Follow these rules strictly in ALL code, API design, and architecture decisions.
-If a feature conflicts with compliance or safety, you MUST explicitly warn and suggest a safer alternative.
+If a feature conflicts with compliance or safety, explicitly warn and suggest a safer alternative.

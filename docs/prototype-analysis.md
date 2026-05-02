@@ -1,13 +1,19 @@
 # Prototype Analysis — NARTHECare
 
+> **Updated May 2, 2026:**
+> NARTHECare is now **web-first**. The prototype is the source of truth for
+> the **web caregiver dashboard** (`apps/web/`). iOS is a HealthKit sync
+> companion only during the web MVP phase. The §5 (iOS-specific decisions)
+> section below is deprioritized. For the full implementation plan see
+> **[`docs/web-mvp-plan.md`](web-mvp-plan.md)**.
+
 Source: `/Users/d2118370gmail.com/Downloads/NARTHECare/Prototype Code/`
 
 The prototype is a **Next.js 14 / Tailwind caregiver dashboard** plus
 three SVG brand assets and one standalone dashboard JS snippet. This doc
-captures what the production app (iOS now, web later) must reuse and
-what should be intentionally dropped. It is the source of truth for the
-visual style, product terminology, and data shape used under
-`apps/ios/`, `apps/web/`, `shared/contracts/`, and `shared/models/`.
+captures what the web app must reuse and what should be intentionally
+dropped. It is the source of truth for visual style, product terminology,
+and data shape used under `apps/web/`, `shared/contracts/`, and `shared/models/`.
 
 ---
 

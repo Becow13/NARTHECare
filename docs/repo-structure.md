@@ -5,19 +5,30 @@ and the rules that govern where code lives. If it disagrees with the
 actual tree, the tree wins and this doc should be updated in the same
 PR.
 
+## Platform roles (web-first MVP)
+
+| App | Role | Deployment |
+| --- | --- | --- |
+| `apps/backend/` | Shared API (Express / Node) | Aptible — `aptible.yml` |
+| `apps/web/` | **Primary MVP** — Next.js caregiver dashboard | Separate deploy (Phase 5) |
+| `apps/ios/` | HealthKit sync companion only — no new UI screens during web MVP | Xcode / TestFlight |
+
+See [`docs/web-mvp-plan.md`](web-mvp-plan.md) for the full phase plan and
+rationale.
+
 ## Top level
 
 ```
 NARTHECare/
 ├─ apps/                Deployable applications
-│  ├─ backend/            Node/Express API (Aptible)
-│  ├─ ios/                Swift/SwiftUI client
-│  └─ web/                Next.js caregiver UI
+│  ├─ backend/            Node/Express API (Aptible) — primary backend
+│  ├─ ios/                Swift/SwiftUI — HealthKit ingest companion
+│  └─ web/                Next.js caregiver dashboard — PRIMARY MVP
 ├─ shared/              Cross-platform assets (no per-app source)
 │  ├─ contracts/          JSON Schema source of truth
 │  └─ models/             JS / TS mirrors consumed by apps/{backend,web}
-├─ docs/                Long-form docs (deploy, structure, contracts)
-├─ Dockerfile          Aptible git-deploy entry point
+├─ docs/                Long-form docs (deploy, structure, contracts, plan)
+├─ Dockerfile          Aptible git-deploy entry point (backend only)
 ├─ .dockerignore
 ├─ .gitignore
 ├─ .github/workflows/  CI / deploy workflows
@@ -29,23 +40,33 @@ NARTHECare/
 The repo root is reserved for **workspace-level** files only:
 
 - `README.md` — repo-level landing page.
-- `Dockerfile` — Aptible's auto-detected entry point (see below).
+- `Dockerfile` — Aptible's auto-detected entry point for the **backend** (see below).
 - `.dockerignore`, `.gitignore` — workspace-wide ignores.
 - `.github/workflows/` — CI config.
 - `apps/`, `shared/`, `docs/` — actual source.
 
 There is intentionally **no root `package.json`**, `server.js`, or
-source tree anymore. All backend code is under
-[`apps/backend/`](../apps/backend/README.md).
+source tree. Backend code is under [`apps/backend/`](../apps/backend/README.md);
+web code is under [`apps/web/`](../apps/web/README.md). Each app carries its
+own `package.json` and is independently deployable.
+
+### iOS scope boundary
+
+`apps/ios/` is a **HealthKit sync companion only** during the web MVP phase.
+Its sole production-facing function is submitting HealthKit observations to
+`POST /health-data`. Do not add new caregiver-facing UI screens to iOS until
+the web MVP has shipped. This rule is enforced in
+`.cursor/rules/ios-style.mdc`.
 
 ## Deployment entry points
 
-| Target  | Who triggers   | Build context | Dockerfile                               |
-| ------- | -------------- | ------------- | ---------------------------------------- |
-| Aptible | GitHub Actions | repo root     | `./Dockerfile` (thin wrapper)            |
-| Local   | developer      | repo root     | `apps/backend/Dockerfile` (canonical)    |
+| Target | Who triggers | Build context | Dockerfile | Notes |
+| --- | --- | --- | --- | --- |
+| Aptible (backend) | GitHub Actions (`aptible.yml`) | repo root | `./Dockerfile` | `apps/web/` excluded via `.dockerignore` |
+| Local backend | developer | repo root | `apps/backend/Dockerfile` | Canonical copy |
+| Web (Phase 5) | GitHub Actions (`web.yml`) | `apps/web/` | `apps/web/Dockerfile` | Added in Phase 5 |
 
-Both Dockerfiles must stay in sync until the Aptible app config is
+Both backend Dockerfiles must stay in sync until the Aptible app config is
 repointed at `apps/backend/Dockerfile` directly. See
 [`docs/deploy.md`](deploy.md).
 

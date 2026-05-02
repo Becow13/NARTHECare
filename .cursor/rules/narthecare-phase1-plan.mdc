@@ -5,19 +5,32 @@ description: Use this when planning or implementing NARTHECare Phase 1 features.
 
 # NARTHECare Phase 1 Implementation Plan
 
-Use this order for Phase 1 work. Do not build random features out of order unless explicitly requested.
+> **UPDATED May 2, 2026 — Web-first pivot.**
+> The web caregiver dashboard (`apps/web/`) is now the primary MVP.
+> iOS is a HealthKit sync companion only — do NOT build new iOS caregiver UI.
+> Full rationale and phase detail: `docs/web-mvp-plan.md`.
 
-## Phase 1 Order
+Use this order for Phase 1 work. Do not build random features out of order
+unless explicitly requested.
 
-1. Auth, RBAC, audit, and security foundation
-2. Minimal care recipient model + dashboard shell
-3. HealthKit ingestion
-4. Nightly baseline job
-5. Claude daily summary from HealthKit + baseline data
-6. Epic FHIR R4 sandbox OAuth foundation
-7. Epic sandbox resource fetch
-8. Doctor visit plain-language summary
-9. Minimal beta onboarding
+## Phase 1 Order (web-first)
+
+1. Auth, RBAC, audit, and security foundation *(backend — largely done)*
+2. **Web Care Hub dashboard — scaffold Next.js + prototype port** *(web MVP)*
+3. **Web auth — Cognito Hosted UI, httpOnly cookie, API client** *(web)*
+4. **Web data wiring — replace mock per route** *(web + backend endpoints)*
+5. HealthKit ingestion / `health_observations` table *(backend)*
+6. Nightly baseline job *(backend)*
+7. Claude daily summary from HealthKit + baseline data *(backend + web insights)*
+8. Epic FHIR R4 sandbox OAuth foundation *(backend)*
+9. Epic sandbox resource fetch *(backend)*
+10. Doctor visit plain-language summary *(backend + web)*
+11. Minimal beta onboarding *(web)*
+
+> iOS UI features (caregiver-facing screens) are **NOT in Phase 1**.
+> iOS work during Phase 1 is limited to keeping `POST /health-data`
+> ingest working. Do not add new SwiftUI views, navigation, or
+> caregiver-facing flows until explicitly requested after web MVP ships.
 
 ---
 
@@ -44,6 +57,7 @@ Build:
 - PHI-safe logger
 - Encryption utility
 - Core PostgreSQL schema
+- Epic application approve
 
 Do not implement custom password auth if Cognito is used.
 
