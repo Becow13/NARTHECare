@@ -47,9 +47,12 @@ test("constants are frozen so callers cannot mutate them", () => {
   assert.ok(Object.isFrozen(METRIC_UNIT_BY_METRIC_TYPE))
 })
 
-test("OBSERVATION_SOURCE_TYPES carries the legacy bridge value", () => {
+test("OBSERVATION_SOURCE_TYPES exposes the iOS-sync and external-origin values", () => {
   assert.equal(OBSERVATION_SOURCE_TYPES.healthkit, "healthkit")
-  assert.equal(OBSERVATION_SOURCE_TYPES.healthkitLegacy, "healthkit_legacy")
+  assert.equal(OBSERVATION_SOURCE_TYPES.appleHealth, "apple_health")
+  assert.equal(OBSERVATION_SOURCE_TYPES.epic, "epic")
+  assert.equal(OBSERVATION_SOURCE_TYPES.manual, "manual")
+  assert.equal(OBSERVATION_SOURCE_TYPES.healthkitLegacy, undefined)
 })
 
 test("METRIC_UNIT_BY_METRIC_TYPE pairs every metric with exactly one unit", () => {

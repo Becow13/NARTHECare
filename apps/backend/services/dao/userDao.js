@@ -25,6 +25,8 @@ const CREATE_TABLE_SQL = `
     cognito_sub TEXT UNIQUE NOT NULL,
     email TEXT UNIQUE,
     email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+    phone TEXT,
+    phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
     display_name TEXT,
     role TEXT NOT NULL DEFAULT 'caregiver',
     status TEXT NOT NULL DEFAULT 'active',
@@ -43,6 +45,12 @@ const CREATE_TABLE_SQL = `
  * tracking columns. Each statement is safe to run on every boot — fresh
  * databases satisfy them via `CREATE TABLE` above and skip the no-ops.
  *
+ * `phone` / `phone_verified` were added out-of-band to support Cognito
+ * phone sign-in and have to stay reconciled here so a `psql -f schema.sql`
+ * reproduces the live shape exactly. The boot-time helper relies on
+ * `ADD COLUMN IF NOT EXISTS` to make this no-op on databases that already
+ * have them.
+ *
  * The `name` -> `display_name` backfill is wrapped in a DO block that
  * checks `information_schema.columns` first because plain `UPDATE ... SET
  * display_name = name` fails to parse when `name` was never present (the
@@ -53,6 +61,8 @@ const CREATE_TABLE_SQL = `
 const MIGRATE_TABLE_SQL = `
   ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+  ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN NOT NULL DEFAULT FALSE;
   ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'caregiver';
   ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
   ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;

@@ -21,8 +21,9 @@ apps/backend/
 │  ├─ care-recipients.js
 │  ├─ cognito-auth.js
 │  ├─ dev-auth.js        # DEV_AUTH_BYPASS safety gates
-│  ├─ health-data.js
+│  ├─ health-observations.js
 │  └─ __tests__/         # Unit tests (node:test)
+├─ migrations/           # Idempotent one-shot SQL (run at boot)
 ├─ services/
 │  ├─ *Service.js        # Business logic
 │  ├─ dao/*Dao.js        # DB only (pg.Pool)
@@ -81,15 +82,13 @@ walkthrough.
 | Method | Path                                       | Auth      | Notes                                                                         |
 | ------ | ------------------------------------------ | --------- | ----------------------------------------------------------------------------- |
 | GET    | `/health`                                  | none      | Liveness probe. No DB. No logs. No PHI. `{ "status": "ok" }`.                 |
-| POST   | `/health-data`                             | none*     | Legacy HealthKit ingest; will move behind Cognito once iOS ships tokens.      |
+| POST   | `/healthkit/sync`                          | Cognito   | iOS HealthKit ingest into the canonical `health_observations` table.          |
+| GET    | `/healthkit/status`                        | Cognito   | iOS sync-status surface — `care_recipient_data_sources` registry row.         |
 | GET    | `/me`                                      | Cognito   | Returns the caller's internal identity row.                                   |
 | POST   | `/care-recipients`                         | Cognito   | Creates a recipient and attaches the caller as `primary_caregiver`.           |
 | GET    | `/care-recipients`                         | Cognito   | Lists recipients the caller is on the team for.                               |
 | GET    | `/care-recipients/:id`                     | Cognito   | Returns a single recipient the caller has access to.                          |
 | GET    | `/care-recipients/:id/profile`             | Cognito   | Full `CareRecipientProfile` (mock fallback until DAO tables land).            |
-
-\* Behind `DEV_AUTH_BYPASS` or behind the Cognito middleware — see the
-TODO at the route definition in `app.js`.
 
 ## Healthcare-grade invariants
 

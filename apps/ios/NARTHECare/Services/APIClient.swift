@@ -30,12 +30,6 @@ enum APIClientError: LocalizedError {
   }
 }
 
-/// Response shape for `POST /health-data`.
-struct HealthDataSuccessResponse: Codable {
-  let success: Bool
-  let inserted: Int?
-}
-
 /// Uploads HealthKit-shaped payloads to the NARTHECare backend.
 ///
 /// Keeps all transport concerns (URL construction, headers, status-code
@@ -156,46 +150,6 @@ struct APIClient: Sendable {
     } catch {
       throw APIClientError.decoding
     }
-  }
-
-  /// POST a batch of HealthKit samples to the server.
-  ///
-  /// Returns silently on any 2xx response whose body either decodes as
-  /// `HealthDataSuccessResponse { success: true }` or — for older servers
-  /// that reply with plain text — contains the string "success". Any other
-  /// outcome throws an `APIClientError` describing the exact failure.
-  func uploadHealthData(_ payload: HealthUploadPayload) async throws {
-    guard let url = URL(string: "\(baseURL)/health-data") else {
-      throw APIClientError.invalidURL
-    }
-
-    var request = URLRequest(url: url)
-    request.httpMethod = "POST"
-    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-    request.httpBody = try JSONEncoder().encode(payload)
-
-    let (data, response) = try await urlSession.data(for: request)
-    guard let http = response as? HTTPURLResponse else {
-      throw APIClientError.badStatus(-1, "No HTTP response")
-    }
-
-    let bodyText = String(data: data, encoding: .utf8) ?? ""
-
-    guard (200 ... 299).contains(http.statusCode) else {
-      throw APIClientError.badStatus(http.statusCode, bodyText)
-    }
-
-    if let decoded = try? JSONDecoder().decode(HealthDataSuccessResponse.self, from: data),
-      decoded.success
-    {
-      return
-    }
-    // Fallback for servers that return 2xx with plain text instead of JSON —
-    // treat the response as success if the body mentions "success".
-    if http.statusCode == 200, bodyText.contains("success") {
-      return
-    }
-    throw APIClientError.decoding
   }
 
   /// POST a batch of normalized HealthKit observations to the

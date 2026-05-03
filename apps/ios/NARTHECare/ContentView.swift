@@ -80,18 +80,22 @@ struct ContentView: View {
 
 // MARK: - Developer tools sheet
 
-/// Bundles the pre-dashboard controls that used to live directly on the
-/// entry page: API base URL, user id, HealthKit grant / sync, and a
-/// link to the mock patient profile. Exposed as a sheet so the Care Hub
-/// dashboard stays the primary surface on launch while these stay
-/// reachable until the auth and backend layers stabilise.
+/// Bundles the pre-dashboard developer controls: API base URL display,
+/// HealthKit permission re-prompt, and links to the mock patient
+/// profile / legacy Care Hub. Exposed as a sheet so the Sync Status
+/// surface stays the primary post-login screen while these stay
+/// reachable for ad-hoc engineering work.
+///
+/// Real HealthKit syncing happens on the canonical
+/// `SyncStatusView` → `HealthKitSyncService` → `POST /healthkit/sync`
+/// path. This sheet intentionally does NOT expose a "sync to server"
+/// button so there is one and only one ingest path through the app.
 private struct DevToolsView: View {
   @Environment(\.dismiss) private var dismiss
   @EnvironmentObject private var authSession: AuthSession
 
-  @State private var userId: String = "iphone-user"
-  @State private var baseURL: String = APIClient.defaultBaseURL
-  @State private var status: String = "Grant access, then sync."
+  @State private var status: String =
+    "HealthKit syncing happens on Sync Status. Tap below to manage permissions."
   @State private var isBusy = false
 
   private let healthKit = HealthKitManager()
@@ -103,17 +107,10 @@ private struct DevToolsView: View {
       }
 
       Section("Server") {
-        TextField("API base URL (no trailing slash)", text: $baseURL)
-          .textInputAutocapitalization(.never)
-          .autocorrectionDisabled()
-          #if os(iOS)
-            .keyboardType(.URL)
-          #endif
-      }
-
-      Section("Identity") {
-        TextField("User ID sent to API", text: $userId)
-          .textInputAutocapitalization(.never)
+        Text(APIClient.defaultBaseURL)
+          .font(.footnote)
+          .foregroundStyle(.secondary)
+          .accessibilityLabel("API base URL")
       }
 
       Section {
@@ -121,11 +118,6 @@ private struct DevToolsView: View {
           Task { await authorize() }
         }
         .disabled(isBusy || !healthKit.isHealthDataAvailable())
-
-        Button("Sync to server") {
-          Task { await sync() }
-        }
-        .disabled(isBusy || userId.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
       }
 
       Section("Status") {
@@ -214,32 +206,10 @@ private struct DevToolsView: View {
     defer { isBusy = false }
     do {
       try await healthKit.requestAuthorization()
-      status = "Health access granted (or already authorized). Tap Sync."
+      status =
+        "Health access granted (or already authorized). Open Sync Status to send data."
     } catch {
       status = "Authorization failed: \(error.localizedDescription)"
-    }
-  }
-
-  @MainActor
-  private func sync() async {
-    guard healthKit.isHealthDataAvailable() else {
-      status = "Health data not available on this device."
-      return
-    }
-
-    isBusy = true
-    defer { isBusy = false }
-
-    do {
-      let uid = userId.trimmingCharacters(in: .whitespacesAndNewlines)
-      let payload = try await healthKit.buildPayload(userId: uid)
-      let client = APIClient(baseURL: baseURL)
-      try await client.uploadHealthData(payload)
-      let summary =
-        "Sent steps: \(payload.steps.count), HR: \(payload.heartRate.count), sleep rows: \(payload.sleep.count)."
-      status = "Success. \(summary)"
-    } catch {
-      status = "Sync failed: \(error.localizedDescription)"
     }
   }
 }

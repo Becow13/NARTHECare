@@ -6,7 +6,6 @@ import "dotenv/config"
 import pg from "pg"
 import { createApp } from "./app.js"
 import {
-  healthDataService,
   authService,
   careRecipientService,
   auditService,
@@ -17,6 +16,7 @@ import {
   appointmentService,
   actionPlanService,
   careRecipientDataSourceService,
+  migrationsService,
 } from "./services/index.js"
 import {
   DEV_MOCK_USER,
@@ -103,7 +103,6 @@ async function main() {
   // created, and `care_recipients` must exist before every Phase 4
   // signal-domain table FKs into it. Each ensureSchema is idempotent
   // so reboots are safe to repeat the whole list.
-  await healthDataService.ensureSchema(pool)
   await authService.ensureSchema(pool)
   await careRecipientService.ensureSchema(pool)
   await auditService.ensureSchema(pool)
@@ -114,6 +113,14 @@ async function main() {
   await appointmentService.ensureSchema(pool)
   await actionPlanService.ensureSchema(pool)
   await careRecipientDataSourceService.ensureSchema(pool)
+
+  // One-shot SQL migrations under `apps/backend/migrations/` run AFTER
+  // every per-feature `ensureSchema` so a migration can reference
+  // tables those calls just created (or, in the legacy `health_data`
+  // case, drop a table the new schema no longer maintains). Each file
+  // is intrinsically idempotent, so the runner is safe to repeat on
+  // every boot — see `services/dao/migrationsDao.js`.
+  await migrationsService.applyMigrations(pool)
 
   // Seed the dev-bypass user AFTER ensureSchema so the `users` table
   // exists. `ensureDevUser` is idempotent (upsert keyed on a stable

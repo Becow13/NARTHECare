@@ -45,8 +45,7 @@ enum HealthKitSyncError: LocalizedError {
 /// The service is the **only** path that should call
 /// `HealthKitManager.readObservations` and `APIClient.postHealthKitSync`
 /// in product code — concentrating both ends in one place lets the
-/// sync-status surface remain a pure view, lets the legacy
-/// `POST /health-data` flow stay untouched, and gives Phase 4B's
+/// sync-status surface remain a pure view and gives any future
 /// background-fetch hook a single seam to reuse.
 ///
 /// **Constraints (healthcare):**

@@ -25,8 +25,8 @@
  * caregiver-entered rows in a later phase. Mirrors the
  * `OBSERVATION_SOURCE_TYPES` superset in `apps/backend/lib/
  * health-observations.js` — that constant carries additional values
- * (`apple_health`, `epic`, `healthkit_legacy`) that are not legal for
- * inbound writes from this contract.
+ * (`apple_health`, `epic`) for back-filled / Epic-sourced rows that
+ * never travel through this inbound contract.
  */
 export const SYNC_SOURCE_TYPES = Object.freeze({
   healthkit: "healthkit",

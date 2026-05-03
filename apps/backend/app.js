@@ -1,6 +1,5 @@
 import express from "express"
 import {
-  healthDataService,
   authService,
   careRecipientService,
   careRecipientProfileService,
@@ -13,7 +12,6 @@ import {
   actionPlanService,
   careRecipientDataSourceService,
 } from "./services/index.js"
-import { MAX_PAYLOAD_BYTES } from "./lib/health-data.js"
 import { extractBearerToken } from "./lib/cognito-auth.js"
 import { extractRequestContext, AUDIT_ACTIONS, AUDIT_RESOURCE_TYPES } from "./lib/audit.js"
 import { IdentityEmailConflictError } from "./lib/identity-errors.js"
@@ -42,7 +40,10 @@ import { CareRecipientProfileAccessError } from "./services/careRecipientProfile
  */
 export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
   const app = express()
-  app.use(express.json({ limit: MAX_PAYLOAD_BYTES }))
+  // 1mb cap matches the iOS HealthKit sync batch ceiling
+  // (`MAX_SYNC_BATCH_SIZE` × the per-sample envelope) and keeps any
+  // accidental large body from holding a request worker.
+  app.use(express.json({ limit: "1mb" }))
 
   const requireCognitoUser = _buildRequireCognitoUser({
     pool,
@@ -192,38 +193,6 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
       console.error("[API healthkit-status]", e)
       return res.status(500).json({
         error: e instanceof Error ? e.message : "Failed to load sync status",
-      })
-    }
-  })
-
-  // ─── Legacy unauthenticated HealthKit ingest ────────────────────────────
-  // Kept on its pre-Cognito contract so the existing iOS client keeps
-  // working while the authenticated endpoints land behind a feature flag.
-  // TODO: remove once every shipped iOS build targets the Phase 4A
-  // `POST /care-recipients/:id/healthkit/sync` route AND the cleanup
-  // step after Phase 4B has back-filled historical `health_data` rows
-  // into `health_observations`.
-  app.post("/health-data", async (req, res) => {
-    try {
-      const userId = req.body?.userId
-      if (!userId || typeof userId !== "string") {
-        return res.status(400).json({ error: "userId (string) is required" })
-      }
-
-      let result
-      try {
-        result = await healthDataService.saveHealthData(pool, userId, req.body)
-      } catch (e) {
-        return res.status(400).json({
-          error: e instanceof Error ? e.message : "Invalid payload",
-        })
-      }
-
-      return res.json({ success: true, ...result })
-    } catch (e) {
-      console.error("[API health-data]", e)
-      return res.status(500).json({
-        error: e instanceof Error ? e.message : "Failed to store health data",
       })
     }
   })
@@ -899,8 +868,9 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
  * distinguish between missing token, bad signature, and expired token.
  *
  * The verifier is checked lazily at request time (rather than at app build)
- * so unauthenticated-only entry points — e.g. the existing health-data
- * integration harness — can still build the app without wiring Cognito.
+ * so an unauthenticated-only entry point (e.g. the `GET /health` liveness
+ * probe used by load balancers) can still build the app without wiring
+ * Cognito.
  *
  * When `devAuthBypass` is set the middleware short-circuits Cognito
  * entirely and attaches the pre-seeded dev user to `req.user`. The bypass

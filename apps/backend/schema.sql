@@ -3,13 +3,12 @@
 -- matching DAO so a clean `psql -f schema.sql` reproduces what the app
 -- would build at boot.
 
-CREATE TABLE IF NOT EXISTS health_data (
-  id SERIAL PRIMARY KEY,
-  user_id TEXT NOT NULL,
-  type TEXT NOT NULL,
-  value DOUBLE PRECISION NOT NULL,
-  recorded_at TIMESTAMPTZ NOT NULL
-);
+-- Drop the pre-Cognito `health_data` table. The new HealthKit ingest
+-- path (`POST /healthkit/sync`) writes into the canonical, care-
+-- recipient-scoped `health_observations` table instead. Mirrors the
+-- versioned migration `apps/backend/migrations/0001_drop_health_data.sql`
+-- so a fresh `psql -f schema.sql` matches what `server.js` boots.
+DROP TABLE IF EXISTS health_data;
 
 -- pgcrypto supplies gen_random_uuid(); required by every table below.
 CREATE EXTENSION IF NOT EXISTS pgcrypto;
@@ -19,6 +18,8 @@ CREATE TABLE IF NOT EXISTS users (
   cognito_sub TEXT UNIQUE NOT NULL,
   email TEXT UNIQUE,
   email_verified BOOLEAN NOT NULL DEFAULT FALSE,
+  phone TEXT,
+  phone_verified BOOLEAN NOT NULL DEFAULT FALSE,
   display_name TEXT,
   role TEXT NOT NULL DEFAULT 'caregiver',
   status TEXT NOT NULL DEFAULT 'active',
@@ -30,9 +31,13 @@ CREATE TABLE IF NOT EXISTS users (
 -- Idempotent migrations from the original (pre-RBAC) schema. Safe to run
 -- repeatedly — fresh databases satisfy each ALTER via the CREATE TABLE
 -- above and skip the no-ops. Mirrors `MIGRATE_TABLE_SQL` in
--- `services/dao/userDao.js`.
+-- `services/dao/userDao.js`. `phone` / `phone_verified` were added
+-- out-of-band to support Cognito phone sign-in and are reconciled here
+-- so a `psql -f schema.sql` reproduces the live shape exactly.
 ALTER TABLE users ADD COLUMN IF NOT EXISTS display_name TEXT;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS email_verified BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS phone_verified BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE users ADD COLUMN IF NOT EXISTS role TEXT NOT NULL DEFAULT 'caregiver';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS status TEXT NOT NULL DEFAULT 'active';
 ALTER TABLE users ADD COLUMN IF NOT EXISTS last_login_at TIMESTAMPTZ;
@@ -76,6 +81,11 @@ CREATE TABLE IF NOT EXISTS care_team_members (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   UNIQUE (care_recipient_id, user_id)
 );
+-- Hot-path index for `fetchCareRecipientsForUser` — the existing
+-- UNIQUE on (care_recipient_id, user_id) cannot serve a leading-only
+-- lookup on user_id, so the dashboard list would otherwise table-scan.
+CREATE INDEX IF NOT EXISTS care_team_members_user_idx
+  ON care_team_members (user_id);
 
 CREATE TABLE IF NOT EXISTS audit_logs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -88,6 +98,17 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   user_agent TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- Auditor read paths. `resource_id` is intentionally NOT a FK — it
+-- holds ids from many tables keyed by `resource_type`. Both indexes
+-- are time-descending so newest-first scrolling lands on a seek, and
+-- partial WHERE keeps them lean by excluding NULL-key rows (system
+-- actions / pre-resource events).
+CREATE INDEX IF NOT EXISTS audit_logs_actor_created_idx
+  ON audit_logs (actor_user_id, created_at DESC)
+  WHERE actor_user_id IS NOT NULL;
+CREATE INDEX IF NOT EXISTS audit_logs_resource_created_idx
+  ON audit_logs (resource_type, resource_id, created_at DESC)
+  WHERE resource_id IS NOT NULL;
 
 -- ─── Phase 4 — canonical health-domain tables ─────────────────────────────────
 -- Every table is care-recipient-scoped: `care_recipient_id` is the

@@ -54,8 +54,9 @@ own `package.json` and is independently deployable.
 
 `apps/ios/` is a **HealthKit sync companion only** during the web MVP phase.
 Its sole production-facing function is submitting HealthKit observations to
-`POST /health-data`. Do not add new caregiver-facing UI screens to iOS until
-the web MVP has shipped. This rule is enforced in
+`POST /healthkit/sync`, which writes them into the canonical
+`health_observations` table. Do not add new caregiver-facing UI screens to
+iOS until the web MVP has shipped. This rule is enforced in
 `.cursor/rules/ios-style.mdc`.
 
 ## Deployment entry points

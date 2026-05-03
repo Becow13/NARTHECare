@@ -9,11 +9,13 @@ alwaysApply: false
 > **SCOPE FREEZE (web-first MVP phase):**
 > `apps/ios/` is a **HealthKit sync companion only**.
 > Its sole production function is submitting HealthKit observations to
-> `POST /health-data`. Do NOT add new caregiver-facing SwiftUI views,
-> navigation flows, or UI screens until the web MVP has shipped and the
-> team explicitly lifts this freeze. The existing `ContentView.swift` and
-> supporting code may be maintained for bug fixes and HealthKit ingest only.
-> See `docs/web-mvp-plan.md` for the full rationale.
+> `POST /healthkit/sync`, which writes them into the canonical
+> care-recipient-scoped `health_observations` table. Do NOT add new
+> caregiver-facing SwiftUI views, navigation flows, or UI screens
+> until the web MVP has shipped and the team explicitly lifts this
+> freeze. The existing `ContentView.swift` and `SyncStatusView.swift`
+> and supporting code may be maintained for bug fixes and HealthKit
+> ingest only. See `docs/web-mvp-plan.md` for the full rationale.
 
 Swift files mirror the reference project's `services/apiClient.ts` shape.
 
@@ -53,15 +55,21 @@ for** and any non-obvious constraint. This mirrors the JSDoc on every
 exported function in `services/apiClient.ts`.
 
 ```swift
-/// POST a batch of HealthKit samples to the server.
+/// POST a batch of normalized HealthKit observations to the
+/// authenticated Phase 4A sync route.
 ///
-/// Returns silently on 2xx; throws `APIClientError` on any other outcome.
-func uploadHealthData(_ payload: HealthUploadPayload) async throws { ... }
+/// Returns the count envelope on 2xx; throws `APIClientError`
+/// on any other outcome. Never logs the request body — observation
+/// values are PHI.
+func postHealthKitSync(
+  _ payload: HealthKitSyncRequest,
+  idToken: String,
+) async throws -> HealthKitSyncResponse { ... }
 ```
 
 ## Payload types
 
-- One file per feature's payload group (e.g. `HealthUploadPayload.swift`).
+- One file per feature's payload group (e.g. `HealthObservation.swift`).
 - All payload structs are `Codable, Sendable`.
 - Field names match the JSON contract exactly — no `CodingKeys`
   remapping unless the server demands it.

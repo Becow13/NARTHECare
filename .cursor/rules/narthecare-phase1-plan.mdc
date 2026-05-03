@@ -28,9 +28,11 @@ unless explicitly requested.
 11. Minimal beta onboarding *(web)*
 
 > iOS UI features (caregiver-facing screens) are **NOT in Phase 1**.
-> iOS work during Phase 1 is limited to keeping `POST /health-data`
-> ingest working. Do not add new SwiftUI views, navigation, or
-> caregiver-facing flows until explicitly requested after web MVP ships.
+> iOS work during Phase 1 is limited to keeping the canonical
+> `POST /healthkit/sync` ingest path working (writes into
+> `health_observations`). Do not add new SwiftUI views, navigation,
+> or caregiver-facing flows until explicitly requested after web
+> MVP ships.
 
 ---
 

@@ -14,9 +14,9 @@ system from day 1 — HIPAA-aligned best practices are enforced in
 | `apps/ios/` | **HealthKit sync companion only** — no new UI screens during web MVP | Paused UI |
 
 The web app is the primary product surface. The iOS app ingests HealthKit data
-via `POST /health-data` and will not receive new caregiver-facing UI until the
-web MVP ships. See [`docs/web-mvp-plan.md`](docs/web-mvp-plan.md) for the
-full phase plan.
+via `POST /healthkit/sync` (canonical `health_observations` table) and will
+not receive new caregiver-facing UI until the web MVP ships. See
+[`docs/web-mvp-plan.md`](docs/web-mvp-plan.md) for the full phase plan.
 
 ## Repository layout
 

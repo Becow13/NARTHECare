@@ -29,13 +29,14 @@ apps/ios/
     Assets.xcassets/                     AppIcon + AccentColor
     Models/
       CareRecipientProfile.swift         Swift mirror of shared/contracts/careRecipientProfile.schema.json
-      HealthUploadPayload.swift          Request body for POST /health-data
+      HealthObservation.swift            Swift mirror of shared/contracts/healthObservation.schema.json
     Mock/
       CareRecipientProfileMock.swift     Fixture — mirrors shared/contracts/*.example.json
       CareHubMock.swift                  Fixture for the Care Hub dashboard
     Services/
       APIClient.swift                    URLSession wrapper, async-throws API
-      HealthKitManager.swift             HealthKit auth + sample queries
+      HealthKitManager.swift             HealthKit auth + sample queries → normalized observations
+      HealthKitSyncService.swift         Batches observations and POSTs them to /healthkit/sync
       CareRecipientProfileService.swift  Profile fetch abstraction (mock today)
     ViewModels/
       PatientProfileViewModel.swift      MVVM state holder (@MainActor)

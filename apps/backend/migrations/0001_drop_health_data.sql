@@ -1,0 +1,17 @@
+-- 0001_drop_health_data.sql
+--
+-- Drops the legacy pre-Cognito `health_data` table.
+--
+-- The pre-Cognito `POST /health-data` ingest route wrote
+-- `(user_id TEXT, type, value, recorded_at)` rows here. Since the
+-- iOS HealthKit sync companion shipped (Phase 4A), every new
+-- HealthKit sample lands in the canonical, care-recipient-scoped
+-- `health_observations` table via `POST /healthkit/sync`. There is
+-- no production data to back-fill — the `health_data` rows in
+-- non-prod databases were dev/mock fixtures only — so the drop is
+-- the migration.
+--
+-- Idempotent on purpose: every migration in this directory must be
+-- safe to run on every boot. Re-running this file on a database
+-- that has already dropped the table is a no-op.
+DROP TABLE IF EXISTS health_data;

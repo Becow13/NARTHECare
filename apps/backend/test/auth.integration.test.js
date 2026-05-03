@@ -8,7 +8,7 @@ import * as authService from "../services/authService.js"
 
 /**
  * Start the Express app on an ephemeral port so each test gets an isolated
- * server. Mirrors the harness in `health-data.integration.test.js`.
+ * server. Mirrors the harness in `healthkit-sync.integration.test.js`.
  */
 async function startServer(app) {
   return new Promise((resolve) => {

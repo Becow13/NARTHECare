@@ -29,6 +29,17 @@ const CREATE_CARE_TEAM_MEMBERS_SQL = `
   );
 `
 
+// Dashboard hot path — `fetchCareRecipientsForUser` joins on
+// `ctm.user_id = $1` and the existing UNIQUE on
+// (care_recipient_id, user_id) cannot serve a leading-column-only
+// lookup on user_id. This single-column index keeps `/api/care-recipients`
+// (and any future "user → recipients" admin query) off a sequential
+// scan as the care team table grows.
+const CREATE_INDEX_CARE_TEAM_USER_SQL = `
+  CREATE INDEX IF NOT EXISTS care_team_members_user_idx
+    ON care_team_members (user_id);
+`
+
 const INSERT_RECIPIENT_SQL = `
   INSERT INTO care_recipients (name, date_of_birth, primary_condition)
   VALUES ($1, $2, $3)
@@ -180,4 +191,5 @@ export async function fetchAllCareRecipientIds(pool) {
 export async function ensureCareRecipientSchema(pool) {
   await pool.query(CREATE_CARE_RECIPIENTS_SQL)
   await pool.query(CREATE_CARE_TEAM_MEMBERS_SQL)
+  await pool.query(CREATE_INDEX_CARE_TEAM_USER_SQL)
 }

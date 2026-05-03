@@ -15,7 +15,7 @@ only** — no new caregiver UI screens on iOS until the web MVP ships.
 | Platform | Role |
 | --- | --- |
 | Web (`apps/web/`) | Primary MVP — full caregiver dashboard |
-| Backend (`apps/backend/`) | Shared API — additive only; legacy `POST /health-data` stays through Phase 4A; new `POST /healthkit/sync` lands in Phase 4A |
+| Backend (`apps/backend/`) | Shared API — Phase 4A wires `POST /healthkit/sync` into the canonical `health_observations` table; the pre-Cognito `POST /health-data` ingest and its `health_data` table have since been removed |
 | iOS (`apps/ios/`) | HealthKit sync companion. Phase 4A wires the HealthKit → backend write path and a minimal sync-status screen. **No** dashboard / care team / AI / Epic / alerts UI growth. |
 
 ---
@@ -456,12 +456,18 @@ What this phase does **not** include:
 
 - Baseline computation, AI summary generation, alert engine — Phase 4B.
 - Epic OAuth / SMART on FHIR — Phase 6+.
-- Removal of the legacy `POST /health-data` route (kept alive
-  alongside the new sync path; the deprecation + back-fill happens
-  after Phase 4B).
 - Background HealthKit observers on iOS. Phase 4A ships the
   manual "Sync now" path only; Phase 4B can wire
   `HKObserverQuery` against the same `HealthKitSyncService`.
+
+> **Cleanup note (post-Phase 4A):** the pre-Cognito `POST /health-data`
+> ingest route, the `health_data` table, the legacy
+> `HealthUploadPayload` Swift model, and the `healthkit_legacy`
+> source-type bridge have all been removed. The dropping migration
+> lives at `apps/backend/migrations/0001_drop_health_data.sql` and
+> runs at boot via `services/migrationsService.applyMigrations`.
+> Every HealthKit ingest now flows through `POST /healthkit/sync` →
+> `health_observations`.
 
 **Backend impact:** additive only. **Aptible deploy:** runs after
 tests pass.
@@ -531,9 +537,8 @@ HealthKit payloads, never free-text notes.
 
 #### Backend endpoints
 
-Naming follows the existing backend convention (no `/api/` prefix; see
-the existing `POST /health-data` route). The Next.js web app does not
-proxy these — only iOS calls them.
+Naming follows the existing backend convention (no `/api/` prefix).
+The Next.js web app does not proxy these — only iOS calls them.
 
 - `POST /healthkit/sync` — accepts `{ careRecipientId, observations[] }`.
   Returns `{ accepted, deduped, rejected, lastSyncedAt }` with **counts
@@ -560,18 +565,17 @@ and silently dedupe ones it already has. iOS persists `last_synced_at`
 locally only as a hint; the **server-side `last_synced_at`** in
 `care_recipient_data_sources` is the source of truth.
 
-#### Legacy `POST /health-data` transition
+#### Legacy `POST /health-data` transition (resolved)
 
-The existing `POST /health-data` route (writes to `health_data`,
-user-scoped, only steps / heart_rate / sleep) stays alive for backward
-compatibility through Phase 4A. Once iOS ships the new sync path and
-backfills any in-flight users, Phase 4B (or a small follow-up) can:
-- mark `POST /health-data` deprecated in iOS,
-- backfill historical `health_data` rows into `health_observations`
-  with `source_type = "healthkit_legacy"`,
-- remove the route in a later phase.
+The pre-Cognito `POST /health-data` route, the `health_data` table,
+the legacy `HealthUploadPayload` Swift model, and the unused
+`healthkit_legacy` source-type bridge have all been removed —
+production never carried real data through them, only dev/mock
+fixtures. The dropping migration lives at
+`apps/backend/migrations/0001_drop_health_data.sql` and runs at boot.
 
-No data is dropped during the transition.
+Every HealthKit ingest now travels iOS → `POST /healthkit/sync` →
+`health_observations` (idempotent on `(source_type, source_record_id)`).
 
 #### iOS scope in Phase 4A
 
@@ -581,9 +585,10 @@ ALLOWED iOS work in this phase:
 - Add a `Services/HealthKitSyncService.swift` that batches normalized
   observations and posts them via `Services/APIClient.swift` to the new
   backend endpoints.
-- Replace `Models/HealthUploadPayload.swift` with the shared observation
-  contract (or add a new model alongside it — the legacy struct stays
-  until `POST /health-data` is removed).
+- Add `Models/HealthObservation.swift` as the Swift mirror of the
+  shared observation contract. (The pre-Cognito
+  `HealthUploadPayload.swift` model has been removed in the
+  post-Phase 4A cleanup.)
 - A minimal **sync-status surface only** — a single screen / row that
   shows: connection state, last sync time, manual "Sync now" button, and
   permission management. This is the only iOS UI that may grow in this
@@ -612,8 +617,9 @@ These iOS UI areas remain frozen per `.cursor/rules/ios-style.mdc`.
   types** only. Never values, never timestamps of individual samples,
   never `source_record_id`s.
 
-**Backend impact:** additive (new route + new tables, no change to
-existing `/health-data`). **Aptible deploy:** runs after tests pass.
+**Backend impact:** additive (new route + new tables); the pre-Cognito
+`/health-data` ingest has since been retired alongside the
+`health_data` table. **Aptible deploy:** runs after tests pass.
 **iOS impact:** new service module + new sync-status screen only.
 
 ### Phase 4B — Baseline computation, AI summary, and alert generation ✅
@@ -926,7 +932,7 @@ Shared contract (single source of truth — added once, mirrored everywhere):
 | N | `shared/models/HealthObservation.js` | Backend mirror (consumed by Express) |
 | N | `shared/models/HealthObservation.ts` | Web mirror (consumed by Next.js) |
 
-Backend (additive — does **not** touch existing `POST /health-data`):
+Backend (the pre-Cognito `POST /health-data` ingest has since been removed):
 
 | Op | Path | Reason |
 | --- | --- | --- |
@@ -951,7 +957,7 @@ iOS (HealthKit sync companion only — no caregiver UI growth):
 | M | `apps/ios/NARTHECare/Services/APIClient.swift` | Add `postHealthKitSync` and `getHealthKitStatus`; redact bodies from logs |
 | N | `apps/ios/NARTHECare/Views/SyncStatusView.swift` | Minimal sync-status surface: connection, last sync time, "Sync now", permissions link |
 | M | `apps/ios/NARTHECare/ContentView.swift` | Route post-login to `SyncStatusView` (not to dashboard / patient profile growth) |
-| D-soft | `apps/ios/NARTHECare/Models/HealthUploadPayload.swift` | Keep alive while legacy `POST /health-data` ships; remove in the cleanup phase after 4B |
+| D | `apps/ios/NARTHECare/Models/HealthUploadPayload.swift` | Removed in the post-Phase 4A cleanup alongside the legacy `health_data` table |
 
 Web (no new write paths — Phase 3 read paths now return real data):
 
@@ -1068,9 +1074,9 @@ will be expanded in the PR for that phase.
   profile, add care team management, add AI summary UI, add Epic UI, or
   add alert / appointment management UI. Those areas stay frozen per
   `.cursor/rules/ios-style.mdc`.
-- iOS existing: legacy `POST /health-data` ingest path stays alive
-  through Phase 4A; deprecation and historical backfill happen in a
-  cleanup step after Phase 4B.
+- iOS legacy `POST /health-data` ingest path: removed in the
+  post-Phase 4A cleanup alongside the `health_data` table. iOS now
+  only writes to `POST /healthkit/sync`.
 - Backend Phase 4A: `POST /healthkit/sync` and `GET /healthkit/status`
   must verify Cognito JWT and call `requireCareRecipientAccess` before
   any DB write or read. Idempotent inserts via `(source_type,

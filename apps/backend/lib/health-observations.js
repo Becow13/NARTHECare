@@ -46,16 +46,14 @@ export const METRIC_UNIT_BY_METRIC_TYPE = HEALTH_OBSERVATION_UNIT_BY_METRIC_TYPE
 /**
  * Canonical `source_type` values for any row referencing an external
  * origin. The set is intentionally a SUPERSET of
- * `SYNC_SOURCE_TYPES` because the table also holds back-filled rows
- * (`apple_health`, `healthkit_legacy`) and Epic-sourced rows that
- * never travel through the sync endpoint.
+ * `SYNC_SOURCE_TYPES` because the table also holds Epic-sourced
+ * rows and back-filled `apple_health` rows that never travel
+ * through the iOS sync endpoint.
  */
 export const OBSERVATION_SOURCE_TYPES = Object.freeze({
   appleHealth: "apple_health",
   /** Inbound-from-iOS marker used by `POST /healthkit/sync`. */
   healthkit: SYNC_SOURCE_TYPES.healthkit,
-  /** Backfilled rows from the legacy `health_data` table (Phase 4B cleanup). */
-  healthkitLegacy: "healthkit_legacy",
   epic: "epic",
   manual: SYNC_SOURCE_TYPES.manual,
 })

@@ -9,7 +9,6 @@
 /* Begin PBXBuildFile section */
 		A10000000000000000000021 /* NARTHECareAppApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000011 /* NARTHECareAppApp.swift */; };
 		A10000000000000000000022 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000012 /* ContentView.swift */; };
-		A10000000000000000000023 /* HealthUploadPayload.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000013 /* HealthUploadPayload.swift */; };
 		A10000000000000000000024 /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000014 /* APIClient.swift */; };
 		A10000000000000000000025 /* HealthKitManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000015 /* HealthKitManager.swift */; };
 		A10000000000000000000026 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000016 /* Assets.xcassets */; };
@@ -38,7 +37,6 @@
 		A10000000000000000000001 /* NARTHECare.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = NARTHECare.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		A10000000000000000000011 /* NARTHECareAppApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NARTHECareAppApp.swift; sourceTree = "<group>"; };
 		A10000000000000000000012 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		A10000000000000000000013 /* HealthUploadPayload.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HealthUploadPayload.swift; path = Models/HealthUploadPayload.swift; sourceTree = "<group>"; };
 		A10000000000000000000014 /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = APIClient.swift; path = Services/APIClient.swift; sourceTree = "<group>"; };
 		A10000000000000000000015 /* HealthKitManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HealthKitManager.swift; path = Services/HealthKitManager.swift; sourceTree = "<group>"; };
 		A10000000000000000000016 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
@@ -92,7 +90,6 @@
 				A10000000000000000000340 /* Auth */,
 				A10000000000000000000011 /* NARTHECareAppApp.swift */,
 				A10000000000000000000012 /* ContentView.swift */,
-				A10000000000000000000013 /* HealthUploadPayload.swift */,
 				A10000000000000000000014 /* APIClient.swift */,
 				A10000000000000000000015 /* HealthKitManager.swift */,
 				A10000000000000000000610 /* BackendUser.swift */,
@@ -207,7 +204,6 @@
 			files = (
 				A10000000000000000000021 /* NARTHECareAppApp.swift in Sources */,
 				A10000000000000000000022 /* ContentView.swift in Sources */,
-				A10000000000000000000023 /* HealthUploadPayload.swift in Sources */,
 				A10000000000000000000024 /* APIClient.swift in Sources */,
 				A10000000000000000000025 /* HealthKitManager.swift in Sources */,
 				A10000000000000000000600 /* BackendUser.swift in Sources */,
