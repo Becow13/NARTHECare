@@ -108,6 +108,14 @@ final class AuthSession: NSObject, ObservableObject {
   }
 
   /// Clears all stored tokens and resets to `.unauthenticated`.
+  ///
+  /// Also tears down the HealthKit observer manager: stopping
+  /// observer queries, asking iOS to disable background delivery,
+  /// clearing the active care recipient id, wiping per-recipient
+  /// anchors, and resetting the diagnostics surface. Without this
+  /// hop, iOS would keep waking the process for HealthKit updates
+  /// after the caregiver had signed out, and the next signed-in
+  /// user could inherit the previous user's anchors.
   func signOut() {
     KeychainHelper.delete(key: .idToken)
     KeychainHelper.delete(key: .accessToken)
@@ -117,6 +125,7 @@ final class AuthSession: NSObject, ObservableObject {
     currentUser = nil
     state = .unauthenticated
     errorMessage = nil
+    Task { await HealthKitObserverManager.shared.handleSignOut() }
   }
 
   /// Returns the stored ID token if a session is active, otherwise `nil`.

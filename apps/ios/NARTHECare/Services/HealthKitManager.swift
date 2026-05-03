@@ -256,6 +256,38 @@ final class HealthKitManager: @unchecked Sendable {
     }
   }
 
+  /// Sum every `HKQuantitySample` matching `predicate` in `unit`.
+  ///
+  /// We use this instead of `HKStatisticsQuery` + `.cumulativeSum`
+  /// for step and fall aggregates: Apple's statistics path often
+  /// errors for daily buckets (Simulator, partial authorization, or
+  /// types whose cumulative option is flaky) whereas summing samples
+  /// matches what caregivers see in Health and aligns with anchored
+  /// per-sample sync elsewhere.
+  private func sumQuantitySamples(
+    type: HKQuantityType,
+    predicate: NSPredicate,
+    unit: HKUnit,
+  ) async throws -> Double {
+    let samples: [HKQuantitySample] = try await withCheckedThrowingContinuation {
+      continuation in
+      let query = HKSampleQuery(
+        sampleType: type,
+        predicate: predicate,
+        limit: HKObjectQueryNoLimit,
+        sortDescriptors: nil,
+      ) { _, results, error in
+        if let error = error {
+          continuation.resume(throwing: error)
+          return
+        }
+        continuation.resume(returning: (results as? [HKQuantitySample]) ?? [])
+      }
+      self.healthStore.execute(query)
+    }
+    return samples.reduce(0) { $0 + $1.quantity.doubleValue(for: unit) }
+  }
+
   /// Daily step totals as one observation per local-calendar day.
   ///
   /// `sourceRecordId` is a deterministic `"steps:YYYY-MM-DD"` key
@@ -284,22 +316,9 @@ final class HealthKitManager: @unchecked Sendable {
       else { break }
       let predicate = HKQuery.predicateForSamples(
         withStart: cursor, end: dayEnd)
-      let value: Double = try await withCheckedThrowingContinuation {
-        continuation in
-        let query = HKStatisticsQuery(
-          quantityType: stepType,
-          quantitySamplePredicate: predicate,
-          options: .cumulativeSum,
-        ) { _, statistics, error in
-          if let error = error {
-            continuation.resume(throwing: error)
-            return
-          }
-          let quantity = statistics?.sumQuantity()
-          continuation.resume(returning: quantity?.doubleValue(for: .count()) ?? 0)
-        }
-        self.healthStore.execute(query)
-      }
+      let value = try await sumQuantitySamples(
+        type: stepType, predicate: predicate, unit: .count(),
+      )
 
       if value > 0 {
         let dayKey = dayFormatter.string(from: cursor)
@@ -341,22 +360,9 @@ final class HealthKitManager: @unchecked Sendable {
       else { break }
       let predicate = HKQuery.predicateForSamples(
         withStart: cursor, end: dayEnd)
-      let value: Double = try await withCheckedThrowingContinuation {
-        continuation in
-        let query = HKStatisticsQuery(
-          quantityType: fallType,
-          quantitySamplePredicate: predicate,
-          options: .cumulativeSum,
-        ) { _, statistics, error in
-          if let error = error {
-            continuation.resume(throwing: error)
-            return
-          }
-          let quantity = statistics?.sumQuantity()
-          continuation.resume(returning: quantity?.doubleValue(for: .count()) ?? 0)
-        }
-        self.healthStore.execute(query)
-      }
+      let value = try await sumQuantitySamples(
+        type: fallType, predicate: predicate, unit: .count(),
+      )
 
       if value > 0 {
         let dayKey = dayFormatter.string(from: cursor)

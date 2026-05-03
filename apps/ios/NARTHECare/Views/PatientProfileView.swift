@@ -128,7 +128,7 @@ private struct ProfileHeaderCard: View {
 
         HStack(spacing: 6) {
           Image(systemName: "clock")
-          Text("Last updated \(RelativeTime.format(profile.lastUpdated))")
+          Text("Last updated \(RelativeTime.formatLocalizedDateTime(profile.lastUpdated))")
         }
         .font(.footnote)
         .foregroundStyle(.secondary)
@@ -325,7 +325,7 @@ private struct RecentNotesCard: View {
                 Text("·")
                   .font(.caption)
                   .foregroundStyle(.secondary)
-                Text(RelativeTime.format(note.createdAt))
+                Text(RelativeTime.formatLocalizedDateTime(note.createdAt))
                   .font(.caption)
                   .foregroundStyle(.secondary)
               }

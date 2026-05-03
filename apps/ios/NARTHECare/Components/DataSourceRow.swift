@@ -23,7 +23,7 @@ struct DataSourceRow: View {
 
         Group {
           if let synced = source.lastSyncedAt {
-            Text("Last synced \(RelativeTime.format(synced))")
+            Text("Last synced \(RelativeTime.formatLocalizedDateTime(synced))")
               .foregroundStyle(.secondary)
           } else if let err = source.errorMessage {
             Text(err)
@@ -69,30 +69,52 @@ extension DataSourceType {
   }
 }
 
-// MARK: - Relative time formatting
+// MARK: - Server timestamp formatting
 
-/// Best-effort ISO-8601 → "3 min ago" formatter.
+/// Parse and present backend ISO timestamps for in-app surfaces.
 ///
-/// Falls back to the raw value when the input is not a datetime — the
-/// backend sends a plain `YYYY-MM-DD` for `baseline.lastUpdated`, and
-/// we render that as-is rather than mis-parsing it as midnight UTC.
+/// `formatLocalizedDateTime` shows the instant in **the device's
+/// calendar locale and local time zone** (Settings → Language &
+/// Region + Time Zone) so caregivers never see unwieldy raw UTC
+/// strings (`…Z`).
+///
+/// Falls back to the raw value when the input is not a parseable ISO
+/// instant — some fields use a plain `YYYY-MM-DD` for `baseline.
+/// lastUpdated`, and we render that as-is.
 enum RelativeTime {
-  private static let formatter: RelativeDateTimeFormatter = {
+  private static let relativeFormatter: RelativeDateTimeFormatter = {
     let f = RelativeDateTimeFormatter()
     f.unitsStyle = .abbreviated
     return f
   }()
 
-  static func format(_ iso: String) -> String {
+  private static func localDateTimeFormatter() -> DateFormatter {
+    let f = DateFormatter()
+    f.locale = Locale.current
+    f.timeZone = TimeZone.current
+    f.dateStyle = .medium
+    f.timeStyle = .short
+    return f
+  }
+
+  /// Best-effort ISO-8601 string → instant. Supports fractional seconds.
+  static func parseServerIso8601(_ iso: String) -> Date? {
     let isoFormatter = ISO8601DateFormatter()
     isoFormatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-    if let date = isoFormatter.date(from: iso) {
-      return formatter.localizedString(for: date, relativeTo: Date())
-    }
+    if let date = isoFormatter.date(from: iso) { return date }
     isoFormatter.formatOptions = [.withInternetDateTime]
-    if let date = isoFormatter.date(from: iso) {
-      return formatter.localizedString(for: date, relativeTo: Date())
-    }
-    return iso
+    return isoFormatter.date(from: iso)
+  }
+
+  /// ISO-8601 → "May 3, 2026 at 7:54 PM"-style copy in **local TZ**.
+  static func formatLocalizedDateTime(_ iso: String) -> String {
+    guard let date = parseServerIso8601(iso) else { return iso }
+    return localDateTimeFormatter().string(from: date)
+  }
+
+  /// ISO-8601 → abbreviated relative phrase ("3 min ago") in user's locale.
+  static func format(_ iso: String) -> String {
+    guard let date = parseServerIso8601(iso) else { return iso }
+    return relativeFormatter.localizedString(for: date, relativeTo: Date())
   }
 }
