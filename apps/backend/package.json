@@ -9,7 +9,10 @@
     "start": "node server.js",
     "dev": "node scripts/dev.js",
     "test": "node --test $(ls test/*.integration.test.js lib/__tests__/*.test.js)",
-    "build": "npm run test && node --check server.js"
+    "build": "npm run test && node --check server.js",
+    "job:recompute-baselines": "node scripts/recompute-baselines.js",
+    "job:evaluate-alerts": "node scripts/evaluate-alerts.js",
+    "job:generate-daily-summaries": "node scripts/generate-daily-summaries.js"
   },
   "engines": {
     "node": ">=18"

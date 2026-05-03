@@ -147,6 +147,34 @@ const CONTRACT_TYPE_TO_DISPLAY_NAME: Readonly<
   fall_detection: "Fall Detection",
 })
 
+/**
+ * Phase 4A registry-only transport identifier — see
+ * `apps/backend/lib/data-sources.js#REGISTRY_SOURCE_HEALTHKIT`.
+ *
+ * The dashboard contract has only `apple_health` (the user-facing
+ * data category); Phase 4A's iOS sync writes `healthkit` (the
+ * transport that delivered the samples). The mapping below collapses
+ * both into the same Apple Health view model so the Data Sources
+ * card never renders two cards for the same caregiver-perceived
+ * integration.
+ */
+const REGISTRY_TYPE_TO_VIEW: Readonly<Record<string, ViewDataSourceType>> =
+  Object.freeze({
+    ...CONTRACT_TYPE_TO_VIEW,
+    healthkit: "wearable",
+  })
+
+const REGISTRY_TYPE_TO_DISPLAY_NAME: Readonly<Record<string, string>> =
+  Object.freeze({
+    ...CONTRACT_TYPE_TO_DISPLAY_NAME,
+    healthkit: "Apple Health",
+  })
+
+const REGISTRY_TO_PROFILE_TYPE: Readonly<Record<string, ContractDataSourceType>> =
+  Object.freeze({
+    healthkit: "apple_health",
+  })
+
 // ─── Public API ──────────────────────────────────────────────────────────────
 
 /**
@@ -296,4 +324,71 @@ function humanizeEnum(value: string): string {
       part.length === 0 ? part : part[0].toUpperCase() + part.slice(1),
     )
     .join(" ")
+}
+
+// ─── Phase 4A: data-source registry → view model ────────────────────────────
+
+/**
+ * Raw row shape from `GET /care-recipients/:id/data-sources`.
+ *
+ * Mirrors the registry projection in
+ * `apps/backend/services/dao/careRecipientDataSourceDao.js`; repeated
+ * here so this adapter stays free of `server-only` imports and
+ * `web/services/careRecipientService.ts` is the only place that
+ * declares the live shape.
+ */
+export interface DataSourceRegistryRowInput {
+  id: string
+  source_type: string
+  status: string
+  last_synced_at: string | null
+  error_message: string | null
+}
+
+/**
+ * Map a registry row into the existing dashboard `DataSource` view
+ * model. Phase 4A's HealthKit sync writes `source_type = "healthkit"`;
+ * the rest of the registry's source types collapse 1:1 with the
+ * profile contract (`apple_health`, `epic`, `fitbit`, `garmin`,
+ * `ring`, `fall_detection`).
+ *
+ * Status normalisation: anything that is not the canonical triplet
+ * (`connected` / `not_connected` / `error`) is rendered as
+ * `not_connected` to keep the UI honest — we never invent a connected
+ * state for an unknown registry value.
+ */
+export function dataSourceRegistryRowToView(
+  row: DataSourceRegistryRowInput,
+): ViewDataSource {
+  const viewType = REGISTRY_TYPE_TO_VIEW[row.source_type] ?? "wearable"
+  const displayName =
+    REGISTRY_TYPE_TO_DISPLAY_NAME[row.source_type] ??
+    humanizeEnum(row.source_type)
+  return {
+    id: `${row.source_type}-${row.id}`,
+    name: displayName,
+    type: viewType,
+    provider: displayName,
+    connected: row.status === "connected",
+    lastSync: row.last_synced_at ?? "",
+  }
+}
+
+/**
+ * Public mapping helper for the registry-only `healthkit` transport
+ * identifier → its profile-contract sibling. Used by the Data
+ * Sources card when it needs to merge a registry row with a static
+ * `dataSources` array on the profile (so an Apple Health entry with
+ * a synced row replaces the never-synced placeholder, instead of
+ * rendering twice).
+ */
+export function profileTypeForRegistrySource(
+  sourceType: string,
+): ContractDataSourceType | null {
+  if (REGISTRY_TO_PROFILE_TYPE[sourceType])
+    return REGISTRY_TO_PROFILE_TYPE[sourceType]
+  if ((CONTRACT_TYPE_TO_VIEW as Record<string, unknown>)[sourceType]) {
+    return sourceType as ContractDataSourceType
+  }
+  return null
 }

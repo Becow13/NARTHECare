@@ -7,6 +7,7 @@ NARTHECare.
 | --------------------------------------- | -------------------------------------------------------------------- |
 | `careRecipientProfile.schema.json`      | JSON Schema (draft 2020-12) for `GET /care-recipients/:id/profile`.  |
 | `careRecipientProfile.example.json`     | Canonical Margaret Chen example. Must validate against the schema.   |
+| `healthObservation.schema.json`         | JSON Schema (draft 2020-12) for the per-sample payload of `POST /healthkit/sync`. |
 
 ## Why a JSON Schema is the source of truth
 

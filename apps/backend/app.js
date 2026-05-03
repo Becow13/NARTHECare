@@ -66,11 +66,143 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
     return res.json({ status: "ok" })
   })
 
+  // ─── POST /healthkit/sync ──────────────────────────────────────────────
+  // Phase 4A entry point for the iOS HealthKit sync companion. The body
+  // shape is validated against `shared/contracts/healthObservation.schema.json`
+  // (mirrored as `shared/models/HealthObservation.{ts,js}` and the iOS
+  // Codable struct). Both the Cognito JWT AND care-team membership are
+  // checked before any DB write — `careRecipientId` lives in the body
+  // and is the access-gate target.
+  //
+  // Audit metadata carries `{ accepted, deduped, rejected, metricTypes }`
+  // only — never values, never source_record_ids, never timestamps of
+  // individual samples. Body bytes are never logged.
+  app.post("/healthkit/sync", requireCognitoUser, async (req, res) => {
+    try {
+      const recipientId =
+        req.body?.careRecipientId ?? req.body?.care_recipient_id
+      if (!_isUuid(recipientId)) {
+        return res.status(400).json({
+          error: "careRecipientId (uuid string) is required",
+        })
+      }
+
+      try {
+        await careRecipientService.requireCareRecipientAccess(
+          pool,
+          recipientId,
+          req.user.id,
+        )
+      } catch (e) {
+        if (e instanceof CareRecipientAccessError) {
+          return res.status(403).json({ error: e.message })
+        }
+        throw e
+      }
+
+      let result
+      try {
+        result = await healthObservationService.syncHealthkitObservations(
+          pool,
+          recipientId,
+          req.body,
+        )
+      } catch (e) {
+        return res.status(400).json({
+          error: e instanceof Error ? e.message : "Invalid payload",
+        })
+      }
+
+      const { ipAddress, userAgent } = extractRequestContext(req)
+      await auditService.logAction(pool, {
+        actorUserId: req.user.id,
+        action: AUDIT_ACTIONS.syncHealthkitObservations,
+        resourceType: AUDIT_RESOURCE_TYPES.healthObservation,
+        resourceId: recipientId,
+        metadata: {
+          accepted: result.accepted,
+          deduped: result.deduped,
+          rejected: result.rejected,
+          metricTypes: result.metricTypes,
+        },
+        ipAddress,
+        userAgent,
+      })
+
+      return res.json({
+        accepted: result.accepted,
+        deduped: result.deduped,
+        rejected: result.rejected,
+        lastSyncedAt: result.lastSyncedAt,
+      })
+    } catch (e) {
+      console.error("[API healthkit-sync]", e)
+      return res.status(500).json({
+        error: e instanceof Error ? e.message : "Failed to sync observations",
+      })
+    }
+  })
+
+  // ─── GET /healthkit/status ─────────────────────────────────────────────
+  // Drives the iOS sync-status surface and (Phase 4A web add) the
+  // dashboard's Data Sources card. Returns the shape every caller
+  // needs (`status`, `lastSyncedAt`, `errorMessage`) regardless of
+  // whether the registry row exists yet — a never-synced recipient
+  // gets a neutral `not_connected` envelope, never a 404.
+  app.get("/healthkit/status", requireCognitoUser, async (req, res) => {
+    try {
+      const recipientId = req.query?.careRecipientId ?? req.query?.care_recipient_id
+      if (typeof recipientId !== "string" || !_isUuid(recipientId)) {
+        return res.status(400).json({
+          error: "careRecipientId (uuid string) is required",
+        })
+      }
+
+      try {
+        await careRecipientService.requireCareRecipientAccess(
+          pool,
+          recipientId,
+          req.user.id,
+        )
+      } catch (e) {
+        if (e instanceof CareRecipientAccessError) {
+          return res.status(403).json({ error: e.message })
+        }
+        throw e
+      }
+
+      const status = await healthObservationService.getHealthkitSyncStatus(
+        pool,
+        recipientId,
+      )
+
+      const { ipAddress, userAgent } = extractRequestContext(req)
+      await auditService.logAction(pool, {
+        actorUserId: req.user.id,
+        action: AUDIT_ACTIONS.viewHealthkitStatus,
+        resourceType: AUDIT_RESOURCE_TYPES.dataSource,
+        resourceId: recipientId,
+        metadata: null,
+        ipAddress,
+        userAgent,
+      })
+
+      return res.json(status)
+    } catch (e) {
+      console.error("[API healthkit-status]", e)
+      return res.status(500).json({
+        error: e instanceof Error ? e.message : "Failed to load sync status",
+      })
+    }
+  })
+
   // ─── Legacy unauthenticated HealthKit ingest ────────────────────────────
   // Kept on its pre-Cognito contract so the existing iOS client keeps
   // working while the authenticated endpoints land behind a feature flag.
-  // TODO: move this behind `requireCognitoUser` once the iOS client ships
-  // Cognito tokens.
+  // TODO: remove once every shipped iOS build targets the Phase 4A
+  // `POST /care-recipients/:id/healthkit/sync` route AND the cleanup
+  // step after Phase 4B has back-filled historical `health_data` rows
+  // into `health_observations`.
   app.post("/health-data", async (req, res) => {
     try {
       const userId = req.body?.userId

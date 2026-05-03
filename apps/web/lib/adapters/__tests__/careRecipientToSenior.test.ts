@@ -3,6 +3,8 @@ import type { CareRecipientProfile } from "@models/CareRecipientProfile"
 import {
   careRecipientListRowToItem,
   careRecipientProfileToHeader,
+  dataSourceRegistryRowToView,
+  profileTypeForRegistrySource,
   type CareRecipientListInput,
 } from "../careRecipientToSenior"
 
@@ -181,5 +183,72 @@ describe("careRecipientProfileToHeader", () => {
     expect(header.careTeam).toEqual([])
     expect(header.dataSources).toEqual([])
     expect(header.primaryConditions).toEqual([])
+  })
+})
+
+describe("dataSourceRegistryRowToView (Phase 4A)", () => {
+  test("maps the registry-only `healthkit` transport to the Apple Health view model", () => {
+    const view = dataSourceRegistryRowToView({
+      id: "row-1",
+      source_type: "healthkit",
+      status: "connected",
+      last_synced_at: "2026-05-02T12:00:00Z",
+      error_message: null,
+    })
+    expect(view.name).toBe("Apple Health")
+    expect(view.type).toBe("wearable")
+    expect(view.connected).toBe(true)
+    expect(view.lastSync).toBe("2026-05-02T12:00:00Z")
+  })
+
+  test("renders a never-synced row as `not connected` (lastSync empty string)", () => {
+    const view = dataSourceRegistryRowToView({
+      id: "row-1",
+      source_type: "healthkit",
+      status: "not_connected",
+      last_synced_at: null,
+      error_message: null,
+    })
+    expect(view.connected).toBe(false)
+    expect(view.lastSync).toBe("")
+  })
+
+  test("falls through to a humanised name for unknown registry source types", () => {
+    const view = dataSourceRegistryRowToView({
+      id: "row-1",
+      source_type: "other_partner",
+      status: "connected",
+      last_synced_at: null,
+      error_message: null,
+    })
+    expect(view.name).toBe("Other Partner")
+    expect(view.type).toBe("wearable")
+  })
+
+  test("`error` status renders as not connected (no false-positive green dot)", () => {
+    const view = dataSourceRegistryRowToView({
+      id: "row-1",
+      source_type: "epic",
+      status: "error",
+      last_synced_at: "2026-05-02T12:00:00Z",
+      error_message: "Token expired",
+    })
+    expect(view.connected).toBe(false)
+  })
+})
+
+describe("profileTypeForRegistrySource (Phase 4A)", () => {
+  test("collapses the registry-only healthkit transport onto apple_health", () => {
+    expect(profileTypeForRegistrySource("healthkit")).toBe("apple_health")
+  })
+
+  test("passes through profile-contract source types unchanged", () => {
+    expect(profileTypeForRegistrySource("apple_health")).toBe("apple_health")
+    expect(profileTypeForRegistrySource("epic")).toBe("epic")
+    expect(profileTypeForRegistrySource("fall_detection")).toBe("fall_detection")
+  })
+
+  test("returns null for unknown registry source types", () => {
+    expect(profileTypeForRegistrySource("other_partner")).toBeNull()
   })
 })

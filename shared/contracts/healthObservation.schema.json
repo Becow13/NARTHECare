@@ -1,0 +1,80 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://narthecare.dev/schemas/healthObservation.schema.json",
+  "title": "HealthObservation",
+  "description": "Canonical shape of a single normalized HealthKit / external observation as it travels from the iOS sync companion to POST /healthkit/sync. This file is the single source of truth — the TypeScript mirror (shared/models/HealthObservation.ts), the JS mirror (shared/models/HealthObservation.js), and the Swift Codable struct (apps/ios/NARTHECare/Models/HealthObservation.swift) all exist to match this schema. If they disagree, the schema wins.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "sourceType",
+    "sourceRecordId",
+    "metricType",
+    "value",
+    "unit",
+    "measuredAt"
+  ],
+  "properties": {
+    "sourceType": {
+      "type": "string",
+      "enum": ["healthkit", "manual"],
+      "description": "Transport that delivered the sample. Phase 4A only ships 'healthkit' from iOS; 'manual' is reserved for future caregiver-entered rows."
+    },
+    "sourceRecordId": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Stable per-sample id supplied by the source (HealthKit sample UUID) or a deterministic dedupe key when the source has none. Combined with sourceType for the ON CONFLICT (source_type, source_record_id) DO NOTHING idempotency guarantee — re-sending the same sample window is always safe."
+    },
+    "metricType": {
+      "type": "string",
+      "enum": [
+        "steps",
+        "resting_heart_rate",
+        "hrv",
+        "spo2",
+        "sleep_duration",
+        "respiratory_rate",
+        "walking_steadiness",
+        "fall_event"
+      ],
+      "description": "One of the eight Phase 4A metric strings. Mirrors METRIC_TYPES in apps/backend/lib/health-observations.js."
+    },
+    "value": {
+      "type": "number",
+      "description": "Numeric measurement in the units specified by `unit`. PHI — never log."
+    },
+    "unit": {
+      "type": "string",
+      "enum": [
+        "count",
+        "bpm",
+        "ms",
+        "hours",
+        "percent",
+        "breaths_per_min",
+        "score",
+        "event"
+      ],
+      "description": "Canonical unit paired with `metricType`. Mirrors METRIC_UNITS in apps/backend/lib/health-observations.js so the DB never has to interpret iOS-side enums."
+    },
+    "measuredAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "ISO-8601 timestamp when the sample was taken (or the end of the range for cumulative samples). PHI — never log."
+    },
+    "startAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Optional ISO-8601 start of the range for samples that cover an interval (e.g. sleep). Absent for instant samples."
+    },
+    "endAt": {
+      "type": "string",
+      "format": "date-time",
+      "description": "Optional ISO-8601 end of the range for interval samples. Absent for instant samples."
+    },
+    "metadata": {
+      "type": "object",
+      "additionalProperties": true,
+      "description": "Optional non-PHI structured extensions only — e.g. { device: 'AppleWatch', motionContext: 'active' }. Never raw HealthKit payloads, never free-text notes, never identifiers, never timestamps the parent fields already cover."
+    }
+  }
+}

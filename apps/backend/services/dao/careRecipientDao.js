@@ -68,6 +68,17 @@ const SELECT_TEAM_MEMBERSHIP_SQL = `
   LIMIT 1;
 `
 
+// Phase 4B — used by the nightly background jobs (baseline recompute,
+// alert evaluation, AI summary generation) to enumerate every care
+// recipient in one round-trip. Deliberately returns just the id column
+// so the job loop never accidentally pulls names or DOBs into a job
+// log line. ORDER BY created_at ASC keeps reruns deterministic.
+const SELECT_ALL_CARE_RECIPIENT_IDS_SQL = `
+  SELECT id
+  FROM care_recipients
+  ORDER BY created_at ASC;
+`
+
 /**
  * Create a care recipient and attach the creating user as their first team
  * member in a single transaction.
@@ -144,6 +155,21 @@ export async function fetchCareRecipientForUser(pool, recipientId, userId) {
 export async function fetchCareTeamMembership(pool, recipientId, userId) {
   const { rows } = await pool.query(SELECT_TEAM_MEMBERSHIP_SQL, [recipientId, userId])
   return rows[0] ?? null
+}
+
+/**
+ * Enumerate every `care_recipients.id` in the table.
+ *
+ * Used by Phase 4B's background jobs (baseline recompute, alert
+ * evaluation, AI summary generation) which need to sweep every
+ * recipient. The job loops MUST NOT pull additional columns from this
+ * function — names and DOBs are PHI and have no place in a job log
+ * line. Each downstream service call already gates on the recipient
+ * id alone.
+ */
+export async function fetchAllCareRecipientIds(pool) {
+  const { rows } = await pool.query(SELECT_ALL_CARE_RECIPIENT_IDS_SQL)
+  return rows.map((r) => r.id)
 }
 
 /**

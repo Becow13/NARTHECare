@@ -171,6 +171,13 @@ CREATE INDEX IF NOT EXISTS alerts_recipient_observed_idx
   ON alerts (care_recipient_id, observed_at DESC);
 CREATE INDEX IF NOT EXISTS alerts_status_observed_idx
   ON alerts (status, observed_at DESC);
+-- Phase 4B — partial UNIQUE backs the engine's `INSERT … ON CONFLICT
+-- DO NOTHING` so re-running the rule engine on the same evidence
+-- collapses to one alert row. Manual / caregiver-authored alerts pass
+-- `source_record_id = NULL` and slip past the index intentionally.
+CREATE UNIQUE INDEX IF NOT EXISTS alerts_source_record_uidx
+  ON alerts (source_type, source_record_id)
+  WHERE source_record_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS appointments (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

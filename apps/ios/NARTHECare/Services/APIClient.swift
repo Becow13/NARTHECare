@@ -197,4 +197,161 @@ struct APIClient: Sendable {
     }
     throw APIClientError.decoding
   }
+
+  /// POST a batch of normalized HealthKit observations to the
+  /// authenticated Phase 4A sync route.
+  ///
+  /// Sends `Authorization: Bearer <idToken>` and the JSON-encoded
+  /// `HealthKitSyncRequest`. The backend validates the body against
+  /// `shared/contracts/healthObservation.schema.json`, gates on
+  /// `requireCareRecipientAccess`, and performs an idempotent
+  /// `INSERT … ON CONFLICT (source_type, source_record_id) DO NOTHING`,
+  /// so re-sending the same window is always safe.
+  ///
+  /// **PHI guardrails:**
+  ///   - The `idToken` MUST NEVER be logged.
+  ///   - The encoded request body MUST NEVER be logged.
+  ///   - On non-2xx we surface only `APIClientError.badStatus(code, "")`
+  ///     (the body is dropped) so accidental logger captures never
+  ///     leak server messages that may include audit-sensitive
+  ///     details.
+  ///
+  /// Returns the count envelope (`accepted`, `deduped`, `rejected`,
+  /// `lastSyncedAt`) so the sync-status surface can render a fresh
+  /// "last synced" line without a follow-up GET.
+  func postHealthKitSync(
+    _ payload: HealthKitSyncRequest,
+    idToken: String,
+  ) async throws -> HealthKitSyncResponse {
+    guard let url = URL(string: "\(baseURL)/healthkit/sync") else {
+      throw APIClientError.invalidURL
+    }
+    var request = URLRequest(url: url)
+    request.httpMethod = "POST"
+    request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+    request.setValue("application/json", forHTTPHeaderField: "Accept")
+    request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+    request.httpBody = try JSONEncoder().encode(payload)
+
+    let (data, response) = try await urlSession.data(for: request)
+    guard let http = response as? HTTPURLResponse else {
+      throw APIClientError.badStatus(-1, "No HTTP response")
+    }
+    if http.statusCode == 401 {
+      throw APIClientError.unauthorized
+    }
+    guard (200 ... 299).contains(http.statusCode) else {
+      // Drop body — sync responses may carry caregiver-safe error
+      // copy that should never reach app logs.
+      throw APIClientError.badStatus(http.statusCode, "")
+    }
+    do {
+      return try JSONDecoder().decode(HealthKitSyncResponse.self, from: data)
+    } catch {
+      throw APIClientError.decoding
+    }
+  }
+
+  /// GET the registry row for the iOS sync companion's status surface.
+  ///
+  /// Returns a neutral `not_connected` envelope when no sync has run
+  /// yet (the backend never 404s for this), so the UI does not have
+  /// to branch on missing data. The `idToken` MUST NEVER be logged.
+  func getHealthKitStatus(
+    careRecipientId: String,
+    idToken: String,
+  ) async throws -> HealthKitSyncStatusResponse {
+    guard
+      let escaped = careRecipientId.addingPercentEncoding(
+        withAllowedCharacters: .urlQueryAllowed),
+      let url = URL(
+        string: "\(baseURL)/healthkit/status?careRecipientId=\(escaped)")
+    else {
+      throw APIClientError.invalidURL
+    }
+    var request = URLRequest(url: url)
+    request.httpMethod = "GET"
+    request.setValue("application/json", forHTTPHeaderField: "Accept")
+    request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+
+    let (data, response) = try await urlSession.data(for: request)
+    guard let http = response as? HTTPURLResponse else {
+      throw APIClientError.badStatus(-1, "No HTTP response")
+    }
+    if http.statusCode == 401 {
+      throw APIClientError.unauthorized
+    }
+    guard (200 ... 299).contains(http.statusCode) else {
+      throw APIClientError.badStatus(http.statusCode, "")
+    }
+    do {
+      return try JSONDecoder().decode(HealthKitSyncStatusResponse.self, from: data)
+    } catch {
+      throw APIClientError.decoding
+    }
+  }
+
+  /// GET the list of care recipients the authenticated caregiver is
+  /// on the team for.
+  ///
+  /// The sync companion uses this to learn which recipient HealthKit
+  /// observations should be attributed to. Returns an empty array
+  /// when the caregiver has no recipients yet — the UI then shows a
+  /// "no care recipient selected" state instead of crashing on a
+  /// nil id. Never logs the response body (names are PHI).
+  func fetchCareRecipients(idToken: String) async throws -> [CareRecipientListRow]
+  {
+    guard let url = URL(string: "\(baseURL)/care-recipients") else {
+      throw APIClientError.invalidURL
+    }
+    var request = URLRequest(url: url)
+    request.httpMethod = "GET"
+    request.setValue("application/json", forHTTPHeaderField: "Accept")
+    request.setValue("Bearer \(idToken)", forHTTPHeaderField: "Authorization")
+
+    let (data, response) = try await urlSession.data(for: request)
+    guard let http = response as? HTTPURLResponse else {
+      throw APIClientError.badStatus(-1, "No HTTP response")
+    }
+    if http.statusCode == 401 {
+      throw APIClientError.unauthorized
+    }
+    guard (200 ... 299).contains(http.statusCode) else {
+      throw APIClientError.badStatus(http.statusCode, "")
+    }
+    do {
+      let envelope = try JSONDecoder().decode(
+        CareRecipientListResponse.self, from: data)
+      return envelope.careRecipients
+    } catch {
+      throw APIClientError.decoding
+    }
+  }
+}
+
+/// Thin row from `GET /care-recipients`. Mirrors the backend list
+/// projection (`id`, `name`, `date_of_birth`, `primary_condition`,
+/// `role`, `permission_level`, `updated_at`). PHI — never log.
+struct CareRecipientListRow: Codable, Sendable, Identifiable, Hashable {
+  let id: String
+  let name: String
+  let dateOfBirth: String?
+  let primaryCondition: String?
+  let role: String
+  let permissionLevel: String
+  let updatedAt: String
+
+  enum CodingKeys: String, CodingKey {
+    case id
+    case name
+    case dateOfBirth = "date_of_birth"
+    case primaryCondition = "primary_condition"
+    case role
+    case permissionLevel = "permission_level"
+    case updatedAt = "updated_at"
+  }
+}
+
+private struct CareRecipientListResponse: Codable, Sendable {
+  let careRecipients: [CareRecipientListRow]
 }

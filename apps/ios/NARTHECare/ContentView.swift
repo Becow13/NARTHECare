@@ -9,7 +9,14 @@ import SwiftUI
 ///                       on launch.
 ///  - `.unauthenticated` / `.loading` — `LoginView`, which opens the Cognito
 ///                       Hosted UI when the caregiver taps "Sign In".
-///  - `.authenticated` — the full `CareHubView` with the developer-tools sheet.
+///  - `.authenticated` — the Phase 4A `SyncStatusView` (HealthKit sync companion).
+///
+/// **Web-first MVP scope freeze:** post-login routes to `SyncStatusView`,
+/// not the legacy `CareHubView`. iOS is a HealthKit sync companion only
+/// during the web-first phase — see `docs/web-mvp-plan.md` and
+/// `.cursor/rules/ios-style.mdc`. The legacy dashboard surfaces (Care
+/// Hub, mock patient profile) remain reachable from the Developer
+/// Tools sheet so existing fixtures don't bit-rot.
 ///
 /// This is the only place auth state drives navigation; individual views
 /// must not bypass this gate.
@@ -42,11 +49,13 @@ struct ContentView: View {
     }
   }
 
-  /// Full caregiver dashboard, shown once a session is confirmed.
+  /// Phase 4A sync companion entry point, shown once a session is
+  /// confirmed. The legacy CareHub / patient profile surfaces remain
+  /// reachable from the Developer Tools sheet — see the class
+  /// docstring.
   private var mainApp: some View {
     NavigationStack {
-      CareHubView(dashboard: CareHubMock.sample)
-        .navigationTitle("NARTHECare")
+      SyncStatusView()
         #if os(iOS)
           .navigationBarTitleDisplayMode(.inline)
         #endif
@@ -144,6 +153,11 @@ private struct DevToolsView: View {
           )
         } label: {
           Label("View patient profile (mock)", systemImage: "person.text.rectangle")
+        }
+        NavigationLink {
+          CareHubView(dashboard: CareHubMock.sample)
+        } label: {
+          Label("View legacy Care Hub (mock)", systemImage: "rectangle.grid.2x2")
         }
       }
     }

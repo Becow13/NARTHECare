@@ -362,7 +362,111 @@ Full suite: 179 passing.
 
 **Backend impact:** additive only. **Aptible deploy:** runs after tests pass.
 
-### Phase 4A — iOS HealthKit sync to backend
+### Phase 4A — iOS HealthKit sync to backend ✅
+
+**Done.** The HealthKit sync companion is now end-to-end. iOS reads
+the eight Phase 4A metrics, normalizes each sample into the shared
+`HealthObservation` contract, posts batches to the authenticated
+`POST /healthkit/sync` route, and the backend persists them with
+idempotent dedupe. The web dashboard reads the same registry rows
+through new `/api/data/care-recipients/:id/{observations,data-sources}`
+proxies — Phase 3's "honest empty state" Data Sources card now
+renders real `lastSyncedAt` for any recipient who has synced once.
+
+What landed (vs the design below):
+
+- **Shared contract:**
+  - `shared/contracts/healthObservation.schema.json` (source of truth).
+  - `shared/models/HealthObservation.{js,ts}` mirrors + Swift
+    `apps/ios/NARTHECare/Models/HealthObservation.swift`.
+  - `unit` is constrained per `metricType` via
+    `HEALTH_OBSERVATION_UNIT_BY_METRIC_TYPE`; the backend rejects
+    mismatches with a 400 before any DB write.
+- **Backend writes:**
+  - `POST /healthkit/sync` and `GET /healthkit/status?careRecipientId=…`
+    follow the existing convention (no `/api/` prefix).
+  - Both verify Cognito + `requireCareRecipientAccess` before any DB
+    work. Dedupe is enforced by the partial UNIQUE
+    `(source_type, source_record_id) WHERE source_record_id IS NOT NULL`
+    via `INSERT … ON CONFLICT DO NOTHING`.
+  - Registry upsert collapses HealthKit success into one row per
+    `(care_recipient_id, source_type='healthkit')`. A failed sync
+    flips `status='error'` with a generic, PHI-free
+    `error_message`; recovery clears it.
+  - Audit metadata is `{ accepted, deduped, rejected, metricTypes }`
+    only — no values, no source_record_ids, no per-sample timestamps.
+    A separate `VIEW_HEALTHKIT_STATUS` audit row covers the read path.
+- **iOS sync companion:**
+  - `HealthKitManager.readObservations(since:)` reads steps, resting
+    HR, HRV, SpO2, sleep duration, respiratory rate, walking
+    steadiness, and fall events. Daily aggregates (steps,
+    sleep, falls) carry deterministic `metric:YYYY-MM-DD`
+    `sourceRecordId`s so resyncs collapse instead of duplicating
+    per-day buckets.
+  - `HealthKitSyncService` is the single seam — it enforces
+    HealthKit availability, requests authorization, reads
+    observations since the in-memory high watermark, and posts the
+    batch with the caregiver's Cognito ID token.
+  - `SyncStatusView` is the minimal sync-status surface (recipient
+    picker, registry status, last sync, "Sync now", "Manage HealthKit
+    access"). `ContentView` routes post-login here; the legacy Care
+    Hub + mock patient profile remain reachable from the Developer
+    Tools sheet so existing fixtures don't bit-rot.
+- **Web reads:**
+  - `services/careRecipientService.ts` adds `listObservations` and
+    `listDataSources` callers.
+  - JSON proxies under `/api/data/care-recipients/:id/observations`
+    and `/api/data/care-recipients/:id/data-sources` follow the
+    Phase 3 convention (refresh-safe, 403 collapsed into 404).
+  - `lib/adapters/careRecipientToSenior.ts` maps the registry-only
+    `healthkit` transport to the existing "Apple Health" view model
+    so the dashboard contract is unchanged.
+- **Schema vs registry source-type vocabulary** — kept the
+  dashboard `DataSource` enum intentionally narrow
+  (`apple_health`, `epic`, `fitbit`, `garmin`, `ring`,
+  `fall_detection`). The registry stores `healthkit` as a
+  transport identifier; the adapter is the only place that
+  collapses both onto the same UI card. Phase 4B can lift the
+  distinction if/when the registry vocabulary widens.
+
+PHI / security guardrails verified:
+
+- Apps logs include only method + path + status. Body bytes are
+  never logged on iOS, the web proxies, the apiClient, or the
+  backend route handlers. Tokens never reach `localStorage` or
+  `console.log`.
+- The web service surface drops backend response bodies on non-2xx
+  before rethrowing — the adapter's view never sees a server message
+  that could carry caregiver-safe error copy.
+- iOS never persists tokens or PHI to disk; `localLastSync` is a
+  process-local hint and the server's `last_synced_at` is the
+  source of truth.
+
+Tests: 32 new tests. 24 unit tests on the new
+`parseSyncRequestBody` + `distinctMetricTypes` helpers in
+`apps/backend/lib/__tests__/health-observations.test.js`. 12
+integration tests in `apps/backend/test/healthkit-sync.integration.test.js`
+cover auth, access gates, contract-broken payloads, dedupe across
+re-syncs, registry upsert, and audit shape. 7 web adapter tests in
+`apps/web/lib/adapters/__tests__/careRecipientToSenior.test.ts`
+cover registry → view-model mapping. **Backend full suite: 210
+passing. Web full suite: 63 passing.**
+
+What this phase does **not** include:
+
+- Baseline computation, AI summary generation, alert engine — Phase 4B.
+- Epic OAuth / SMART on FHIR — Phase 6+.
+- Removal of the legacy `POST /health-data` route (kept alive
+  alongside the new sync path; the deprecation + back-fill happens
+  after Phase 4B).
+- Background HealthKit observers on iOS. Phase 4A ships the
+  manual "Sync now" path only; Phase 4B can wire
+  `HKObserverQuery` against the same `HealthKitSyncService`.
+
+**Backend impact:** additive only. **Aptible deploy:** runs after
+tests pass.
+
+#### Original Phase 4A design (kept for traceability)
 
 Goal: turn the iOS app into a **HealthKit sync companion** that feeds
 `health_observations`. The web app remains the only caregiver UI; iOS
@@ -512,32 +616,152 @@ These iOS UI areas remain frozen per `.cursor/rules/ios-style.mdc`.
 existing `/health-data`). **Aptible deploy:** runs after tests pass.
 **iOS impact:** new service module + new sync-status screen only.
 
-### Phase 4B — Baseline computation, AI summary, and alert generation
+### Phase 4B — Baseline computation, AI summary, and alert generation ✅
 
-Goal: turn the data flowing in via Phase 4A into the caregiver-facing
-signal the web dashboard already has slots for.
+**Done.** Three nightly background-job pipelines now turn the
+Phase 4A `health_observations` flow into the caregiver-facing signal
+the web dashboard already has slots for: rolling baseline recompute,
+rule-based alert engine, and a deterministic template-based AI summary
+generator. Each pipeline is a standalone Node script invoked by an
+external scheduler (Aptible Cron) — no in-process scheduler, no
+LLM round-trip, no new HTTP routes. The Phase 4 read endpoints land
+on real rows the moment the jobs run.
 
-In scope:
-- Nightly `metric_baselines` recompute job (per care recipient × metric
-  × window): `p10`, `p50`, `p90`, `sample_count`. Reads
-  `health_observations`; never blocks a read path.
-- AI summary pipeline (`ai_summaries`): minimized **structured** input
-  only — recent observations + current baselines, no raw HealthKit
-  dumps, no raw FHIR. Conservative caregiver-safe wording per the
-  AI safety rules. Prompts and responses never logged.
-- Alert engine (`alerts`): rule-based first (anomaly thresholds against
-  baselines, fall events, walking steadiness drops), AI-assisted second.
-  Severity vocabulary: `routine` · `monitor` · `critical`.
-- Vector store / embeddings: **NOT in this phase.** Schema preserves
-  source traceability and time windows so embeddings can be added later
-  for longitudinal retrieval (notes, summaries, visit docs) without a
-  schema break.
-- Multi-agent framework: **NOT in this phase.**
+What landed (vs the "in scope" list below):
 
-This phase depends on Phase 4A producing real `health_observations` rows
-for at least one care recipient.
+- **Pillar 1 — Baseline recompute (`metric_baselines`):**
+  - Pure percentile + windowing helpers (`apps/backend/lib/baseline-stats.js`):
+    linear-interpolation `p10 / p50 / p90` (PERCENTILE.INC), the frozen
+    `BASELINE_METRIC_TYPES` set (excludes `fall_event` — binary signal,
+    no percentile), and `windowStartIso(now, days)` for deterministic
+    window math. `MIN_SAMPLES_FOR_PERCENTILES = 5` gates percentile
+    population so a thin sample never produces a misleadingly tight
+    baseline that the alert engine would trip on.
+  - DAO (`services/dao/metricBaselineDao.upsertBaseline`):
+    `INSERT … ON CONFLICT (recipient, metric, window) DO UPDATE` keyed
+    on the existing partial UNIQUE so reruns refresh in place.
+  - DAO (`services/dao/healthObservationDao.fetchObservationValuesInWindow`):
+    full-window value scan returning a bare number array — keeps the
+    per-recipient memory footprint tight even for 30-day windows of
+    continuous samples.
+  - Service (`services/metricBaselineService.recomputeBaselinesForRecipient`,
+    `…ForAllRecipients`): sweeps every recipient × every
+    `BASELINE_METRIC_TYPES` × every `BASELINE_WINDOWS` (7/14/30) =
+    21 baseline rows per recipient. Per-recipient errors surface
+    through `errors[]` and the sweep continues.
+- **Pillar 2 — Alert engine (`alerts`):**
+  - Pure rule definitions (`apps/backend/lib/alert-rules.js`): every
+    fall event → `critical`; resting-HR / HRV / SpO2 vs 14-day
+    baseline → `monitor` (with SpO2 < `SPO2_CRITICAL_THRESHOLD = 92`
+    escalating to `critical` even without a baseline); walking
+    steadiness 7-day p50 below 30-day p10 → `monitor`. Every alert
+    candidate carries a deterministic `source_record_id` (day-bucket
+    for threshold rules, source observation id for fall events) so
+    `INSERT … ON CONFLICT DO NOTHING` collapses repeat runs.
+  - DAO (`services/dao/alertDao.insertAlerts` + new partial UNIQUE
+    `(source_type, source_record_id) WHERE source_record_id IS NOT NULL`):
+    batched insert in a single transaction, mirrors the Phase 4A
+    health-observation ingest pattern. Mirrored in `schema.sql`.
+  - Service (`services/alertService.evaluateAlertsForRecipient`,
+    `…ForAllRecipients`): pulls 7 days of observations + every
+    baseline for the recipient, hands them to `evaluateAlertRules`,
+    persists the candidates.
+  - **AI-assisted alert scoring is NOT in this drop** — the rule
+    engine is the foundation; an LLM-assisted layer can attach to
+    the same `evaluateAlertRules` shape later (see "Deferred
+    sub-pieces" below).
+- **Pillar 3 — AI summary generation (`ai_summaries`):**
+  - Pure input shaper (`apps/backend/lib/ai-summary-input.js`):
+    collapses recent observations + current baselines into a
+    minimized `StructuredSummaryInput` envelope (no raw HealthKit
+    dumps, no raw FHIR, no free-text). Per metric: `latest`,
+    `baseline`, classified `deviation` (`high` | `low` | `in_range`
+    | `unknown`). Fall events surface as a count only — never as
+    per-event ids in the input envelope.
+  - Deterministic template generator
+    (`apps/backend/lib/ai-summary-template.js`): renders conservative
+    caregiver-safe sentences from the structured input. Stable
+    `model = "narthecare-template-1"` and `prompt_version =
+    "template-v1"` so a future regression in copy ties back to the
+    generator that produced it. Wording rules verified by tests
+    (no diagnostic verbs, no emergency instructions, "Consider …"
+    framing, "not a medical diagnosis" disclaimer always appended).
+  - DAO (`services/dao/aiSummaryDao.insertSummary`):
+    `INSERT … RETURNING` so the service echoes the persisted id +
+    `generated_at` back without a follow-up SELECT.
+  - Service (`services/aiSummaryService.generateDailySummaryForRecipient`,
+    `…ForAllRecipients`): generator selected via DI (defaults to
+    template). The service NEVER logs `summary_text` or `evidence`,
+    only the count + generator-identity surface.
+- **Background-job runtime + entry points:**
+  - Shared `apps/backend/scripts/_job-runtime.runJob(name, work)`
+    handles the boot sequence (env, production-auth gates, pool
+    create, drain, exit code). Exit codes: `0` clean, `1` fatal,
+    `2` per-recipient errors surfaced.
+  - `scripts/recompute-baselines.js`, `scripts/evaluate-alerts.js`,
+    `scripts/generate-daily-summaries.js` — each ~5 lines on top of
+    the shared runtime. `package.json` exposes `npm run
+    job:recompute-baselines` / `job:evaluate-alerts` /
+    `job:generate-daily-summaries` so local dev mirrors the Aptible
+    Cron command shape.
+  - **Recommended cron order:** baselines → alerts → summaries.
+    Each job is idempotent independently, so Aptible can run them
+    on independent schedules; running them in this order on the same
+    night gives the freshest signal to the summary.
+- **Audit:**
+  - `lib/audit.js` adds `RECOMPUTE_METRIC_BASELINES`,
+    `EVALUATE_ALERTS`, `GENERATE_AI_SUMMARY`. Job audit rows have
+    `actor_user_id = null`, `resource_id = care_recipient_id`,
+    `metadata = { counts + categories / generator-identity only }`.
+  - Verified by integration tests: `audit_logs.metadata` never
+    contains percentile values, summary text, alert titles,
+    explanations, evidence ids, or per-row `source_record_id`s.
 
-**Backend impact:** additive. **Aptible deploy:** runs after tests pass.
+Deferred sub-pieces (intentionally NOT in this drop):
+
+- **Anthropic-backed summary generator.** The plan requires
+  conservative caregiver-safe wording from structured input — the
+  template generator satisfies that today with no LLM round-trip,
+  no API key, and no risk of model output landing in a log line.
+  An Anthropic adapter can swap in via the existing DI seam once a
+  no-PHI-in-logs transport, timeout / retry policy, and
+  `ANTHROPIC_API_KEY` provisioning land.
+- **AI-assisted alert scoring.** Rule-based first, AI-assisted
+  second per the plan — the engine's `evaluateAlertRules` shape
+  accepts the same `{ observations, baselines, now }` envelope a
+  future scorer would consume.
+- **Vector store / embeddings.** Out of scope per the plan; no
+  schema columns added.
+- **Multi-agent framework.** Out of scope per the plan.
+
+PHI / security guardrails verified:
+
+- App logs include only `[jobs <name>]` framing + count envelopes
+  (recipient ids, counts, generator identities). Never PHI.
+- Service modules never `console.log` an observation row, baseline
+  row, alert row, or summary row body.
+- The structured AI summary input IS PHI by design — it lives only
+  in the function call between `buildStructuredSummaryInput` and the
+  generator, and never reaches `audit_logs.metadata` or any
+  `console.log`.
+- Job entry points re-run `assertProductionAuthReady` /
+  `assertDevAuthBypassAllowed` so a misconfigured cron host fails
+  loudly instead of writing to a prod DB without the right auth
+  posture.
+
+Tests: 70 new tests (15 baseline-stats + 19 alert-rules + 12
+ai-summary-input + 12 ai-summary-template + 12 phase4b-jobs
+integration). **Backend full suite: 280 passing.**
+
+This phase still depends on Phase 4A producing real `health_observations`
+rows for at least one care recipient. Until a recipient has data, every
+job sweeps cleanly, writes empty-state baseline rows, fires zero alerts,
+and writes "no new readings" summaries.
+
+**Backend impact:** additive (new tables already shipped in Phase 4 —
+this phase only adds write paths + indexes for the alert dedupe).
+**Aptible deploy:** runs after tests pass; cron jobs need to be
+scheduled separately from the API deploy.
 
 ### Phase 5 — Web app deployment
 
@@ -739,11 +963,63 @@ Web (no new write paths — Phase 3 read paths now return real data):
 | M | `apps/web/components/data-sources-list.tsx` | Render real `lastSync` / `status` from registry instead of empty fallback |
 | M | `apps/web/lib/adapters/careRecipientToSenior.ts` | Map `healthkit` registry row into the existing `DataSource` view model |
 
-### Phases 3, 4B, 5
+### Phase 4B (done — nightly jobs: baseline / alert / AI summary)
 
-Phase 3 file list lives in its own PR. Phase 4B (baseline + AI + alerts)
-and Phase 5 (web deploy) file lists will be expanded in the PR for each
-phase.
+> **Note:** the rows tagged `M` for the existing
+> `services/{metricBaselineService,alertService,aiSummaryService}.js`,
+> `services/dao/{metricBaselineDao,alertDao,aiSummaryDao,
+> healthObservationDao,careRecipientDao}.js`, and the existing
+> `lib/audit.js` already shipped (read surface) in Phase 4. Phase 4B
+> extends them with the write paths (UPSERT / batched INSERT / RETURNING),
+> the new partial UNIQUE for alert dedupe, the three new audit-action
+> constants, and the new background-job entry points + their `npm`
+> scripts.
+
+Pure helpers (one per pillar — no I/O):
+
+| Op | Path |
+| --- | --- |
+| N | `apps/backend/lib/baseline-stats.js` |
+| N | `apps/backend/lib/alert-rules.js` |
+| N | `apps/backend/lib/ai-summary-input.js` |
+| N | `apps/backend/lib/ai-summary-template.js` |
+| N | `apps/backend/lib/__tests__/{baseline-stats,alert-rules,ai-summary-input,ai-summary-template}.test.js` |
+
+Services + DAOs (write paths added to existing read-side modules):
+
+| Op | Path |
+| --- | --- |
+| M | `apps/backend/services/metricBaselineService.js` (`recomputeBaselinesForRecipient`, `recomputeBaselinesForAllRecipients`, audit hookup) |
+| M | `apps/backend/services/alertService.js` (`evaluateAlertsForRecipient`, `evaluateAlertsForAllRecipients`, audit hookup) |
+| M | `apps/backend/services/aiSummaryService.js` (`generateDailySummaryForRecipient`, `generateDailySummariesForAllRecipients`, DI generator, audit hookup) |
+| M | `apps/backend/services/dao/metricBaselineDao.js` (`upsertBaseline`) |
+| M | `apps/backend/services/dao/alertDao.js` (`insertAlerts` + new partial UNIQUE on `(source_type, source_record_id)`) |
+| M | `apps/backend/services/dao/aiSummaryDao.js` (`insertSummary`) |
+| M | `apps/backend/services/dao/healthObservationDao.js` (`fetchObservationValuesInWindow`) |
+| M | `apps/backend/services/dao/careRecipientDao.js` (`fetchAllCareRecipientIds`) |
+
+Background-job runtime + entry points:
+
+| Op | Path |
+| --- | --- |
+| N | `apps/backend/scripts/_job-runtime.js` (shared boot / drain / exit-code helper) |
+| N | `apps/backend/scripts/recompute-baselines.js` |
+| N | `apps/backend/scripts/evaluate-alerts.js` |
+| N | `apps/backend/scripts/generate-daily-summaries.js` |
+| M | `apps/backend/package.json` (three new `job:*` scripts) |
+
+Wiring:
+
+| Op | Path |
+| --- | --- |
+| M | `apps/backend/lib/audit.js` (`AUDIT_ACTIONS.recomputeMetricBaselines / generateAiSummary / evaluateAlerts`) |
+| M | `apps/backend/schema.sql` (partial UNIQUE `alerts_source_record_uidx`) |
+| N | `apps/backend/test/phase4b-jobs.integration.test.js` (end-to-end coverage of all three pipelines) |
+
+### Phases 3, 5
+
+Phase 3 file list lives in its own PR. Phase 5 (web deploy) file list
+will be expanded in the PR for that phase.
 
 ---
 

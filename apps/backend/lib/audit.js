@@ -29,6 +29,22 @@ export const AUDIT_ACTIONS = Object.freeze({
   listAppointments: "LIST_APPOINTMENTS",
   listActionPlans: "LIST_ACTION_PLANS",
   listDataSources: "LIST_DATA_SOURCES",
+  // Phase 4A — HealthKit sync companion. Successful and failed sync
+  // attempts both write one row; metadata carries `{ accepted, deduped,
+  // rejected, metricTypes }` only — no values, no ids, no timestamps
+  // of individual samples.
+  syncHealthkitObservations: "SYNC_HEALTHKIT_OBSERVATIONS",
+  /** Read of the HealthKit sync registry row from `GET /healthkit/status`. */
+  viewHealthkitStatus: "VIEW_HEALTHKIT_STATUS",
+  // Phase 4B — background-job actions. `actor_user_id` is null
+  // (the job runs without a Cognito user). `resource_id` is the
+  // care_recipient_id when the row reflects a per-recipient run, or
+  // null for a sweep-summary row. Metadata carries non-PHI counts /
+  // durations only — never metric values, summary text, alert
+  // titles, or per-sample identifiers.
+  recomputeMetricBaselines: "RECOMPUTE_METRIC_BASELINES",
+  generateAiSummary: "GENERATE_AI_SUMMARY",
+  evaluateAlerts: "EVALUATE_ALERTS",
 })
 
 /** Canonical resource types so analytics queries can filter by kind. */

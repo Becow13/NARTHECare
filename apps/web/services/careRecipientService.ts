@@ -63,6 +63,62 @@ export interface CareRecipientListResponse {
   careRecipients: CareRecipientListRow[]
 }
 
+/**
+ * Row shape returned by `GET /care-recipients/:id/observations`.
+ *
+ * Mirrors the projection in `apps/backend/services/dao/healthObservationDao.js`
+ * (snake_case columns, JSON-passthrough `metadata`). Adapter code is
+ * the only thing that should reshape this into a view model — the
+ * raw shape preserves the unit + source provenance the dashboard's
+ * vitals card needs to render trustworthy "where did this come from?"
+ * copy.
+ */
+export interface HealthObservationRow {
+  id: string
+  care_recipient_id: string
+  metric_type: string
+  value_numeric: number | null
+  value_unit: string
+  observed_at: string
+  source_type: string
+  source_id: string | null
+  source_record_id: string | null
+  metadata: Record<string, unknown> | null
+  created_at: string
+}
+
+/** Response envelope for `GET /care-recipients/:id/observations`. */
+export interface HealthObservationListResponse {
+  observations: HealthObservationRow[]
+}
+
+/**
+ * Row shape returned by `GET /care-recipients/:id/data-sources`.
+ *
+ * Mirrors the registry projection in `apps/backend/services/dao/
+ * careRecipientDataSourceDao.js`. The Phase 4A sync path writes one
+ * row for `source_type = "healthkit"`; the dashboard's adapter maps
+ * that to the "Apple Health" view-model display so the existing
+ * `DataSource` contract is unchanged.
+ */
+export interface DataSourceRegistryRow {
+  id: string
+  care_recipient_id: string
+  source_type: string
+  status: "connected" | "not_connected" | "error" | string
+  last_synced_at: string | null
+  external_id: string | null
+  error_message: string | null
+  metadata: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
+}
+
+/** Response envelope for `GET /care-recipients/:id/data-sources`. */
+export interface DataSourceListResponse {
+  dataSources: DataSourceRegistryRow[]
+}
+
 // ─── Public surface ─────────────────────────────────────────────────────────
 
 /**
@@ -99,4 +155,53 @@ export async function getCareRecipientProfile(
     `/care-recipients/${encodeURIComponent(id)}/profile`,
   )
   return response.careRecipient
+}
+
+/**
+ * `GET /care-recipients/:id/observations` — newest-first per-sample
+ * health signals for the given recipient.
+ *
+ * Pass `metricType` (`steps`, `resting_heart_rate`, …) and `since`
+ * (ISO timestamp) to narrow. `limit` is capped server-side at 1000;
+ * callers pass the natural number, the backend clamps. Returns the
+ * raw envelope so the adapter at `lib/adapters/careRecipientToSenior.ts`
+ * (Phase 4B) can shape vitals cards from one place.
+ */
+export async function listObservations(
+  id: string,
+  options: { metricType?: string; since?: string; limit?: number } = {},
+): Promise<HealthObservationListResponse> {
+  const search = new URLSearchParams()
+  if (options.metricType) search.set("metricType", options.metricType)
+  if (options.since) search.set("since", options.since)
+  if (options.limit !== undefined) search.set("limit", String(options.limit))
+  const query = search.toString()
+  const path =
+    `/care-recipients/${encodeURIComponent(id)}/observations` +
+    (query ? `?${query}` : "")
+  return apiClient.getJson<HealthObservationListResponse>(path)
+}
+
+/**
+ * `GET /care-recipients/:id/data-sources` — every registry row for
+ * the recipient (Apple Health / HealthKit, Epic, Fitbit, …).
+ *
+ * Optional `type` and `status` map to the same filter the backend's
+ * `parseDataSourceListQuery` exposes (validated server-side). The
+ * response shape is the raw registry; the dashboard adapter merges
+ * these rows with the profile's static `dataSources` array so a
+ * never-synced recipient still renders a neutral row.
+ */
+export async function listDataSources(
+  id: string,
+  options: { type?: string; status?: string } = {},
+): Promise<DataSourceListResponse> {
+  const search = new URLSearchParams()
+  if (options.type) search.set("type", options.type)
+  if (options.status) search.set("status", options.status)
+  const query = search.toString()
+  const path =
+    `/care-recipients/${encodeURIComponent(id)}/data-sources` +
+    (query ? `?${query}` : "")
+  return apiClient.getJson<DataSourceListResponse>(path)
 }
