@@ -165,9 +165,14 @@ struct APIClient: Sendable {
   /// **PHI guardrails:**
   ///   - The `idToken` MUST NEVER be logged.
   ///   - The encoded request body MUST NEVER be logged.
-  ///   - On non-2xx we surface only `APIClientError.badStatus(code, "")`
-  ///     (the body is dropped) so accidental logger captures never
-  ///     leak server messages that may include audit-sensitive
+  ///   - For 400/422 (contract rejections) we surface the parser's
+  ///     structured `error` field — the route handler produces
+  ///     messages like `observations[5] unit must be "score" for
+  ///     metricType "walking_steadiness"`, which by construction
+  ///     never contain values, ids, or timestamps and are safe to
+  ///     log for diagnostics.
+  ///   - For every other non-2xx status we still drop the body in
+  ///     case future server-side error copy carries audit-sensitive
   ///     details.
   ///
   /// Returns the count envelope (`accepted`, `deduped`, `rejected`,
@@ -195,15 +200,32 @@ struct APIClient: Sendable {
       throw APIClientError.unauthorized
     }
     guard (200 ... 299).contains(http.statusCode) else {
-      // Drop body — sync responses may carry caregiver-safe error
-      // copy that should never reach app logs.
-      throw APIClientError.badStatus(http.statusCode, "")
+      let safeReason: String
+      if http.statusCode == 400 || http.statusCode == 422 {
+        safeReason = Self._decodeErrorEnvelope(data) ?? ""
+      } else {
+        safeReason = ""
+      }
+      throw APIClientError.badStatus(http.statusCode, safeReason)
     }
     do {
       return try JSONDecoder().decode(HealthKitSyncResponse.self, from: data)
     } catch {
       throw APIClientError.decoding
     }
+  }
+
+  /// Decode the `{ "error": "..." }` envelope every 4xx route handler
+  /// returns. Used only for the 400/422 contract-rejection paths
+  /// where the message is a parser-stage validation string and is
+  /// known PHI-safe; never call this for arbitrary endpoints.
+  private static func _decodeErrorEnvelope(_ data: Data) -> String? {
+    struct Envelope: Decodable { let error: String? }
+    guard let env = try? JSONDecoder().decode(Envelope.self, from: data) else {
+      return nil
+    }
+    let trimmed = env.error?.trimmingCharacters(in: .whitespacesAndNewlines)
+    return (trimmed?.isEmpty ?? true) ? nil : trimmed
   }
 
   /// GET the registry row for the iOS sync companion's status surface.

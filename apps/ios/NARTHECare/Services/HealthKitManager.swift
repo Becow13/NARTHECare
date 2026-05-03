@@ -158,11 +158,13 @@ final class HealthKitManager: @unchecked Sendable {
   ///
   /// **Logging contract:** the metric `key` is a HealthKit type
   /// identifier (e.g. `"stepCount"`) — those are not PHI and are
-  /// safe to log. The error string is intentionally limited to the
-  /// generic `error.localizedDescription`, never the failing
-  /// sample, never the underlying value, and never per-sample
-  /// timestamps. This keeps `[HealthKit]` log lines diagnostic
-  /// without touching the PHI-safe-logging rules.
+  /// safe to log. The HKError numeric `code` is also safe (it
+  /// classifies failure type — `errorAuthorizationNotDetermined`,
+  /// `errorAuthorizationDenied`, `errorDatabaseInaccessible`, etc.)
+  /// and lets us distinguish "user has no Apple Watch / denied this
+  /// type" from a real HealthKit failure when triaging. We never log
+  /// the failing sample, the underlying value, or per-sample
+  /// timestamps.
   private func _safeRead(
     _ key: String,
     _ work: @Sendable () async throws -> [HealthObservation],
@@ -170,7 +172,11 @@ final class HealthKitManager: @unchecked Sendable {
     do {
       return try await work()
     } catch {
-      print("[HealthKit] per-metric read failed key=\(key)")
+      let nsError = error as NSError
+      print(
+        "[HealthKit] per-metric read skipped key=\(key) "
+          + "domain=\(nsError.domain) code=\(nsError.code)"
+      )
       return []
     }
   }

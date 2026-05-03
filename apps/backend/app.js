@@ -109,9 +109,15 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
           req.body,
         )
       } catch (e) {
-        return res.status(400).json({
-          error: e instanceof Error ? e.message : "Invalid payload",
-        })
+        // The parser produces structured contract messages
+        // (`observations[<index>] unit must be ... for metricType ...`)
+        // that carry no values, ids, or timestamps — safe to log so ops
+        // can diagnose iOS-side contract drift without re-running the
+        // request. We deliberately do NOT log the body or any field
+        // values, only the validator's own message.
+        const message = e instanceof Error ? e.message : "Invalid payload"
+        console.warn("[API healthkit-sync] rejected", { reason: message })
+        return res.status(400).json({ error: message })
       }
 
       const { ipAddress, userAgent } = extractRequestContext(req)

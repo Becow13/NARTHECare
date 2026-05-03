@@ -169,14 +169,18 @@ final class HealthKitSyncService {
       )
     } catch APIClientError.unauthorized {
       throw HealthKitSyncError.noActiveSession
-    } catch APIClientError.badStatus(let code, _) {
-      // Status code is not PHI; the response body has already been
-      // dropped by the API client so this log line cannot leak the
-      // server's caregiver-facing error copy. Lets us distinguish
-      // 403 (care-team gate), 400 (contract), 5xx (backend) from a
-      // real transport failure when triaging "couldn't reach the
-      // server" UX reports.
-      print("[HealthKit] sync rejected http=\(code) batch=\(observations.count)")
+    } catch APIClientError.badStatus(let code, let reason) {
+      // Status code is not PHI; for 400/422 the API client surfaces
+      // the parser's structured contract message (e.g.
+      // `observations[5] unit must be "score" for metricType ...`),
+      // which carries no values, ids, or timestamps and is safe to
+      // log so we can diagnose iOS contract drift without
+      // round-tripping through the server. Other status codes carry
+      // an empty `reason`.
+      let suffix = reason.isEmpty ? "" : " reason=\(reason)"
+      print(
+        "[HealthKit] sync rejected http=\(code) batch=\(observations.count)\(suffix)"
+      )
       switch code {
       case 403:
         throw HealthKitSyncError.recipientAccessDenied

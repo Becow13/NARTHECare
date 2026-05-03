@@ -121,6 +121,17 @@ const SELECT_VALUES_IN_WINDOW_SQL = `
 // so the iOS client may safely retry after a crash, network loss, or
 // reinstall. `RETURNING id` lets the caller count "actually inserted"
 // vs "deduped" without a follow-up SELECT.
+//
+// The `WHERE source_record_id IS NOT NULL` predicate after the
+// conflict target is **required**: PostgreSQL only infers a partial
+// unique index when the ON CONFLICT clause repeats the index's
+// predicate (see
+// https://www.postgresql.org/docs/current/sql-insert.html#SQL-ON-CONFLICT).
+// Omitting it produces `42P10: there is no unique or exclusion
+// constraint matching the ON CONFLICT specification`, which would
+// reject every Phase 4A sync batch. Keep this predicate in lock-step
+// with `CREATE_INDEX_SOURCE_RECORD_UNIQUE_SQL` above and the matching
+// schema.sql block.
 const INSERT_OBSERVATION_SQL = `
   INSERT INTO health_observations (
     care_recipient_id,
@@ -133,7 +144,9 @@ const INSERT_OBSERVATION_SQL = `
     source_record_id,
     metadata
   ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-  ON CONFLICT (source_type, source_record_id) DO NOTHING
+  ON CONFLICT (source_type, source_record_id)
+    WHERE source_record_id IS NOT NULL
+    DO NOTHING
   RETURNING id;
 `
 

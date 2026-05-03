@@ -38,6 +38,11 @@ function createFakePool() {
     dataSources: [],
     auditLogs: [],
     idCounter: 0,
+    // Capture the most recent observation INSERT SQL so a single test
+    // can pin the ON CONFLICT clause shape — the fake pool does not
+    // validate SQL syntax against real Postgres, so a partial-index
+    // mismatch (`42P10`) would otherwise pass CI silently.
+    lastObservationInsertSql: null,
   }
   const nextId = () => {
     state.idCounter += 1
@@ -132,6 +137,7 @@ function createFakePool() {
 
     // ── health_observations: INSERT … ON CONFLICT DO NOTHING ───────────
     if (s.startsWith("INSERT INTO health_observations")) {
+      state.lastObservationInsertSql = s
       const [
         recipientId,
         metricType,
@@ -520,6 +526,37 @@ test("POST /healthkit/sync: 200 second sync silently dedupes the same source_rec
 
     // Underlying table only ever gained the original two rows.
     assert.equal(state.healthObservations.length, 2)
+  } finally {
+    await stopServer(server)
+  }
+})
+
+test("POST /healthkit/sync: INSERT pins the partial-index ON CONFLICT predicate (42P10 regression)", async () => {
+  // The unique index on `(source_type, source_record_id)` is partial
+  // (`WHERE source_record_id IS NOT NULL`). PostgreSQL only infers a
+  // partial unique index when the ON CONFLICT clause repeats the
+  // index's predicate; without it the DB returns
+  // `42P10: there is no unique or exclusion constraint matching the
+  // ON CONFLICT specification` and rejects every Phase 4A sync batch.
+  // The fake pool does not validate SQL syntax, so we pin the literal
+  // shape of the INSERT here as a regression.
+  const { app, state, aliceRecipientId } = await buildAppWithRecipients()
+  const { server, baseUrl } = await startServer(app)
+  try {
+    const res = await fetch(`${baseUrl}/healthkit/sync`, {
+      method: "POST",
+      headers: authHeader(ALICE_TOKEN),
+      body: JSON.stringify({
+        careRecipientId: aliceRecipientId,
+        observations: [sample()],
+      }),
+    })
+    assert.equal(res.status, 200)
+    assert.ok(state.lastObservationInsertSql, "INSERT SQL was captured")
+    assert.match(
+      state.lastObservationInsertSql,
+      /ON CONFLICT \(source_type, source_record_id\)\s+WHERE source_record_id IS NOT NULL\s+DO NOTHING/,
+    )
   } finally {
     await stopServer(server)
   }

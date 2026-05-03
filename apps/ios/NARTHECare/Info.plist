@@ -56,15 +56,22 @@
 	</array>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
-	<!-- Narrow ATS exception so local-only http://localhost:3000 can be
-	     reached for backend dev testing on the iOS Simulator. Real
-	     backends still go over HTTPS — this exception only covers the
-	     `localhost` host and explicitly does NOT relax ATS for any
-	     other domain (no NSAllowsArbitraryLoads). Production builds
-	     should never set API_BASE_URL to a localhost value, so the
-	     exception is effectively unused outside of local dev. -->
+	<!-- ATS exceptions for dev. Production traffic still goes over
+	     HTTPS to Aptible — these only relax ATS for development.
+	       - NSExceptionDomains/localhost: lets the iOS Simulator hit
+	         http://localhost:3000 of the dev Mac.
+	       - NSAllowsLocalNetworking: lets a real iPhone on the same
+	         Wi-Fi hit any RFC 1918 / link-local address (e.g.
+	         http://192.168.1.5:3000 or http://my-mac.local:3000)
+	         without baking the Mac's specific LAN IP into Info.plist.
+	         This is Apple's blessed pattern for dev-only LAN access;
+	         it does NOT relax ATS for routable internet hosts, so
+	         production HTTPS endpoints are still required. App Store
+	         reviewers accept this over NSAllowsArbitraryLoads. -->
 	<key>NSAppTransportSecurity</key>
 	<dict>
+		<key>NSAllowsLocalNetworking</key>
+		<true/>
 		<key>NSExceptionDomains</key>
 		<dict>
 			<key>localhost</key>
