@@ -31,6 +31,9 @@
 		A10000000000000000000501 /* AuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000511 /* AuthSession.swift */; };
 		A10000000000000000000502 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000512 /* LoginView.swift */; };
 		A10000000000000000000600 /* BackendUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000610 /* BackendUser.swift */; };
+		A10000000000000000000700 /* HealthObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000710 /* HealthObservation.swift */; };
+		A10000000000000000000701 /* HealthKitSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000711 /* HealthKitSyncService.swift */; };
+		A10000000000000000000702 /* SyncStatusView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000712 /* SyncStatusView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -62,6 +65,9 @@
 		A10000000000000000000511 /* AuthSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AuthSession.swift; path = Auth/AuthSession.swift; sourceTree = "<group>"; };
 		A10000000000000000000512 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LoginView.swift; path = Views/LoginView.swift; sourceTree = "<group>"; };
 		A10000000000000000000610 /* BackendUser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackendUser.swift; path = Models/BackendUser.swift; sourceTree = "<group>"; };
+		A10000000000000000000710 /* HealthObservation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HealthObservation.swift; path = Models/HealthObservation.swift; sourceTree = "<group>"; };
+		A10000000000000000000711 /* HealthKitSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HealthKitSyncService.swift; path = Services/HealthKitSyncService.swift; sourceTree = "<group>"; };
+		A10000000000000000000712 /* SyncStatusView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SyncStatusView.swift; path = Views/SyncStatusView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -93,6 +99,9 @@
 				A10000000000000000000014 /* APIClient.swift */,
 				A10000000000000000000015 /* HealthKitManager.swift */,
 				A10000000000000000000610 /* BackendUser.swift */,
+				A10000000000000000000710 /* HealthObservation.swift */,
+				A10000000000000000000711 /* HealthKitSyncService.swift */,
+				A10000000000000000000712 /* SyncStatusView.swift */,
 				A10000000000000000000120 /* CareRecipientProfile.swift */,
 				A10000000000000000000121 /* CareRecipientProfileMock.swift */,
 				A10000000000000000000122 /* PatientProfileViewModel.swift */,
@@ -207,6 +216,9 @@
 				A10000000000000000000024 /* APIClient.swift in Sources */,
 				A10000000000000000000025 /* HealthKitManager.swift in Sources */,
 				A10000000000000000000600 /* BackendUser.swift in Sources */,
+				A10000000000000000000700 /* HealthObservation.swift in Sources */,
+				A10000000000000000000701 /* HealthKitSyncService.swift in Sources */,
+				A10000000000000000000702 /* SyncStatusView.swift in Sources */,
 				A10000000000000000000100 /* CareRecipientProfile.swift in Sources */,
 				A10000000000000000000101 /* CareRecipientProfileMock.swift in Sources */,
 				A10000000000000000000102 /* PatientProfileViewModel.swift in Sources */,

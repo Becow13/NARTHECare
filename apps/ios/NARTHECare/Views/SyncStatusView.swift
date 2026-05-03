@@ -142,20 +142,44 @@ struct SyncStatusView: View {
 
   // MARK: - Display helpers
 
+  /// Caregiver-facing status copy.
+  ///
+  /// Only renders "Loading…" while the initial `.task` is still in
+  /// flight (`isWorking && registryStatus == nil`) — otherwise the
+  /// row would lie about activity in the two real "no status yet"
+  /// terminal states:
+  ///   - the caregiver has zero care recipients on the team
+  ///     (`recipients.isEmpty`), or
+  ///   - `loadCareRecipients` / `refreshStatus` failed and the
+  ///     "Error" section already explains it (`loadingError`).
+  /// Both must show neutral copy here so the caregiver does not
+  /// wait indefinitely for a fetch that will never complete.
   private var statusLabel: String {
-    guard let status = registryStatus?.status else { return "Loading…" }
-    switch status {
-    case .connected: return "Connected"
-    case .notConnected: return "Not connected"
-    case .error: return "Error"
+    if let status = registryStatus?.status {
+      switch status {
+      case .connected: return "Connected"
+      case .notConnected: return "Not connected"
+      case .error: return "Error"
+      }
     }
+    if isWorking { return "Loading…" }
+    if loadingError != nil { return "Unavailable" }
+    if selectedRecipientId == nil { return "—" }
+    return "Unavailable"
   }
 
+  /// "Last sync" copy, mirroring `statusLabel`'s honesty rules so the
+  /// row does not fall back to the misleading "Never" when there is
+  /// simply no recipient (or the status fetch failed).
   private var lastSyncLabel: String {
     if let iso = registryStatus?.lastSyncedAt, !iso.isEmpty {
       return iso
     }
-    return "Never"
+    if registryStatus != nil {
+      return "Never"
+    }
+    if isWorking { return "—" }
+    return "—"
   }
 
   private var bindingForSelection: Binding<String?> {

@@ -16,11 +16,27 @@ struct HealthKitSyncOutcome: Sendable, Equatable {
 /// Errors the sync service surfaces to the UI. Each case has a
 /// PHI-safe `errorDescription` so views can render
 /// `error.localizedDescription` directly.
+///
+/// `authorizationDenied` is reserved for the narrow case of
+/// `HKHealthStore.requestAuthorization` itself failing — Apple does
+/// **not** throw on a user denial of READ permission (denied types
+/// silently return empty samples), so a throw here usually indicates
+/// missing usage description strings, an unsigned entitlement, or
+/// the system being unable to present the prompt.
+///
+/// `healthKitUnavailable` covers per-metric query failures that
+/// surface from `HealthKitManager.readObservations` after
+/// authorization has succeeded. Misclassifying these as "denied"
+/// produced the long-standing UX bug where granting permission and
+/// tapping "Sync now" still showed "HealthKit access was denied."
 enum HealthKitSyncError: LocalizedError {
   case healthDataUnavailable
   case noActiveSession
   case noCareRecipient
+  case recipientAccessDenied
   case authorizationDenied
+  case healthKitUnavailable
+  case observationsRejected
   case transport(String)
 
   var errorDescription: String? {
@@ -31,8 +47,14 @@ enum HealthKitSyncError: LocalizedError {
       return "Please sign in to sync HealthKit observations."
     case .noCareRecipient:
       return "No care recipient is connected to your account yet."
+    case .recipientAccessDenied:
+      return "You don't have access to this care recipient. Ask the primary caregiver to add you to the team."
     case .authorizationDenied:
       return "HealthKit access was denied. Update permissions in the Health app."
+    case .healthKitUnavailable:
+      return "Health data is temporarily unavailable. Please try again."
+    case .observationsRejected:
+      return "Some HealthKit data could not be saved. Please try again."
     case .transport:
       return "Could not reach the server. Check your network and try again."
     }
@@ -118,9 +140,14 @@ final class HealthKitSyncService {
     do {
       observations = try await healthKit.readObservations(since: since)
     } catch {
-      // HealthKit reads can fail on permission revocation; surface
-      // the same caregiver-safe copy.
-      throw HealthKitSyncError.authorizationDenied
+      // `readObservations` already swallows per-metric errors and
+      // returns empty slices for denied / unavailable types — Apple
+      // never throws "denied" for READ permission, denied types
+      // simply return no samples. So a throw at THIS layer is a
+      // catastrophic HealthKit failure (database inaccessible,
+      // sandbox unavailable, etc.), not a permission issue. Showing
+      // "denied" here was the original misleading copy.
+      throw HealthKitSyncError.healthKitUnavailable
     }
 
     if observations.isEmpty {
@@ -142,7 +169,24 @@ final class HealthKitSyncService {
       )
     } catch APIClientError.unauthorized {
       throw HealthKitSyncError.noActiveSession
+    } catch APIClientError.badStatus(let code, _) {
+      // Status code is not PHI; the response body has already been
+      // dropped by the API client so this log line cannot leak the
+      // server's caregiver-facing error copy. Lets us distinguish
+      // 403 (care-team gate), 400 (contract), 5xx (backend) from a
+      // real transport failure when triaging "couldn't reach the
+      // server" UX reports.
+      print("[HealthKit] sync rejected http=\(code) batch=\(observations.count)")
+      switch code {
+      case 403:
+        throw HealthKitSyncError.recipientAccessDenied
+      case 400, 422:
+        throw HealthKitSyncError.observationsRejected
+      default:
+        throw HealthKitSyncError.transport("transport")
+      }
     } catch {
+      print("[HealthKit] sync transport error batch=\(observations.count)")
       throw HealthKitSyncError.transport("transport")
     }
 

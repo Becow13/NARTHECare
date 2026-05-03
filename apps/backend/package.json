@@ -12,7 +12,8 @@
     "build": "npm run test && node --check server.js",
     "job:recompute-baselines": "node scripts/recompute-baselines.js",
     "job:evaluate-alerts": "node scripts/evaluate-alerts.js",
-    "job:generate-daily-summaries": "node scripts/generate-daily-summaries.js"
+    "job:generate-daily-summaries": "node scripts/generate-daily-summaries.js",
+    "admin:create-care-recipient": "node scripts/create-care-recipient.js"
   },
   "engines": {
     "node": ">=18"

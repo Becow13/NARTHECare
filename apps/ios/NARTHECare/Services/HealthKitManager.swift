@@ -68,6 +68,18 @@ final class HealthKitManager: @unchecked Sendable {
   /// gets a predictable batch back without writing per-metric error
   /// branches.
   ///
+  /// Per-metric failures are extremely common in practice — Apple
+  /// returns `errorAuthorizationNotDetermined` per type when the
+  /// caregiver toggled some metrics off in the Health permission
+  /// sheet, returns an empty slice when no Apple Watch is paired for
+  /// metrics that require one (`heartRateVariabilitySDNN`,
+  /// `numberOfTimesFallen`, `oxygenSaturation`), and may throw
+  /// transient errors during HealthKit sync. Crashing the whole
+  /// batch on any of those would surface as a misleading
+  /// "authorization denied" in the UI even though the user just
+  /// granted permission — see the `HealthKitSyncError.healthKitUnavailable`
+  /// path in `HealthKitSyncService.syncNow`.
+  ///
   /// `sourceRecordId` is the HealthKit sample UUID for instant
   /// samples; for derived rows (daily step total, fall count) we
   /// build a deterministic dedupe key from the metric type + day so
@@ -75,54 +87,92 @@ final class HealthKitManager: @unchecked Sendable {
   /// NOTHING` collapses repeat syncs into the same row instead of
   /// duplicating per-day buckets.
   func readObservations(since: Date) async throws -> [HealthObservation] {
-    async let stepRows = readDailyStepObservations(since: since)
-    async let restingHRRows = readQuantityObservations(
-      identifier: .restingHeartRate,
-      metric: .restingHeartRate,
-      unit: HKUnit.count().unitDivided(by: .minute()),
-      since: since,
-    )
-    async let hrvRows = readQuantityObservations(
-      identifier: .heartRateVariabilitySDNN,
-      metric: .hrv,
-      unit: HKUnit.secondUnit(with: .milli),
-      since: since,
-    )
-    async let spo2Rows = readQuantityObservations(
-      identifier: .oxygenSaturation,
-      metric: .spo2,
-      // Apple stores SpO2 as a 0..1 fraction; multiply by 100 to
-      // match the contract's `percent` unit (which means 0..100).
-      unit: .percent(),
-      transform: { $0 * 100 },
-      since: since,
-    )
-    async let respRows = readQuantityObservations(
-      identifier: .respiratoryRate,
-      metric: .respiratoryRate,
-      unit: HKUnit.count().unitDivided(by: .minute()),
-      since: since,
-    )
-    async let walkRows = readQuantityObservations(
-      identifier: .appleWalkingSteadiness,
-      metric: .walkingSteadiness,
-      unit: .percent(),
-      transform: { $0 * 100 },
-      since: since,
-    )
-    async let fallRows = readDailyFallObservations(since: since)
-    async let sleepRows = readSleepObservations(since: since)
+    async let stepRows = _safeRead("stepCount") {
+      try await self.readDailyStepObservations(since: since)
+    }
+    async let restingHRRows = _safeRead("restingHeartRate") {
+      try await self.readQuantityObservations(
+        identifier: .restingHeartRate,
+        metric: .restingHeartRate,
+        unit: HKUnit.count().unitDivided(by: .minute()),
+        since: since,
+      )
+    }
+    async let hrvRows = _safeRead("heartRateVariabilitySDNN") {
+      try await self.readQuantityObservations(
+        identifier: .heartRateVariabilitySDNN,
+        metric: .hrv,
+        unit: HKUnit.secondUnit(with: .milli),
+        since: since,
+      )
+    }
+    async let spo2Rows = _safeRead("oxygenSaturation") {
+      try await self.readQuantityObservations(
+        identifier: .oxygenSaturation,
+        metric: .spo2,
+        // Apple stores SpO2 as a 0..1 fraction; multiply by 100 to
+        // match the contract's `percent` unit (which means 0..100).
+        unit: .percent(),
+        transform: { $0 * 100 },
+        since: since,
+      )
+    }
+    async let respRows = _safeRead("respiratoryRate") {
+      try await self.readQuantityObservations(
+        identifier: .respiratoryRate,
+        metric: .respiratoryRate,
+        unit: HKUnit.count().unitDivided(by: .minute()),
+        since: since,
+      )
+    }
+    async let walkRows = _safeRead("appleWalkingSteadiness") {
+      try await self.readQuantityObservations(
+        identifier: .appleWalkingSteadiness,
+        metric: .walkingSteadiness,
+        unit: .percent(),
+        transform: { $0 * 100 },
+        since: since,
+      )
+    }
+    async let fallRows = _safeRead("numberOfTimesFallen") {
+      try await self.readDailyFallObservations(since: since)
+    }
+    async let sleepRows = _safeRead("sleepAnalysis") {
+      try await self.readSleepObservations(since: since)
+    }
 
     var all: [HealthObservation] = []
-    all.append(contentsOf: try await stepRows)
-    all.append(contentsOf: try await restingHRRows)
-    all.append(contentsOf: try await hrvRows)
-    all.append(contentsOf: try await spo2Rows)
-    all.append(contentsOf: try await respRows)
-    all.append(contentsOf: try await walkRows)
-    all.append(contentsOf: try await fallRows)
-    all.append(contentsOf: try await sleepRows)
+    all.append(contentsOf: await stepRows)
+    all.append(contentsOf: await restingHRRows)
+    all.append(contentsOf: await hrvRows)
+    all.append(contentsOf: await spo2Rows)
+    all.append(contentsOf: await respRows)
+    all.append(contentsOf: await walkRows)
+    all.append(contentsOf: await fallRows)
+    all.append(contentsOf: await sleepRows)
     return all
+  }
+
+  /// Wrap a single per-metric query so any throw turns into an empty
+  /// slice and a tagged log line.
+  ///
+  /// **Logging contract:** the metric `key` is a HealthKit type
+  /// identifier (e.g. `"stepCount"`) — those are not PHI and are
+  /// safe to log. The error string is intentionally limited to the
+  /// generic `error.localizedDescription`, never the failing
+  /// sample, never the underlying value, and never per-sample
+  /// timestamps. This keeps `[HealthKit]` log lines diagnostic
+  /// without touching the PHI-safe-logging rules.
+  private func _safeRead(
+    _ key: String,
+    _ work: @Sendable () async throws -> [HealthObservation],
+  ) async -> [HealthObservation] {
+    do {
+      return try await work()
+    } catch {
+      print("[HealthKit] per-metric read failed key=\(key)")
+      return []
+    }
   }
 
   private static func isAsleep(_ value: Int) -> Bool {
