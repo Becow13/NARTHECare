@@ -8,9 +8,11 @@ import {
   AUDIT_RESOURCE_TYPES,
   extractRequestContext,
 } from "../lib/audit.js"
+import { parseUserProfileUpdate } from "../lib/users.js"
 import {
   upsertUserByCognitoSub,
   updateLastLoginAt,
+  updateUserProfile,
   ensureUserSchema,
   fetchUserIdentityKeysByEmail,
   repointCognitoSubForVerifiedEmailMerge,
@@ -115,6 +117,28 @@ export async function findOrCreateUserFromCognitoClaims(pool, claims, options) {
     }
     return merged
   }
+}
+
+/**
+ * Apply a caregiver-initiated profile update.
+ *
+ * The body is parsed in `lib/users.js` (rejects security-sensitive
+ * fields, caps string lengths, normalises empties) before reaching
+ * the DAO. Returns the refreshed `users` row, or `null` when the
+ * row vanished between middleware and handler — the route layer
+ * maps that to a 401.
+ *
+ * Validation errors propagate as plain `Error`s so the route layer
+ * can translate them into a 400. Audit logging happens at the route
+ * layer because IP / User-Agent live on the request object.
+ */
+export async function updateProfile(pool, userId, body) {
+  const parsed = parseUserProfileUpdate(body)
+  return updateUserProfile(pool, {
+    userId,
+    displayName: parsed.displayName,
+    phone: parsed.phone,
+  })
 }
 
 /**

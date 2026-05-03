@@ -142,6 +142,24 @@ function createFakePool() {
       return { rows: [row] }
     }
 
+    // PATCH /api/me — `lib/users.js#parseUserProfileUpdate` only accepts
+    // `display_name` + `phone`, so the fake pool only needs to handle
+    // those two columns. `COALESCE(...,)` semantics: a `null` param
+    // means "leave the column alone".
+    if (
+      s.startsWith("UPDATE users") &&
+      s.includes("display_name = COALESCE") &&
+      s.includes("phone = COALESCE")
+    ) {
+      const [userId, displayName, phone] = params
+      const row = state.users.find((u) => u.id === userId)
+      if (!row) return { rows: [] }
+      if (displayName !== null) row.display_name = displayName
+      if (phone !== null) row.phone = phone
+      row.updated_at = new Date()
+      return { rows: [row] }
+    }
+
     if (s.startsWith("SELECT") && s.includes("FROM users") && s.includes("cognito_sub = $1")) {
       const [cognitoSub] = params
       const row = state.users.find((u) => u.cognito_sub === cognitoSub)
@@ -160,6 +178,36 @@ function createFakePool() {
         updated_at: new Date(),
       }
       state.careRecipients.push(row)
+      return { rows: [row] }
+    }
+
+    // PATCH /care-recipients/:id/profile — same `COALESCE` semantics as
+    // the users patch handler. Phase 1 surfaces date_of_birth,
+    // primary_condition, relationship, emergency contact name + phone.
+    if (
+      s.startsWith("UPDATE care_recipients") &&
+      s.includes("date_of_birth = COALESCE")
+    ) {
+      const [
+        recipientId,
+        dateOfBirth,
+        primaryCondition,
+        relationship,
+        emergencyContactName,
+        emergencyContactPhone,
+      ] = params
+      const row = state.careRecipients.find((cr) => cr.id === recipientId)
+      if (!row) return { rows: [] }
+      if (dateOfBirth !== null) row.date_of_birth = dateOfBirth
+      if (primaryCondition !== null) row.primary_condition = primaryCondition
+      if (relationship !== null) row.relationship = relationship
+      if (emergencyContactName !== null) {
+        row.emergency_contact_name = emergencyContactName
+      }
+      if (emergencyContactPhone !== null) {
+        row.emergency_contact_phone = emergencyContactPhone
+      }
+      row.updated_at = new Date()
       return { rows: [row] }
     }
 
@@ -222,6 +270,65 @@ function createFakePool() {
       )
       return { rows: m ? [{ role: m.role, permission_level: m.permission_level }] : [] }
     }
+
+    // ── care_recipients profile composite reads ─────────────────────────
+    // Mirrors `apps/backend/services/dao/careRecipientProfileDao.js` —
+    // the profile composite hits four tables; the satellite tables are
+    // empty in the auth test harness so we collapse them to `rows: []`.
+    if (
+      s.startsWith("SELECT id, name, date_of_birth") &&
+      s.includes("FROM care_recipients") &&
+      s.includes("WHERE id = $1")
+    ) {
+      const [recipientId] = params
+      const cr = state.careRecipients.find((x) => x.id === recipientId)
+      return { rows: cr ? [cr] : [] }
+    }
+    if (
+      s.startsWith("SELECT ctm.id, ctm.role, ctm.permission_level") &&
+      s.includes("FROM care_team_members ctm")
+    ) {
+      const [recipientId] = params
+      const members = state.careTeamMembers.filter(
+        (m) => m.care_recipient_id === recipientId,
+      )
+      const rows = members.map((m) => {
+        const u = state.users.find((u) => u.id === m.user_id)
+        return {
+          id: m.id,
+          role: m.role,
+          permission_level: m.permission_level,
+          display_name: u?.display_name ?? null,
+          email: u?.email ?? null,
+        }
+      })
+      return { rows }
+    }
+    if (
+      s.startsWith("SELECT source_type, status, last_synced_at") &&
+      s.includes("FROM care_recipient_data_sources")
+    ) {
+      return { rows: [] }
+    }
+    if (
+      s.startsWith("SELECT DISTINCT ON (metric_type)") &&
+      s.includes("FROM metric_baselines")
+    ) {
+      return { rows: [] }
+    }
+
+    // ── Dashboard satellite reads ────────────────────────────────────────
+    // The dashboard composite hits seven satellite tables. The Phase 1
+    // empty-state test only needs honest empty rows from each; the
+    // per-feature integration tests cover the populated paths. Anything
+    // not matched here still falls through to the throw-on-unknown
+    // branch so a typo in production code fails loudly.
+    if (s.includes("FROM health_observations")) return { rows: [] }
+    if (s.includes("FROM alerts")) return { rows: [] }
+    if (s.includes("FROM appointments")) return { rows: [] }
+    if (s.includes("FROM ai_summaries")) return { rows: [] }
+    if (s.includes("FROM metric_baselines")) return { rows: [] }
+    if (s.includes("FROM care_recipient_data_sources")) return { rows: [] }
 
     // ── audit_logs ──────────────────────────────────────────────────────
     if (s.startsWith("INSERT INTO audit_logs")) {
@@ -663,34 +770,54 @@ test("GET /care-recipients/:id returns 400 for a non-UUID id", async () => {
 
 // ─── GET /care-recipients/:id/profile ───────────────────────────────────────
 
-test("GET /care-recipients/:id/profile returns the mock profile for the known mock id", async () => {
-  const { app, state } = buildApp()
+test("GET /care-recipients/:id/profile returns the real DB profile when the caller is on the care team", async () => {
+  const { app, pool, state } = buildApp()
   const { server, baseUrl } = await startServer(app)
   try {
-    const mockId = "11111111-1111-4111-a111-111111111111"
-    const res = await fetch(`${baseUrl}/care-recipients/${mockId}/profile`, {
+    // Resolve the authenticated user's id by hitting /api/me first.
+    const meRes = await fetch(`${baseUrl}/api/me`, {
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    })
+    assert.equal(meRes.status, 200)
+    const me = (await meRes.json()).user
+
+    // Seed a real care recipient + membership through the DAO surface.
+    const created = await pool.query(
+      "INSERT INTO care_recipients (name, date_of_birth, primary_condition) VALUES ($1, $2, $3) RETURNING id, name, date_of_birth, primary_condition, created_at, updated_at",
+      ["Test Recipient", null, null],
+    )
+    const recipientId = created.rows[0].id
+    await pool.query(
+      "INSERT INTO care_team_members (care_recipient_id, user_id, role, permission_level) VALUES ($1, $2, $3, $4) RETURNING id",
+      [recipientId, me.id, "primary_caregiver", "full"],
+    )
+
+    const res = await fetch(`${baseUrl}/care-recipients/${recipientId}/profile`, {
       headers: { authorization: `Bearer ${VALID_TOKEN}` },
     })
     assert.equal(res.status, 200)
     const body = await res.json()
-    assert.equal(body.careRecipient.id, mockId)
-    assert.equal(body.careRecipient.name, "Margaret Chen")
-    assert.equal(body.careRecipient.riskLevel, "moderate")
+    assert.equal(body.careRecipient.id, recipientId)
+    assert.equal(body.careRecipient.name, "Test Recipient")
+    // Empty satellite tables collapse to honest empty defaults — never PHI.
+    assert.deepEqual(body.careRecipient.primaryConditions, [])
+    assert.deepEqual(body.careRecipient.baseline, {})
     assert.ok(Array.isArray(body.careRecipient.dataSources))
-    assert.ok(body.careRecipient.baseline.steps.min === 3500)
 
     const audit = state.auditLogs.find(
       (a) => a.action === "VIEW_CARE_RECIPIENT_PROFILE",
     )
     assert.ok(audit, "VIEW_CARE_RECIPIENT_PROFILE audit row was written")
-    assert.equal(audit.resource_id, mockId)
+    assert.equal(audit.resource_id, recipientId)
     assert.equal(audit.metadata, null, "no PHI metadata leaks to the audit row")
   } finally {
     await stopServer(server)
   }
 })
 
-test("GET /care-recipients/:id/profile returns 404 for an unknown UUID", async () => {
+// Existence is intentionally collapsed to 403 — we never leak whether
+// a recipient row exists to a caller who is not on its care team.
+test("GET /care-recipients/:id/profile returns 403 for an unknown UUID", async () => {
   const { app } = buildApp()
   const { server, baseUrl } = await startServer(app)
   try {
@@ -698,7 +825,7 @@ test("GET /care-recipients/:id/profile returns 404 for an unknown UUID", async (
     const res = await fetch(`${baseUrl}/care-recipients/${otherUuid}/profile`, {
       headers: { authorization: `Bearer ${VALID_TOKEN}` },
     })
-    assert.equal(res.status, 404)
+    assert.equal(res.status, 403)
   } finally {
     await stopServer(server)
   }
@@ -721,8 +848,273 @@ test("GET /care-recipients/:id/profile returns 401 without an Authorization head
   const { app } = buildApp()
   const { server, baseUrl } = await startServer(app)
   try {
-    const mockId = "11111111-1111-4111-a111-111111111111"
-    const res = await fetch(`${baseUrl}/care-recipients/${mockId}/profile`)
+    const someUuid = "11111111-1111-4111-a111-111111111111"
+    const res = await fetch(`${baseUrl}/care-recipients/${someUuid}/profile`)
+    assert.equal(res.status, 401)
+  } finally {
+    await stopServer(server)
+  }
+})
+
+// ─── PATCH /api/me ──────────────────────────────────────────────────────────
+
+test("PATCH /api/me updates display_name + phone and writes a fields-only audit", async () => {
+  const { app, state } = buildApp()
+  const { server, baseUrl } = await startServer(app)
+  try {
+    // Seed the user via /api/me first.
+    await fetch(`${baseUrl}/api/me`, {
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    })
+
+    const res = await fetch(`${baseUrl}/api/me`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${VALID_TOKEN}`,
+      },
+      body: JSON.stringify({ display_name: "Alice Renamed", phone: "+15551234" }),
+    })
+    assert.equal(res.status, 200)
+    const body = await res.json()
+    assert.equal(body.user.display_name, "Alice Renamed")
+    assert.equal(body.user.phone, "+15551234")
+    // Sensitive identity surfaces are still hidden.
+    assert.equal(body.user.cognito_sub, undefined)
+
+    const audit = state.auditLogs.find((a) => a.action === "UPDATE_USER_PROFILE")
+    assert.ok(audit, "UPDATE_USER_PROFILE audit row was written")
+    assert.deepEqual(
+      audit.metadata,
+      { fieldsChanged: ["display_name", "phone"] },
+      "audit metadata records field NAMES only — never values",
+    )
+  } finally {
+    await stopServer(server)
+  }
+})
+
+test("PATCH /api/me rejects security-sensitive fields with 400", async () => {
+  const { app } = buildApp()
+  const { server, baseUrl } = await startServer(app)
+  try {
+    await fetch(`${baseUrl}/api/me`, {
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    })
+
+    const res = await fetch(`${baseUrl}/api/me`, {
+      method: "PATCH",
+      headers: {
+        "content-type": "application/json",
+        authorization: `Bearer ${VALID_TOKEN}`,
+      },
+      body: JSON.stringify({ role: "admin" }),
+    })
+    assert.equal(res.status, 400)
+    const body = await res.json()
+    assert.match(body.error, /not editable/i)
+  } finally {
+    await stopServer(server)
+  }
+})
+
+// ─── PATCH /care-recipients/:id/profile ─────────────────────────────────────
+
+test("PATCH /care-recipients/:id/profile updates the recipient row when the caller has access", async () => {
+  const { app, pool, state } = buildApp()
+  const { server, baseUrl } = await startServer(app)
+  try {
+    const meRes = await fetch(`${baseUrl}/api/me`, {
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    })
+    const me = (await meRes.json()).user
+
+    const created = await pool.query(
+      "INSERT INTO care_recipients (name, date_of_birth, primary_condition) VALUES ($1, $2, $3) RETURNING id, name, date_of_birth, primary_condition, created_at, updated_at",
+      ["Test Recipient", null, null],
+    )
+    const recipientId = created.rows[0].id
+    await pool.query(
+      "INSERT INTO care_team_members (care_recipient_id, user_id, role, permission_level) VALUES ($1, $2, $3, $4) RETURNING id",
+      [recipientId, me.id, "primary_caregiver", "full"],
+    )
+
+    const res = await fetch(
+      `${baseUrl}/care-recipients/${recipientId}/profile`,
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${VALID_TOKEN}`,
+        },
+        body: JSON.stringify({
+          relationship: "Mother",
+          emergency_contact_name: "Jane Doe",
+          emergency_contact_phone: "+15555550000",
+        }),
+      },
+    )
+    assert.equal(res.status, 200)
+    const body = await res.json()
+    assert.equal(body.careRecipient.id, recipientId)
+    assert.equal(body.careRecipient.emergencyContact.name, "Jane Doe")
+    assert.equal(body.careRecipient.emergencyContact.phone, "+15555550000")
+    assert.equal(body.careRecipient.emergencyContact.relationship, "Mother")
+
+    const audit = state.auditLogs.find(
+      (a) => a.action === "UPDATE_CARE_RECIPIENT_PROFILE",
+    )
+    assert.ok(audit, "UPDATE_CARE_RECIPIENT_PROFILE audit row was written")
+    assert.deepEqual(
+      audit.metadata,
+      {
+        fieldsChanged: [
+          "relationship",
+          "emergency_contact_name",
+          "emergency_contact_phone",
+        ],
+      },
+      "audit records changed field NAMES only — never values, never PHI",
+    )
+  } finally {
+    await stopServer(server)
+  }
+})
+
+test("PATCH /care-recipients/:id/profile returns 403 when the caller is not on the care team", async () => {
+  const { app, pool } = buildApp()
+  const { server, baseUrl } = await startServer(app)
+  try {
+    // Seed the caller user but not the recipient's care team membership.
+    await fetch(`${baseUrl}/api/me`, {
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    })
+    const created = await pool.query(
+      "INSERT INTO care_recipients (name, date_of_birth, primary_condition) VALUES ($1, $2, $3) RETURNING id, name, date_of_birth, primary_condition, created_at, updated_at",
+      ["Locked Recipient", null, null],
+    )
+    const recipientId = created.rows[0].id
+
+    const res = await fetch(
+      `${baseUrl}/care-recipients/${recipientId}/profile`,
+      {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          authorization: `Bearer ${VALID_TOKEN}`,
+        },
+        body: JSON.stringify({ relationship: "Mother" }),
+      },
+    )
+    assert.equal(res.status, 403)
+  } finally {
+    await stopServer(server)
+  }
+})
+
+// ─── GET /care-recipients/:id/dashboard ─────────────────────────────────────
+
+test("GET /care-recipients/:id/dashboard returns honest empty-state envelope when no data exists", async () => {
+  const { app, pool, state } = buildApp()
+  const { server, baseUrl } = await startServer(app)
+  try {
+    const meRes = await fetch(`${baseUrl}/api/me`, {
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    })
+    const me = (await meRes.json()).user
+
+    const created = await pool.query(
+      "INSERT INTO care_recipients (name, date_of_birth, primary_condition) VALUES ($1, $2, $3) RETURNING id, name, date_of_birth, primary_condition, created_at, updated_at",
+      ["Dashboard Recipient", null, null],
+    )
+    const recipientId = created.rows[0].id
+    await pool.query(
+      "INSERT INTO care_team_members (care_recipient_id, user_id, role, permission_level) VALUES ($1, $2, $3, $4) RETURNING id",
+      [recipientId, me.id, "primary_caregiver", "full"],
+    )
+
+    const res = await fetch(
+      `${baseUrl}/care-recipients/${recipientId}/dashboard`,
+      { headers: { authorization: `Bearer ${VALID_TOKEN}` } },
+    )
+    assert.equal(res.status, 200)
+    const body = await res.json()
+
+    // Empty-state contract: each section is an empty array / null /
+    // not_connected — never fabricated PHI.
+    assert.deepEqual(body.dashboard.latestObservations, [])
+    assert.deepEqual(body.dashboard.baselines, [])
+    assert.equal(body.dashboard.latestSummary, null)
+    assert.deepEqual(body.dashboard.activeAlerts, [])
+    assert.deepEqual(body.dashboard.upcomingAppointments, [])
+    assert.deepEqual(body.dashboard.dataSources, [])
+    assert.equal(body.dashboard.healthkitSync.status, "not_connected")
+    assert.equal(body.dashboard.healthkitSync.lastSyncedAt, null)
+
+    const audit = state.auditLogs.find(
+      (a) => a.action === "VIEW_CARE_RECIPIENT_DASHBOARD",
+    )
+    assert.ok(audit, "VIEW_CARE_RECIPIENT_DASHBOARD audit row was written")
+    assert.equal(audit.resource_id, recipientId)
+    assert.deepEqual(
+      audit.metadata,
+      {
+        observations: 0,
+        baselines: 0,
+        summaries: 0,
+        alerts: 0,
+        appointments: 0,
+        dataSources: 0,
+      },
+      "audit metadata records non-PHI counts only",
+    )
+  } finally {
+    await stopServer(server)
+  }
+})
+
+test("GET /care-recipients/:id/dashboard returns 403 when the caller is not on the care team", async () => {
+  const { app, pool } = buildApp()
+  const { server, baseUrl } = await startServer(app)
+  try {
+    await fetch(`${baseUrl}/api/me`, {
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    })
+    const created = await pool.query(
+      "INSERT INTO care_recipients (name, date_of_birth, primary_condition) VALUES ($1, $2, $3) RETURNING id, name, date_of_birth, primary_condition, created_at, updated_at",
+      ["Locked Dashboard", null, null],
+    )
+    const recipientId = created.rows[0].id
+
+    const res = await fetch(
+      `${baseUrl}/care-recipients/${recipientId}/dashboard`,
+      { headers: { authorization: `Bearer ${VALID_TOKEN}` } },
+    )
+    assert.equal(res.status, 403)
+  } finally {
+    await stopServer(server)
+  }
+})
+
+test("GET /care-recipients/:id/dashboard returns 400 for a non-UUID id", async () => {
+  const { app } = buildApp()
+  const { server, baseUrl } = await startServer(app)
+  try {
+    const res = await fetch(`${baseUrl}/care-recipients/not-a-uuid/dashboard`, {
+      headers: { authorization: `Bearer ${VALID_TOKEN}` },
+    })
+    assert.equal(res.status, 400)
+  } finally {
+    await stopServer(server)
+  }
+})
+
+test("GET /care-recipients/:id/dashboard returns 401 without an Authorization header", async () => {
+  const { app } = buildApp()
+  const { server, baseUrl } = await startServer(app)
+  try {
+    const someUuid = "11111111-1111-4111-a111-111111111111"
+    const res = await fetch(`${baseUrl}/care-recipients/${someUuid}/dashboard`)
     assert.equal(res.status, 401)
   } finally {
     await stopServer(server)

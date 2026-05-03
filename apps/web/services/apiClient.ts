@@ -105,10 +105,24 @@ export async function postJson<TResponse, TBody = unknown>(
   return _request<TResponse>("POST", path, body)
 }
 
+/**
+ * PATCH a JSON body and parse the JSON response.
+ *
+ * Used by the profile endpoints (`/api/me`, `/care-recipients/:id/profile`)
+ * which only accept a strict allow-list of editable fields. Same auth +
+ * logging shape as `getJson` / `postJson` so the call-site is consistent.
+ */
+export async function patchJson<TResponse, TBody = unknown>(
+  path: string,
+  body: TBody,
+): Promise<TResponse> {
+  return _request<TResponse>("PATCH", path, body)
+}
+
 // ─── Internal ────────────────────────────────────────────────────────────────
 
 async function _request<T>(
-  method: "GET" | "POST",
+  method: "GET" | "POST" | "PATCH",
   path: string,
   body: unknown,
 ): Promise<T> {

@@ -68,9 +68,19 @@ CREATE TABLE IF NOT EXISTS care_recipients (
   name TEXT NOT NULL,
   date_of_birth DATE,
   primary_condition TEXT,
+  relationship TEXT,
+  emergency_contact_name TEXT,
+  emergency_contact_phone TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
   updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+-- Mirrors `apps/backend/migrations/0003_care_recipient_profile_fields.sql`.
+-- The web Care Recipient profile screen lets a caregiver edit these
+-- fields; every column is nullable so unset values render as
+-- "Not provided" instead of a placeholder string.
+ALTER TABLE care_recipients ADD COLUMN IF NOT EXISTS relationship TEXT;
+ALTER TABLE care_recipients ADD COLUMN IF NOT EXISTS emergency_contact_name TEXT;
+ALTER TABLE care_recipients ADD COLUMN IF NOT EXISTS emergency_contact_phone TEXT;
 
 CREATE TABLE IF NOT EXISTS care_team_members (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),

@@ -27,8 +27,14 @@
  *  second user-info call. */
 const DEFAULT_SCOPES = "openid email profile" as const
 
-/** Cognito Hosted-UI uses standard Authorization Code flow over GET. */
-const AUTHORIZE_PATH = "/oauth2/authorize" as const
+/**
+ * Managed Login uses `/login` as the authorize entry point.
+ * Classic Hosted UI used `/oauth2/authorize`, but that endpoint's
+ * callback-URL allow-list is separate from the Managed Login one.
+ * Pools that have Managed Login enabled should use `/login` to avoid
+ * a `redirect_mismatch` from the unrelated classic-UI allow-list.
+ */
+const AUTHORIZE_PATH = "/login" as const
 const TOKEN_PATH = "/oauth2/token" as const
 const LOGOUT_PATH = "/logout" as const
 
@@ -114,13 +120,13 @@ export function loadCognitoConfig(
   const userPoolId = env.COGNITO_USER_POOL_ID?.trim() ?? ""
   const clientId = env.COGNITO_CLIENT_ID?.trim() ?? ""
   const domain = env.COGNITO_DOMAIN?.trim() ?? ""
-  const appBaseUrl = env.APP_BASE_URL?.trim() ?? ""
+  const appBaseUrl = env.NARTHECARE_WEB_BASE_URL?.trim() ?? ""
 
   if (!region) missing.push("COGNITO_REGION")
   if (!userPoolId) missing.push("COGNITO_USER_POOL_ID")
   if (!clientId) missing.push("COGNITO_CLIENT_ID")
   if (!domain) missing.push("COGNITO_DOMAIN")
-  if (!appBaseUrl) missing.push("APP_BASE_URL")
+  if (!appBaseUrl) missing.push("NARTHECARE_WEB_BASE_URL")
   if (missing.length > 0) {
     throw new Error(
       `Cognito configuration missing: ${missing.join(", ")}`,

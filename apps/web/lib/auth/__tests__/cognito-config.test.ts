@@ -14,7 +14,7 @@ const VALID_ENV = {
   COGNITO_USER_POOL_ID: "us-west-2_AbCdE1234",
   COGNITO_CLIENT_ID: "1example23456789",
   COGNITO_DOMAIN: "narthecare-dev.auth.us-west-2.amazoncognito.com",
-  APP_BASE_URL: "https://app.narthecare.test",
+  NARTHECARE_WEB_BASE_URL: "https://app.narthecare.test",
 } as const
 
 describe("buildCognitoIssuer", () => {
@@ -119,10 +119,10 @@ describe("loadCognitoConfig", () => {
         COGNITO_USER_POOL_ID: "",
         COGNITO_CLIENT_ID: "",
         COGNITO_DOMAIN: "",
-        APP_BASE_URL: "",
+        NARTHECARE_WEB_BASE_URL: "",
       }),
     ).toThrow(
-      /COGNITO_REGION.*COGNITO_USER_POOL_ID.*COGNITO_CLIENT_ID.*COGNITO_DOMAIN.*APP_BASE_URL/,
+      /COGNITO_REGION.*COGNITO_USER_POOL_ID.*COGNITO_CLIENT_ID.*COGNITO_DOMAIN.*NARTHECARE_WEB_BASE_URL/,
     )
   })
 })
@@ -133,7 +133,7 @@ describe("buildAuthorizeUrl", () => {
   test("includes every OAuth parameter Cognito requires", () => {
     const url = new URL(buildAuthorizeUrl(config, { state: "abc.123" }))
     expect(url.host).toBe(config.domain)
-    expect(url.pathname).toBe("/oauth2/authorize")
+    expect(url.pathname).toBe("/login")
     expect(url.searchParams.get("client_id")).toBe(config.clientId)
     expect(url.searchParams.get("response_type")).toBe("code")
     expect(url.searchParams.get("scope")).toBe("openid email profile")

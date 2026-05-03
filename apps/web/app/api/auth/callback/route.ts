@@ -71,7 +71,7 @@ export async function GET(req: NextRequest) {
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function _appUrl(path: string): URL {
-  const base = process.env.APP_BASE_URL ?? "http://localhost:3000"
+  const base = process.env.NARTHECARE_WEB_BASE_URL ?? "http://localhost:3100"
   return new URL(path, base)
 }
 

@@ -102,11 +102,21 @@ function _pickDisplayName(claims) {
     claims.username,
   ]
   for (const candidate of candidates) {
-    if (typeof candidate === "string" && candidate.trim().length > 0) {
+    if (
+      typeof candidate === "string" &&
+      candidate.trim().length > 0 &&
+      !_isUuidLike(candidate.trim())
+    ) {
       return candidate.trim()
     }
   }
   return null
+}
+
+/** Cognito assigns UUID-v4 strings as internal usernames for email sign-up.
+ *  Reject those so they are never stored as a caregiver's display name. */
+function _isUuidLike(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)
 }
 
 function _joinNameParts(given, family) {

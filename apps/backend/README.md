@@ -118,16 +118,9 @@ them:
 
 - **Cognito** — remove `DEV_AUTH_BYPASS` once every environment has
   real `COGNITO_*` values (`lib/dev-auth.js`, `app.js`).
-- **PostgreSQL persistence** — drop `getMockCareRecipientProfile` once
-  the DAO is wired to real tables
-  (`services/careRecipientProfileService.js`).
 - **SMART on FHIR** — Epic MyChart integration stub lives in
   `integrations/fhir.js`.
 - **Token refresh** — iOS client must refresh Cognito tokens; the
   backend verifier already accepts refreshed tokens transparently.
-- **RBAC** — replace the placeholder
-  `canAccessCareRecipient(userId, careRecipientId)` in
-  `lib/care-recipient-profile.js` with a real
-  `care_team_members` query.
 - **Readiness vs liveness split** — add a `/ready` endpoint that does
   a shallow `SELECT 1`; keep `/health` DB-free.

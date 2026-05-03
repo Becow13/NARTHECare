@@ -146,10 +146,21 @@ export function Sidebar({ user }: SidebarProps) {
         </nav>
 
         {/* Footer — display name only. Email is intentionally omitted so the
-            sidebar never echoes a contact handle in screenshots. The signed-in
-            indicator is a status word, not a tooltip with claim details. */}
+            sidebar never echoes a contact handle in screenshots. Clicking
+            the row opens `/profile`, which loads the real DB user via
+            `/api/data/me`. */}
         <div className="px-4 py-4 border-t border-border space-y-3">
-          <div className="flex items-center gap-3">
+          <Link
+            href="/profile"
+            onClick={() => setMobileOpen(false)}
+            className={cn(
+              "flex items-center gap-3 px-2 py-2 rounded-md transition-colors",
+              pathname === "/profile" || pathname.startsWith("/profile/")
+                ? "bg-[#EEF0FF] dark:bg-[#3B5BDB]/20"
+                : "hover:bg-gray-100 dark:hover:bg-gray-800",
+            )}
+            aria-label="Open profile"
+          >
             <div
               className="w-8 h-8 rounded-full bg-[#3B5BDB]/10 flex items-center justify-center shrink-0"
               aria-hidden
@@ -161,10 +172,10 @@ export function Sidebar({ user }: SidebarProps) {
                 {displayName}
               </p>
               <p className="text-xs text-gray-500 dark:text-gray-400 truncate">
-                Signed in
+                View profile
               </p>
             </div>
-          </div>
+          </Link>
           <Link
             href="/api/auth/logout"
             className="flex items-center gap-2 px-2 py-2 rounded-md text-xs font-medium text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-gray-100 transition-colors"

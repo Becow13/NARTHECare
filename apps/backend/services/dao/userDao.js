@@ -85,7 +85,7 @@ const MIGRATE_TABLE_SQL = `
 `
 
 const RETURNING_COLUMNS = `
-  id, cognito_sub, email, email_verified, display_name,
+  id, cognito_sub, email, email_verified, phone, phone_verified, display_name,
   role, status, last_login_at, created_at, updated_at
 `
 
@@ -127,6 +127,23 @@ const SELECT_BY_COGNITO_SUB_SQL = `
 const UPDATE_LAST_LOGIN_SQL = `
   UPDATE users
   SET last_login_at = NOW(), updated_at = NOW()
+  WHERE id = $1
+  RETURNING ${RETURNING_COLUMNS};
+`
+
+// Caregiver-editable profile fields only. Cognito-bound columns
+// (`cognito_sub`, `email`, `email_verified`) and security-sensitive
+// columns (`role`, `status`) are deliberately NOT updatable from a
+// normal profile UI — those flow through Cognito (email) or admin
+// tooling (role/status) so a hijacked session cannot escalate.
+// The COALESCE-pair keeps fields the caller did not send (NULL
+// param) at their previous value.
+const UPDATE_USER_PROFILE_SQL = `
+  UPDATE users
+  SET
+    display_name = COALESCE($2, display_name),
+    phone = COALESCE($3, phone),
+    updated_at = NOW()
   WHERE id = $1
   RETURNING ${RETURNING_COLUMNS};
 `
@@ -228,6 +245,33 @@ export async function repointCognitoSubForVerifiedEmailMerge(pool, args) {
 export async function updateLastLoginAt(pool, userId) {
   if (!userId) throw new Error("userId is required")
   const { rows } = await pool.query(UPDATE_LAST_LOGIN_SQL, [userId])
+  return rows[0] ?? null
+}
+
+/**
+ * Update a user's caregiver-editable profile fields and return the
+ * refreshed row.
+ *
+ * `displayName` and `phone` accept `null` to mean "leave unchanged"
+ * (so a partial PATCH does not clobber the other column). To clear
+ * a value, the route handler should normalise an empty submission
+ * to an empty string before reaching this function — the DAO does
+ * not interpret null as "clear" because the partial-PATCH case is
+ * the more common one in practice.
+ *
+ * Returns `null` when no row matched (the user vanished between
+ * middleware and handler), which the caller should map to a 401.
+ */
+export async function updateUserProfile(
+  pool,
+  { userId, displayName = null, phone = null },
+) {
+  if (!userId) throw new Error("userId is required")
+  const { rows } = await pool.query(UPDATE_USER_PROFILE_SQL, [
+    userId,
+    displayName,
+    phone,
+  ])
   return rows[0] ?? null
 }
 

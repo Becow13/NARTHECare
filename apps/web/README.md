@@ -12,11 +12,11 @@ cd apps/web
 cp .env.example .env.local
 # Required for local dev:
 #   SESSION_COOKIE_SECRET=<openssl rand -hex 32>
-#   APP_BASE_URL=http://localhost:3000
+#   APP_BASE_URL=http://localhost:3100
 #   NEXT_PUBLIC_ALLOW_MOCKS=true
 #   DEV_AUTH_BYPASS=true     # so you don't need real Cognito creds
 npm install
-npm run dev                           # http://localhost:3000
+npm run dev                           # http://localhost:3100
 ```
 
 Hitting any URL without a session redirects to `/auth/sign-in`. With

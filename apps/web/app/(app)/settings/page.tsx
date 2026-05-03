@@ -1,6 +1,8 @@
 "use client"
 
-import { useState } from "react"
+import { useEffect, useState } from "react"
+import Link from "next/link"
+import { useRouter } from "next/navigation"
 import {
   Bell,
   Mail,
@@ -27,18 +29,27 @@ const navSections: { key: SettingSection; label: string; icon: React.ReactNode }
   { key: "appearance", label: "Appearance", icon: <Palette className="h-4 w-4" /> },
 ]
 
+interface SettingsUser {
+  id: string
+  email: string | null
+  display_name: string | null
+  phone: string | null
+  role: string
+}
+
 export default function SettingsPage() {
+  const router = useRouter()
   const [activeSection, setActiveSection] = useState<SettingSection>("account")
   const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState<string | null>(null)
 
-  // Account state — Phase 2 reads display name + email from the session
-  // via the parent server component (passed down here would require lifting
-  // this page to a server/client split). Until the backend exposes
-  // `PATCH /api/me`, the inputs stay fully editable but the Save button
-  // remains disabled at the bottom of the form. Email is the Cognito
-  // identifier and would be read-only once persistence ships.
-  // TODO(phase-3): pass session user as a prop from a server wrapper so
-  // these defaults reflect the verified Cognito identity.
+  // Account state — backed by `/api/data/me`. Email + role are read-only
+  // (managed by the identity provider), display name + phone are
+  // editable through `PATCH /api/me`. The non-account sections still
+  // keep client-only state because their backend persistence ships in a
+  // later phase; the inline note in each card flags this honestly.
+  const [user, setUser] = useState<SettingsUser | null>(null)
   const [name, setName] = useState("")
   const [email, setEmail] = useState("")
   const [phone, setPhone] = useState("")
@@ -73,9 +84,69 @@ export default function SettingsPage() {
     fontSize: "medium",
   })
 
-  const handleSave = () => {
-    setSaved(true)
-    setTimeout(() => setSaved(false), 2500)
+  useEffect(() => {
+    let cancelled = false
+    async function load() {
+      try {
+        const res = await fetch("/api/data/me", { cache: "no-store" })
+        if (res.status === 401) {
+          router.replace("/auth/sign-in")
+          return
+        }
+        if (!res.ok) return
+        const data: { user: SettingsUser } = await res.json()
+        if (cancelled) return
+        setUser(data.user)
+        setName(data.user.display_name ?? "")
+        setEmail(data.user.email ?? "")
+        setPhone(data.user.phone ?? "")
+        router.refresh()
+      } catch {
+        // Surface "Unable to load" via the form's empty state — never
+        // log the body, which carries email + display name.
+      }
+    }
+    void load()
+    return () => {
+      cancelled = true
+    }
+  }, [router])
+
+  const handleSave = async () => {
+    setSaving(true)
+    setSaveError(null)
+    try {
+      const res = await fetch("/api/data/me", {
+        method: "PATCH",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          display_name: name.trim(),
+          phone: phone.trim(),
+        }),
+      })
+      if (res.status === 401) {
+        router.replace("/auth/sign-in")
+        return
+      }
+      if (!res.ok) {
+        const body = (await res.json().catch(() => null)) as
+          | { error?: string }
+          | null
+        setSaveError(body?.error ?? "Unable to save changes.")
+        return
+      }
+      const data: { user: SettingsUser } = await res.json()
+      setUser(data.user)
+      setName(data.user.display_name ?? "")
+      setPhone(data.user.phone ?? "")
+      setSaved(true)
+      router.refresh()
+      setTimeout(() => setSaved(false), 2500)
+    } catch {
+      setSaveError("Unable to save changes.")
+    } finally {
+      setSaving(false)
+    }
   }
 
   const toggleNotif = (key: keyof typeof notifications) => {
@@ -145,29 +216,23 @@ export default function SettingsPage() {
                   </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                  {/* Avatar placeholder */}
-                  <div className="flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-full bg-[#3B5BDB]/10 flex items-center justify-center text-xl font-bold text-[#3B5BDB]">
-                      BY
-                    </div>
-                    <div>
-                      <Button variant="outline" size="sm" className="text-xs">
-                        Change photo
-                      </Button>
-                      <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-                        JPG, PNG or GIF. Max 5MB.
-                      </p>
-                    </div>
-                  </div>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">
+                    Prefer the focused profile view?{" "}
+                    <Link href="/profile" className="text-[#3B5BDB] hover:underline">
+                      Open profile
+                    </Link>
+                  </p>
 
                   <Separator />
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div className="space-y-1.5">
-                      <Label htmlFor="name">Full Name</Label>
+                      <Label htmlFor="name">Display Name</Label>
                       <Input
                         id="name"
                         value={name}
+                        placeholder="Not provided"
+                        maxLength={120}
                         onChange={(e) => setName(e.target.value)}
                       />
                     </div>
@@ -176,6 +241,8 @@ export default function SettingsPage() {
                       <Input
                         id="phone"
                         value={phone}
+                        placeholder="Not provided"
+                        maxLength={32}
                         onChange={(e) => setPhone(e.target.value)}
                       />
                     </div>
@@ -185,8 +252,14 @@ export default function SettingsPage() {
                         id="email"
                         type="email"
                         value={email}
-                        onChange={(e) => setEmail(e.target.value)}
+                        readOnly
+                        aria-readonly
+                        title="Email is managed by your identity provider."
+                        className="opacity-80 cursor-not-allowed"
                       />
+                      <p className="text-[11px] text-gray-500 dark:text-gray-400">
+                        Email is managed by your identity provider.
+                      </p>
                     </div>
                   </div>
                 </CardContent>
@@ -203,15 +276,12 @@ export default function SettingsPage() {
                   <div className="flex items-center justify-between p-3 rounded-lg bg-[#EEF0FF] dark:bg-[#3B5BDB]/10 border border-[#3B5BDB]/20">
                     <div>
                       <p className="text-sm font-medium text-gray-900 dark:text-white">
-                        Family Caregiver
+                        {user ? _formatRole(user.role) : "Caregiver"}
                       </p>
                       <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">
-                        Full access to Eleanor Yang&apos;s care dashboard
+                        Role is set by your identity provider.
                       </p>
                     </div>
-                    <span className="text-[10px] px-2 py-1 rounded-full bg-[#3B5BDB] text-white font-semibold">
-                      Primary
-                    </span>
                   </div>
                 </CardContent>
               </Card>
@@ -505,19 +575,28 @@ export default function SettingsPage() {
             </Card>
           )}
 
-          {/* Save button — disabled in Phase 1.
-              The Settings surface persists nothing until the backend
-              exposes `PATCH /api/me` and per-recipient preference endpoints.
-              Showing the button (disabled) keeps the visual layout aligned
-              with the prototype while making the lack of persistence
-              explicit to caregivers. */}
-          <div className="flex justify-end">
+          {/* Save button — wired to `PATCH /api/me` for the Account
+              section. Notification, privacy, and appearance toggles are
+              still client-only in Phase 1 (no backend table yet) — they
+              re-render with their last selection, but only display name
+              and phone persist. The note on each non-account card flags
+              this honestly so caregivers do not assume save coverage. */}
+          <div className="flex items-center justify-between">
+            {saveError ? (
+              <p className="text-sm text-red-600 dark:text-red-400">{saveError}</p>
+            ) : (
+              <span aria-hidden />
+            )}
             <Button
               onClick={handleSave}
-              disabled
-              aria-disabled="true"
-              title="Saving settings is not available yet."
-              className="flex items-center gap-2 opacity-60 cursor-not-allowed"
+              disabled={saving || activeSection !== "account"}
+              aria-disabled={saving || activeSection !== "account"}
+              title={
+                activeSection === "account"
+                  ? "Save profile changes"
+                  : "This section is read-only for now."
+              }
+              className="flex items-center gap-2"
             >
               {saved ? (
                 <>
@@ -527,7 +606,7 @@ export default function SettingsPage() {
               ) : (
                 <>
                   <Save className="h-4 w-4" />
-                  Save Changes (coming soon)
+                  {saving ? "Saving…" : "Save Changes"}
                 </>
               )}
             </Button>
@@ -536,4 +615,13 @@ export default function SettingsPage() {
       </div>
     </div>
   )
+}
+
+function _formatRole(role: string): string {
+  if (!role) return "Caregiver"
+  return role
+    .split(/[_\s]+/)
+    .filter(Boolean)
+    .map((part) => part[0].toUpperCase() + part.slice(1))
+    .join(" ")
 }

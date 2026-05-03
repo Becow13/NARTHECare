@@ -3,6 +3,7 @@ import {
   authService,
   careRecipientService,
   careRecipientProfileService,
+  careRecipientDashboardService,
   auditService,
   healthObservationService,
   metricBaselineService,
@@ -253,6 +254,64 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
     }
   })
 
+  // ─── PATCH /api/me ─────────────────────────────────────────────────────
+  // Caregiver-initiated profile edit. Only `display_name` and `phone`
+  // are accepted — every Cognito-bound, role/status, and timestamp
+  // field is rejected by the parser in `lib/users.js` so a hijacked
+  // session cannot escalate via the profile UI. Audit metadata
+  // carries the set of changed field NAMES only — never values, never
+  // before/after copy, never PHI.
+
+  app.patch("/api/me", requireCognitoUser, async (req, res) => {
+    try {
+      let updated
+      try {
+        updated = await authService.updateProfile(pool, req.user.id, req.body)
+      } catch (e) {
+        return res.status(400).json({
+          error: e instanceof Error ? e.message : "Invalid payload",
+        })
+      }
+      if (!updated) {
+        return res.status(401).json({ error: "Invalid or expired token" })
+      }
+
+      const fieldsChanged = []
+      const body = req.body ?? {}
+      if (
+        Object.prototype.hasOwnProperty.call(body, "display_name") ||
+        Object.prototype.hasOwnProperty.call(body, "displayName")
+      ) {
+        fieldsChanged.push("display_name")
+      }
+      if (Object.prototype.hasOwnProperty.call(body, "phone")) {
+        fieldsChanged.push("phone")
+      }
+
+      const { ipAddress, userAgent } = extractRequestContext(req)
+      await auditService.logAction(pool, {
+        actorUserId: updated.id,
+        action: AUDIT_ACTIONS.updateUserProfile,
+        resourceType: AUDIT_RESOURCE_TYPES.user,
+        resourceId: updated.id,
+        // Field names only — never values. The only PHI-adjacent
+        // fields are display_name + phone; we record "what was
+        // touched" so analytics can answer "did caregivers complete
+        // the profile setup?" without ever surfacing the values.
+        metadata: { fieldsChanged },
+        ipAddress,
+        userAgent,
+      })
+
+      return res.json({ user: _publicUser(updated) })
+    } catch (e) {
+      console.error("[API me PATCH]", e)
+      return res.status(500).json({
+        error: e instanceof Error ? e.message : "Failed to update user",
+      })
+    }
+  })
+
   // ─── POST /care-recipients ──────────────────────────────────────────────
 
   app.post("/care-recipients", requireCognitoUser, async (req, res) => {
@@ -373,6 +432,154 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
       })
     }
   })
+
+  // ─── PATCH /care-recipients/:id/profile ────────────────────────────────
+  // Caregiver-initiated edit of safe profile fields (date_of_birth,
+  // primary_condition, relationship, emergency contact). Identity-defining
+  // fields (id, name, audit timestamps) are rejected by the parser in
+  // `lib/care-recipients.js`. Audit metadata records the set of changed
+  // field NAMES — never values, never before/after copy, never PHI.
+
+  app.patch(
+    "/care-recipients/:id/profile",
+    requireCognitoUser,
+    async (req, res) => {
+      try {
+        const { id } = req.params
+        if (!_isUuid(id)) {
+          return res.status(400).json({ error: "Invalid care recipient id" })
+        }
+
+        try {
+          await careRecipientProfileService.requireProfileAccess(
+            pool,
+            id,
+            req.user.id,
+          )
+        } catch (e) {
+          if (e instanceof CareRecipientProfileAccessError) {
+            return res.status(403).json({ error: e.message })
+          }
+          throw e
+        }
+
+        let updated
+        try {
+          updated = await careRecipientProfileService.updateProfile(
+            pool,
+            id,
+            req.body,
+          )
+        } catch (e) {
+          return res.status(400).json({
+            error: e instanceof Error ? e.message : "Invalid payload",
+          })
+        }
+        if (!updated) {
+          return res.status(404).json({ error: "Care recipient not found" })
+        }
+
+        // Field names only — intentionally never values. Allowed editable
+        // fields are date_of_birth, primary_condition, relationship,
+        // emergency_contact_name, emergency_contact_phone (see
+        // `lib/care-recipients.js#parseCareRecipientProfileUpdate`).
+        const fieldsChanged = []
+        const body = req.body ?? {}
+        for (const field of [
+          "date_of_birth",
+          "primary_condition",
+          "relationship",
+          "emergency_contact_name",
+          "emergency_contact_phone",
+        ]) {
+          if (Object.prototype.hasOwnProperty.call(body, field)) {
+            fieldsChanged.push(field)
+          }
+        }
+
+        const { ipAddress, userAgent } = extractRequestContext(req)
+        await auditService.logAction(pool, {
+          actorUserId: req.user.id,
+          action: AUDIT_ACTIONS.updateCareRecipientProfile,
+          resourceType: AUDIT_RESOURCE_TYPES.careRecipient,
+          resourceId: updated.id,
+          metadata: { fieldsChanged },
+          ipAddress,
+          userAgent,
+        })
+
+        return res.json({ careRecipient: updated })
+      } catch (e) {
+        console.error("[API care-recipients/:id/profile PATCH]", e)
+        return res.status(500).json({
+          error:
+            e instanceof Error ? e.message : "Failed to update care recipient",
+        })
+      }
+    },
+  )
+
+  // ─── GET /care-recipients/:id/dashboard ────────────────────────────────
+  // Composite read for the caregiver dashboard. Returns latest health
+  // observations, baselines, latest AI summary, alerts, upcoming
+  // appointments, data sources, and the canonical HealthKit sync row
+  // in a single envelope. Every section is sourced from PostgreSQL —
+  // empty arrays/null fields are honest "no data yet" states. The web
+  // dashboard MUST render the empty states rather than fall back to
+  // mock values.
+
+  app.get(
+    "/care-recipients/:id/dashboard",
+    requireCognitoUser,
+    async (req, res) => {
+      try {
+        const { id } = req.params
+        if (!_isUuid(id)) {
+          return res.status(400).json({ error: "Invalid care recipient id" })
+        }
+
+        try {
+          await careRecipientService.requireCareRecipientAccess(
+            pool,
+            id,
+            req.user.id,
+          )
+        } catch (e) {
+          if (e instanceof CareRecipientAccessError) {
+            return res.status(403).json({ error: e.message })
+          }
+          throw e
+        }
+
+        const dashboard =
+          await careRecipientDashboardService.getCareRecipientDashboard(
+            pool,
+            id,
+          )
+
+        const { ipAddress, userAgent } = extractRequestContext(req)
+        // Counts only — never PHI. The audit row supports answering
+        // "did caregiver X view recipient Y's dashboard at time Z?"
+        // without exposing any health values.
+        await auditService.logAction(pool, {
+          actorUserId: req.user.id,
+          action: AUDIT_ACTIONS.viewCareRecipientDashboard,
+          resourceType: AUDIT_RESOURCE_TYPES.careRecipient,
+          resourceId: id,
+          metadata: dashboard.counts,
+          ipAddress,
+          userAgent,
+        })
+
+        return res.json({ dashboard })
+      } catch (e) {
+        console.error("[API care-recipients/:id/dashboard]", e)
+        return res.status(500).json({
+          error: e instanceof Error ? e.message : "Failed to load dashboard",
+        })
+      }
+    },
+  )
 
   // ─── Phase 4 read endpoints ────────────────────────────────────────────
   // Each handler:
@@ -937,16 +1144,22 @@ function _buildRequireCognitoUser({ pool, cognitoVerifier, devAuthBypass }) {
  * table is omitted by default — fail-closed against accidental PHI
  * leakage through new schema fields.
  */
+// Public projection of a `users` row safe to ship to the web client.
+// Excludes `cognito_sub` and any future security-sensitive columns —
+// the caregiver UI never needs the auth provider id.
 function _publicUser(row) {
   return {
     id: row.id,
     email: row.email ?? null,
     email_verified: Boolean(row.email_verified),
-    display_name: row.display_name ?? null,
+    phone: row.phone ?? null,
+    phone_verified: Boolean(row.phone_verified),
+    display_name: _isUuid(row.display_name) ? null : (row.display_name ?? null),
     role: row.role,
     status: row.status,
     last_login_at: row.last_login_at ?? null,
     created_at: row.created_at,
+    updated_at: row.updated_at ?? null,
   }
 }
 

@@ -12,9 +12,23 @@ const CREATE_CARE_RECIPIENTS_SQL = `
     name TEXT NOT NULL,
     date_of_birth DATE,
     primary_condition TEXT,
+    relationship TEXT,
+    emergency_contact_name TEXT,
+    emergency_contact_phone TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
   );
+`
+
+// Idempotent ALTERs — `CREATE TABLE IF NOT EXISTS` only creates the
+// table on first boot, so older databases need explicit ADD COLUMN
+// statements to pick up the new caregiver-editable profile fields.
+// Mirrors `apps/backend/migrations/0003_care_recipient_profile_fields.sql`
+// and the matching block in `schema.sql`.
+const MIGRATE_CARE_RECIPIENTS_SQL = `
+  ALTER TABLE care_recipients ADD COLUMN IF NOT EXISTS relationship TEXT;
+  ALTER TABLE care_recipients ADD COLUMN IF NOT EXISTS emergency_contact_name TEXT;
+  ALTER TABLE care_recipients ADD COLUMN IF NOT EXISTS emergency_contact_phone TEXT;
 `
 
 const CREATE_CARE_TEAM_MEMBERS_SQL = `
@@ -40,10 +54,36 @@ const CREATE_INDEX_CARE_TEAM_USER_SQL = `
     ON care_team_members (user_id);
 `
 
+const RECIPIENT_RETURNING_COLUMNS = `
+  id, name, date_of_birth, primary_condition,
+  relationship, emergency_contact_name, emergency_contact_phone,
+  created_at, updated_at
+`
+
 const INSERT_RECIPIENT_SQL = `
   INSERT INTO care_recipients (name, date_of_birth, primary_condition)
   VALUES ($1, $2, $3)
-  RETURNING id, name, date_of_birth, primary_condition, created_at, updated_at;
+  RETURNING ${RECIPIENT_RETURNING_COLUMNS};
+`
+
+// Caregiver-editable profile fields only. id, created_at, name (the
+// recipient's identity), and other infrastructural columns are
+// intentionally NOT updatable here — those are owned by the create
+// flow / admin tooling so a profile-edit form cannot accidentally
+// rename a recipient or shift their join keys. The COALESCE keeps
+// fields the caller did not send (NULL params) at their previous
+// value so a partial PATCH does not overwrite anything by accident.
+const UPDATE_RECIPIENT_PROFILE_SQL = `
+  UPDATE care_recipients
+  SET
+    date_of_birth = COALESCE($2, date_of_birth),
+    primary_condition = COALESCE($3, primary_condition),
+    relationship = COALESCE($4, relationship),
+    emergency_contact_name = COALESCE($5, emergency_contact_name),
+    emergency_contact_phone = COALESCE($6, emergency_contact_phone),
+    updated_at = NOW()
+  WHERE id = $1
+  RETURNING ${RECIPIENT_RETURNING_COLUMNS};
 `
 
 const INSERT_TEAM_MEMBER_SQL = `
@@ -54,6 +94,7 @@ const INSERT_TEAM_MEMBER_SQL = `
 
 const SELECT_RECIPIENTS_FOR_USER_SQL = `
   SELECT cr.id, cr.name, cr.date_of_birth, cr.primary_condition,
+         cr.relationship,
          cr.created_at, cr.updated_at,
          ctm.role, ctm.permission_level
   FROM care_recipients cr
@@ -64,11 +105,19 @@ const SELECT_RECIPIENTS_FOR_USER_SQL = `
 
 const SELECT_RECIPIENT_FOR_USER_SQL = `
   SELECT cr.id, cr.name, cr.date_of_birth, cr.primary_condition,
+         cr.relationship,
          cr.created_at, cr.updated_at,
          ctm.role, ctm.permission_level
   FROM care_recipients cr
   INNER JOIN care_team_members ctm ON ctm.care_recipient_id = cr.id
   WHERE cr.id = $1 AND ctm.user_id = $2
+  LIMIT 1;
+`
+
+const SELECT_RECIPIENT_BY_ID_SQL = `
+  SELECT ${RECIPIENT_RETURNING_COLUMNS}
+  FROM care_recipients
+  WHERE id = $1
   LIMIT 1;
 `
 
@@ -169,6 +218,51 @@ export async function fetchCareTeamMembership(pool, recipientId, userId) {
 }
 
 /**
+ * Fetch a single care recipient row by id without an access gate.
+ *
+ * The route handler MUST call `requireCareRecipientAccess` before
+ * this function — it is RBAC-agnostic so it can be reused by the
+ * profile builder (`fetchCareRecipientProfile`) which performs its
+ * own join.
+ */
+export async function fetchCareRecipientById(pool, recipientId) {
+  const { rows } = await pool.query(SELECT_RECIPIENT_BY_ID_SQL, [recipientId])
+  return rows[0] ?? null
+}
+
+/**
+ * Update the caregiver-editable profile fields on a care recipient.
+ *
+ * Every COALESCE-paired column accepts `null` from the caller to
+ * mean "leave unchanged". Pass an explicit empty string when the
+ * caller intends to clear a stored value — the DAO does not infer
+ * "clear" from `null` because a partial PATCH is the common case.
+ *
+ * Returns the refreshed row, or `null` when no row matched the id
+ * (the access gate should prevent this in practice; we still defend
+ * the SQL contract). The route handler MUST have already gated on
+ * `requireCareRecipientAccess`.
+ */
+export async function updateCareRecipientProfile(pool, recipientId, fields) {
+  const {
+    dateOfBirth = null,
+    primaryCondition = null,
+    relationship = null,
+    emergencyContactName = null,
+    emergencyContactPhone = null,
+  } = fields ?? {}
+  const { rows } = await pool.query(UPDATE_RECIPIENT_PROFILE_SQL, [
+    recipientId,
+    dateOfBirth,
+    primaryCondition,
+    relationship,
+    emergencyContactName,
+    emergencyContactPhone,
+  ])
+  return rows[0] ?? null
+}
+
+/**
  * Enumerate every `care_recipients.id` in the table.
  *
  * Used by Phase 4B's background jobs (baseline recompute, alert
@@ -190,6 +284,7 @@ export async function fetchAllCareRecipientIds(pool) {
  */
 export async function ensureCareRecipientSchema(pool) {
   await pool.query(CREATE_CARE_RECIPIENTS_SQL)
+  await pool.query(MIGRATE_CARE_RECIPIENTS_SQL)
   await pool.query(CREATE_CARE_TEAM_MEMBERS_SQL)
   await pool.query(CREATE_INDEX_CARE_TEAM_USER_SQL)
 }

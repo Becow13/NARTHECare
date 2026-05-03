@@ -14,10 +14,16 @@ export const AUDIT_ACTIONS = Object.freeze({
   authenticateUser: "AUTHENTICATE_USER",
   /** Cognito `sub` moved onto an existing row after verified-email collision. */
   mergeCognitoIdentity: "AUTH_MERGE_COGNITO_IDENTITY",
+  /** PATCH /api/me — caregiver edited their own display name / phone. */
+  updateUserProfile: "UPDATE_USER_PROFILE",
   createCareRecipient: "CREATE_CARE_RECIPIENT",
   viewCareRecipient: "VIEW_CARE_RECIPIENT",
   viewCareRecipientProfile: "VIEW_CARE_RECIPIENT_PROFILE",
+  /** PATCH /care-recipients/:id/profile — caregiver edited a care recipient. */
+  updateCareRecipientProfile: "UPDATE_CARE_RECIPIENT_PROFILE",
   listCareRecipients: "LIST_CARE_RECIPIENTS",
+  /** GET /care-recipients/:id/dashboard — composite read of PHI. */
+  viewCareRecipientDashboard: "VIEW_CARE_RECIPIENT_DASHBOARD",
   // Phase 4 read endpoints. Every list/get of care-recipient-scoped
   // signal data writes one of these; metadata carries non-PHI counts only.
   listHealthObservations: "LIST_HEALTH_OBSERVATIONS",

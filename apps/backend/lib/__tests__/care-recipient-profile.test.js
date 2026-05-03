@@ -6,14 +6,12 @@ import {
   DATA_SOURCE_STATUSES,
   CARE_TEAM_PROFILE_ROLES,
   CARE_TEAM_PROFILE_PERMISSIONS,
-  MOCK_CARE_RECIPIENT_PROFILE_ID,
-  canAccessCareRecipient,
   isUuid,
 } from "../care-recipient-profile.js"
-import { getMockCareRecipientProfile } from "../../services/mock/careRecipientProfileMock.js"
 
 // ---------------------------------------------------------------------------
-// Enum constants — must match the TS mirror exactly
+// Enum constants — must match the TS mirror exactly so the backend, web,
+// and iOS clients all decode the same shape.
 // ---------------------------------------------------------------------------
 
 test("RISK_LEVELS exposes the canonical risk keys", () => {
@@ -57,7 +55,8 @@ test("CARE_TEAM_PROFILE_PERMISSIONS matches the TS CareTeamPermission union", ()
 })
 
 // ---------------------------------------------------------------------------
-// isUuid
+// isUuid — used by every route handler to short-circuit bad ids as 400
+// before the service layer runs and the DB sees a malformed param.
 // ---------------------------------------------------------------------------
 
 test("isUuid accepts any RFC-4122 form", () => {
@@ -71,104 +70,4 @@ test("isUuid rejects malformed or non-string input", () => {
   assert.equal(isUuid(undefined), false)
   assert.equal(isUuid(null), false)
   assert.equal(isUuid(12345), false)
-})
-
-// ---------------------------------------------------------------------------
-// canAccessCareRecipient — RBAC placeholder
-// ---------------------------------------------------------------------------
-
-test("canAccessCareRecipient allows any authenticated request today (placeholder)", () => {
-  assert.equal(
-    canAccessCareRecipient("user-1", MOCK_CARE_RECIPIENT_PROFILE_ID),
-    true,
-  )
-})
-
-test("canAccessCareRecipient rejects missing user or recipient ids", () => {
-  assert.equal(canAccessCareRecipient("", "recipient"), false)
-  assert.equal(canAccessCareRecipient("user", ""), false)
-  assert.equal(canAccessCareRecipient(undefined, "recipient"), false)
-  assert.equal(canAccessCareRecipient("user", undefined), false)
-})
-
-// ---------------------------------------------------------------------------
-// Mock profile — shape assertions so drift from the TS contract fails here
-// ---------------------------------------------------------------------------
-
-test("getMockCareRecipientProfile returns null for an unknown id", () => {
-  assert.equal(getMockCareRecipientProfile("00000000-0000-0000-0000-000000000000"), null)
-  assert.equal(getMockCareRecipientProfile(""), null)
-  assert.equal(getMockCareRecipientProfile(undefined), null)
-})
-
-test("getMockCareRecipientProfile returns the full contract shape for Margaret Chen", () => {
-  const profile = getMockCareRecipientProfile(MOCK_CARE_RECIPIENT_PROFILE_ID)
-  assert.ok(profile, "expected profile for the mock id")
-
-  // Top-level scalars
-  assert.equal(profile.id, MOCK_CARE_RECIPIENT_PROFILE_ID)
-  assert.equal(profile.name, "Margaret Chen")
-  assert.equal(profile.age, 78)
-  assert.equal(profile.dateOfBirth, "1947-02-14")
-  assert.equal(profile.gender, "Female")
-  assert.equal(profile.riskLevel, RISK_LEVELS.moderate)
-  assert.deepEqual(profile.primaryConditions, [
-    "Type 2 Diabetes",
-    "Hypertension",
-  ])
-
-  // Emergency contact
-  assert.equal(profile.emergencyContact.name, "Jessie Huang")
-  assert.equal(profile.emergencyContact.relationship, "Daughter")
-
-  // Care team
-  assert.equal(profile.careTeam.primaryCaregiver, "Jessie Huang")
-  assert.ok(Array.isArray(profile.careTeam.members))
-  assert.ok(profile.careTeam.members.length >= 1)
-  for (const m of profile.careTeam.members) {
-    assert.ok(
-      Object.values(CARE_TEAM_PROFILE_ROLES).includes(m.role),
-      `unknown role: ${m.role}`,
-    )
-    assert.ok(
-      Object.values(CARE_TEAM_PROFILE_PERMISSIONS).includes(m.permission),
-      `unknown permission: ${m.permission}`,
-    )
-  }
-
-  // Data sources — every entry must use an allow-listed type + status
-  for (const ds of profile.dataSources) {
-    assert.ok(
-      Object.values(DATA_SOURCE_TYPES).includes(ds.type),
-      `unknown data source type: ${ds.type}`,
-    )
-    assert.ok(
-      Object.values(DATA_SOURCE_STATUSES).includes(ds.status),
-      `unknown data source status: ${ds.status}`,
-    )
-  }
-
-  // Baseline
-  assert.deepEqual(profile.baseline.steps, { min: 3500, max: 5500 })
-  assert.deepEqual(profile.baseline.sleepHours, { min: 6.5, max: 8 })
-  assert.deepEqual(profile.baseline.restingHeartRate, { min: 62, max: 74 })
-  assert.equal(profile.baseline.bloodPressure, "125/78")
-  assert.equal(profile.baseline.lastUpdated, "2026-04-20")
-
-  // Recent notes
-  assert.ok(profile.recentNotes.length >= 3)
-})
-
-test("getMockCareRecipientProfile returns a cloned object so mutation cannot leak into future calls", () => {
-  const a = getMockCareRecipientProfile(MOCK_CARE_RECIPIENT_PROFILE_ID)
-  a.name = "MUTATED"
-  a.recentNotes.push({
-    id: "x",
-    content: "x",
-    author: "x",
-    createdAt: "x",
-  })
-  const b = getMockCareRecipientProfile(MOCK_CARE_RECIPIENT_PROFILE_ID)
-  assert.equal(b.name, "Margaret Chen")
-  assert.equal(b.recentNotes.length, 3)
 })

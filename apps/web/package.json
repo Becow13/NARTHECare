@@ -4,9 +4,9 @@
   "private": true,
   "description": "NARTHECare caregiver web dashboard (primary MVP). Mock data only in Phase 1.",
   "scripts": {
-    "dev": "next dev",
+    "dev": "next dev -p 3100",
     "build": "next build",
-    "start": "next start",
+    "start": "next start -p 3100",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "test": "vitest run"

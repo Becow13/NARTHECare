@@ -89,6 +89,27 @@ export async function rotateSessionTokens(input: {
 }
 
 /**
+ * Align `session.user.displayName` with the canonical `users.display_name`
+ * row after `PATCH /api/me` succeeds.
+ *
+ * `createSessionFromTokens` seeds `displayName` from Cognito claims, but
+ * the caregiver-editable name lives in PostgreSQL and can diverge. The
+ * app shell (`app/(app)/layout.tsx`) reads only the sealed cookie, so
+ * without this write the sidebar would stay on the stale Cognito value
+ * until the next full sign-in.
+ */
+export async function updateSessionUserDisplayName(
+  displayName: string | null,
+): Promise<void> {
+  const session = await _openSession()
+  if (!session.user) {
+    throw new Error("Cannot update session user on an unauthenticated session")
+  }
+  session.user.displayName = displayName
+  await session.save()
+}
+
+/**
  * Destroy the session cookie.
  *
  * Called from `/api/auth/logout` BEFORE redirecting to Cognito's

@@ -1,64 +1,289 @@
 /**
- * DAO placeholder for the full care-recipient profile.
+ * DAO that assembles the `CareRecipientProfile` contract shape from
+ * the canonical Phase 4 tables.
  *
- * This module will eventually own the SQL that assembles the
- * `CareRecipientProfile` shape (joining `care_recipients`,
- * `care_team_members`, `health_background`, `data_source_connections`,
- * `care_recipient_baseline`, and `care_recipient_notes`). No tables exist
- * yet, so every function below currently returns `null` and the service
- * layer falls back to the mock module.
+ * The profile is a read-only composite — every field is sourced from
+ * a table the rest of the app already owns:
  *
- * Keeping this file in place now (instead of lazily adding it later) so the
- * service layer's call-site does not churn when the real DB lands — only
- * this file changes.
+ *   - `care_recipients`               → name, dob, primary_condition,
+ *                                       relationship, emergency contact
+ *   - `care_team_members` ⨝ `users`   → care team list
+ *   - `care_recipient_data_sources`   → connected sources + last sync
+ *   - `metric_baselines`              → steps / sleep / HR baselines
+ *
+ * No PHI is logged here. The route handler MUST gate on
+ * `requireCareRecipientAccess` before calling this function — the
+ * SQL is RBAC-agnostic (defense in depth: the access gate is the
+ * primary defense).
+ *
+ * Returns `null` when the recipient row does not exist so the route
+ * layer can 404 the request honestly. Empty satellite tables (no
+ * baselines, no data sources) collapse to empty arrays / sensible
+ * defaults — never to fabricated PHI.
  */
 
-// ─── Constants ──────────────────────────────────────────────────────────────
+import {
+  RISK_LEVELS,
+  DATA_SOURCE_TYPES,
+  DATA_SOURCE_STATUSES,
+} from "../../../../shared/models/CareRecipientProfile.js"
 
-// TODO(postgres): move the full schema into `schema.sql` and a
-// `ensureCareRecipientProfileSchema(pool)` helper here. Proposed tables:
-//   - health_background (care_recipient_id FK, conditions TEXT[], allergies
-//     TEXT[], medications TEXT[], mobility_status TEXT, fall_risk_notes TEXT)
-//   - data_source_connections (care_recipient_id FK, type TEXT, status TEXT,
-//     last_synced_at TIMESTAMPTZ, error_message TEXT)
-//   - care_recipient_baseline (care_recipient_id FK, steps_min/max,
-//     sleep_min/max, hr_min/max, blood_pressure, last_updated)
-//   - care_recipient_notes (id UUID, care_recipient_id FK, author_user_id FK,
-//     content TEXT, created_at TIMESTAMPTZ)
-// All tables must reference `care_recipients(id) ON DELETE CASCADE` so a
-// removed recipient tears down every derived row in one transaction.
+// ─── SQL ────────────────────────────────────────────────────────────────────
 
-// ─── Reads ──────────────────────────────────────────────────────────────────
+const SELECT_RECIPIENT_SQL = `
+  SELECT id, name, date_of_birth, primary_condition, relationship,
+         emergency_contact_name, emergency_contact_phone,
+         created_at, updated_at
+  FROM care_recipients
+  WHERE id = $1
+  LIMIT 1;
+`
+
+// Care team is a join through users so display names land alongside
+// each membership row. Newly-created recipients always have at least
+// one entry (the creator) so the list is never empty in practice.
+const SELECT_CARE_TEAM_SQL = `
+  SELECT ctm.id, ctm.role, ctm.permission_level,
+         u.display_name, u.email
+  FROM care_team_members ctm
+  INNER JOIN users u ON u.id = ctm.user_id
+  WHERE ctm.care_recipient_id = $1
+  ORDER BY ctm.created_at ASC;
+`
+
+const SELECT_DATA_SOURCES_SQL = `
+  SELECT source_type, status, last_synced_at, error_message
+  FROM care_recipient_data_sources
+  WHERE care_recipient_id = $1
+  ORDER BY source_type ASC;
+`
+
+// Pull the latest computed baseline per metric. Phase 4B writes one
+// row per (recipient, metric, window) — the profile only needs the
+// freshest one per metric for the at-a-glance card.
+const SELECT_LATEST_BASELINES_SQL = `
+  SELECT DISTINCT ON (metric_type)
+    metric_type, p10_numeric, p50_numeric, p90_numeric,
+    sample_count, computed_at
+  FROM metric_baselines
+  WHERE care_recipient_id = $1
+  ORDER BY metric_type ASC, computed_at DESC;
+`
+
+// ─── Public surface ─────────────────────────────────────────────────────────
 
 /**
- * Fetch the full `CareRecipientProfile` shape for the given recipient id.
+ * Assemble the full `CareRecipientProfile` for the given id from the
+ * canonical Phase 4 tables. Returns `null` when no recipient row
+ * matches so the route handler can respond with 404.
  *
- * Returns `null` both when the recipient does not exist and when any of the
- * satellite tables are missing — the service layer treats null as "fall
- * back to the mock so the feature stays usable during bring-up". Once the
- * schema is real, null must mean "no such recipient" and the service
- * fallback must be removed at the same time.
- *
- * TODO(postgres): implement the JOIN that assembles the full shape. Query
- * must select only columns the requesting user is allowed to see — do the
- * access gate in the service layer before calling this function so the
- * SQL stays policy-free.
+ * The shape mirrors `shared/models/CareRecipientProfile.{ts,js}`
+ * exactly. Optional fields collapse to empty strings / arrays /
+ * neutral defaults (`riskLevel = "low"`) when the underlying row is
+ * absent — we never fabricate PHI here. Missing data sources fold
+ * into a static "neutral list" so the dashboard's Data Sources card
+ * always renders one row per supported integration even before the
+ * caregiver connects anything.
  */
-// eslint-disable-next-line no-unused-vars
 export async function fetchCareRecipientProfile(pool, recipientId) {
-  return null
+  const { rows: recipientRows } = await pool.query(SELECT_RECIPIENT_SQL, [
+    recipientId,
+  ])
+  const recipient = recipientRows[0]
+  if (!recipient) return null
+
+  const [{ rows: teamRows }, { rows: dataSourceRows }, { rows: baselineRows }] =
+    await Promise.all([
+      pool.query(SELECT_CARE_TEAM_SQL, [recipientId]),
+      pool.query(SELECT_DATA_SOURCES_SQL, [recipientId]),
+      pool.query(SELECT_LATEST_BASELINES_SQL, [recipientId]),
+    ])
+
+  return {
+    id: recipient.id,
+    name: recipient.name,
+    age: _ageFromDateOfBirth(recipient.date_of_birth),
+    dateOfBirth: _isoDate(recipient.date_of_birth),
+    primaryConditions: recipient.primary_condition
+      ? [recipient.primary_condition]
+      : [],
+    riskLevel: RISK_LEVELS.low,
+    contact: {},
+    emergencyContact: _buildEmergencyContact(recipient),
+    careTeam: _buildCareTeam(teamRows),
+    healthBackground: {
+      conditions: recipient.primary_condition
+        ? [recipient.primary_condition]
+        : [],
+      allergies: [],
+      medications: [],
+    },
+    dataSources: _buildDataSources(dataSourceRows),
+    baseline: _buildBaseline(baselineRows),
+    recentNotes: [],
+    lastUpdated: _isoTimestamp(recipient.updated_at),
+  }
 }
 
 /**
- * Idempotent schema migration for the profile satellite tables.
+ * Idempotent migration for the satellite tables this DAO joins on.
  *
- * No-op today. Will be called from the server bootstrap alongside the
- * other `ensureSchema` helpers once the real tables exist.
- *
- * TODO(postgres): add `CREATE TABLE IF NOT EXISTS` statements for the
- * tables listed at the top of this module.
+ * Today every satellite table has its own `ensureSchema` helper in
+ * the per-feature DAO, so this remains a no-op kept around so the
+ * service barrel does not have to special-case the profile path.
  */
 // eslint-disable-next-line no-unused-vars
 export async function ensureCareRecipientProfileSchema(pool) {
   return undefined
+}
+
+// ─── Internal helpers ───────────────────────────────────────────────────────
+
+function _ageFromDateOfBirth(value) {
+  if (!value) return 0
+  const dob = new Date(value)
+  if (Number.isNaN(dob.getTime())) return 0
+  const now = new Date()
+  let age = now.getUTCFullYear() - dob.getUTCFullYear()
+  const monthDiff = now.getUTCMonth() - dob.getUTCMonth()
+  const dayDiff = now.getUTCDate() - dob.getUTCDate()
+  if (monthDiff < 0 || (monthDiff === 0 && dayDiff < 0)) age -= 1
+  return age >= 0 ? age : 0
+}
+
+function _isoDate(value) {
+  if (!value) return ""
+  if (value instanceof Date) {
+    return value.toISOString().slice(0, 10)
+  }
+  if (typeof value === "string") return value.slice(0, 10)
+  return ""
+}
+
+function _isoTimestamp(value) {
+  if (!value) return new Date().toISOString()
+  if (value instanceof Date) return value.toISOString()
+  if (typeof value === "string") return value
+  return new Date().toISOString()
+}
+
+function _buildEmergencyContact(row) {
+  const name =
+    typeof row.emergency_contact_name === "string"
+      ? row.emergency_contact_name
+      : ""
+  const phone =
+    typeof row.emergency_contact_phone === "string"
+      ? row.emergency_contact_phone
+      : ""
+  if (!name && !phone) return { name: "", phone: "" }
+  return {
+    name,
+    phone,
+    relationship:
+      typeof row.relationship === "string" && row.relationship.length > 0
+        ? row.relationship
+        : undefined,
+  }
+}
+
+function _buildCareTeam(rows) {
+  const members = rows.map((row) => ({
+    id: row.id,
+    name: row.display_name ?? row.email ?? "Unnamed caregiver",
+    role: row.role,
+    permission: row.permission_level,
+  }))
+  const primary =
+    members.find((m) => m.role === "primary_caregiver")?.name ??
+    members[0]?.name ??
+    ""
+  return { primaryCaregiver: primary, members }
+}
+
+// Render one row per supported integration so the dashboard never
+// shows an inconsistent partial list. Anything not in the registry
+// surfaces as `not_connected`. Anything in the registry overrides
+// the neutral default with the caregiver's real status. We collapse
+// the registry-only `healthkit` source_type onto the dashboard's
+// `apple_health` view — the iOS sync companion writes the transport
+// identifier; the UI shows the user-facing data category.
+function _buildDataSources(rows) {
+  const supported = [
+    DATA_SOURCE_TYPES.appleHealth,
+    DATA_SOURCE_TYPES.epic,
+    DATA_SOURCE_TYPES.fitbit,
+    DATA_SOURCE_TYPES.garmin,
+    DATA_SOURCE_TYPES.ring,
+    DATA_SOURCE_TYPES.fallDetection,
+  ]
+  const byType = new Map()
+  for (const row of rows) {
+    const type =
+      row.source_type === "healthkit"
+        ? DATA_SOURCE_TYPES.appleHealth
+        : row.source_type
+    if (!supported.includes(type)) continue
+    byType.set(type, {
+      type,
+      status: row.status,
+      lastSyncedAt: row.last_synced_at
+        ? row.last_synced_at instanceof Date
+          ? row.last_synced_at.toISOString()
+          : String(row.last_synced_at)
+        : undefined,
+      errorMessage: row.error_message ?? undefined,
+    })
+  }
+  return supported.map(
+    (type) =>
+      byType.get(type) ?? {
+        type,
+        status: DATA_SOURCE_STATUSES.notConnected,
+      },
+  )
+}
+
+// Convert the latest-baseline rows (one per metric_type) into the
+// profile-contract baseline shape. Missing metrics drop out — the UI
+// renders only the metrics with real computed bands. No values are
+// fabricated.
+function _buildBaseline(rows) {
+  const byMetric = new Map()
+  for (const row of rows) {
+    byMetric.set(row.metric_type, row)
+  }
+  const baseline = {}
+  const steps = byMetric.get("steps")
+  if (steps && steps.p10_numeric != null && steps.p90_numeric != null) {
+    baseline.steps = { min: Number(steps.p10_numeric), max: Number(steps.p90_numeric) }
+  }
+  const sleep = byMetric.get("sleep_hours")
+  if (sleep && sleep.p10_numeric != null && sleep.p90_numeric != null) {
+    baseline.sleepHours = {
+      min: Number(sleep.p10_numeric),
+      max: Number(sleep.p90_numeric),
+    }
+  }
+  const restingHr = byMetric.get("resting_heart_rate")
+  if (
+    restingHr &&
+    restingHr.p10_numeric != null &&
+    restingHr.p90_numeric != null
+  ) {
+    baseline.restingHeartRate = {
+      min: Number(restingHr.p10_numeric),
+      max: Number(restingHr.p90_numeric),
+    }
+  }
+  const lastUpdated = rows
+    .map((r) => r.computed_at)
+    .filter(Boolean)
+    .sort()
+    .pop()
+  if (lastUpdated) {
+    baseline.lastUpdated =
+      lastUpdated instanceof Date ? lastUpdated.toISOString() : String(lastUpdated)
+  }
+  return baseline
 }

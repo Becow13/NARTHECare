@@ -205,3 +205,115 @@ export async function listDataSources(
     (query ? `?${query}` : "")
   return apiClient.getJson<DataSourceListResponse>(path)
 }
+
+/**
+ * Editable fields for `PATCH /care-recipients/:id/profile`.
+ *
+ * Backend's `parseCareRecipientProfileUpdate` rejects identity-
+ * defining fields (id, name, audit timestamps). Empty strings are
+ * normalised to "leave unchanged" by the parser — sending one is
+ * effectively a no-op for that field today.
+ */
+export interface UpdateCareRecipientProfileInput {
+  date_of_birth?: string
+  primary_condition?: string
+  relationship?: string
+  emergency_contact_name?: string
+  emergency_contact_phone?: string
+}
+
+/**
+ * `PATCH /care-recipients/:id/profile` — caregiver edits.
+ *
+ * Returns the freshly assembled `CareRecipientProfile` so the caller
+ * can render the updated row without a second round-trip. Throws
+ * `ApiClientError` for 400 (bad payload), 403 (no membership), 404
+ * (recipient gone).
+ */
+export async function updateCareRecipientProfile(
+  id: string,
+  input: UpdateCareRecipientProfileInput,
+): Promise<CareRecipientProfile> {
+  const response = await apiClient.patchJson<
+    CareRecipientProfileResponse,
+    UpdateCareRecipientProfileInput
+  >(`/care-recipients/${encodeURIComponent(id)}/profile`, input)
+  return response.careRecipient
+}
+
+/**
+ * Composite envelope returned by `GET /care-recipients/:id/dashboard`.
+ *
+ * Each section is sourced from PostgreSQL — empty arrays / null fields
+ * mean "no data yet", never mock fallback. The dashboard MUST render
+ * honest empty states from these.
+ */
+export interface CareRecipientDashboard {
+  latestObservations: HealthObservationRow[]
+  baselines: Array<{
+    metric_type: string
+    p10_numeric: number | null
+    p50_numeric: number | null
+    p90_numeric: number | null
+    sample_count: number
+    computed_at: string
+    [k: string]: unknown
+  }>
+  latestSummary: {
+    id: string
+    summary_type: string
+    summary_text: string
+    generated_at: string
+    [k: string]: unknown
+  } | null
+  activeAlerts: Array<{
+    id: string
+    rule_id: string
+    severity: string
+    status: string
+    title: string
+    body: string | null
+    [k: string]: unknown
+  }>
+  upcomingAppointments: Array<{
+    id: string
+    title: string
+    starts_at: string
+    [k: string]: unknown
+  }>
+  dataSources: DataSourceRegistryRow[]
+  healthkitSync: {
+    status: string
+    lastSyncedAt: string | null
+    errorMessage: string | null
+  }
+  counts: {
+    observations: number
+    baselines: number
+    summaries: number
+    alerts: number
+    appointments: number
+    dataSources: number
+  }
+}
+
+/** Response envelope for `GET /care-recipients/:id/dashboard`. */
+export interface CareRecipientDashboardResponse {
+  dashboard: CareRecipientDashboard
+}
+
+/**
+ * `GET /care-recipients/:id/dashboard` — composite dashboard read.
+ *
+ * Always validates RBAC server-side. Returns honest empty arrays /
+ * `null` summary when the underlying tables have no rows — no mock
+ * fallback. Throws `ApiClientError` (403/404/etc.) on failure.
+ */
+export async function getCareRecipientDashboard(
+  id: string,
+): Promise<CareRecipientDashboard> {
+  const response = await apiClient.getJson<CareRecipientDashboardResponse>(
+    `/care-recipients/${encodeURIComponent(id)}/dashboard`,
+  )
+  return response.dashboard
+}
