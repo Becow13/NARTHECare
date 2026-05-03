@@ -134,6 +134,15 @@ CREATE TABLE IF NOT EXISTS health_observations (
 );
 CREATE INDEX IF NOT EXISTS health_observations_recipient_metric_observed_idx
   ON health_observations (care_recipient_id, metric_type, observed_at DESC);
+-- Read path index for the "list every observation for one recipient,
+-- newest first, no metric_type filter" query (untyped dashboard feed
+-- and the daily-summary window pull). The 3-col index above cannot
+-- serve that query because its middle `metric_type` column blocks an
+-- in-order seek on `observed_at`. Mirrors the versioned migration
+-- `apps/backend/migrations/0002_health_observations_recipient_observed.sql`
+-- so a fresh `psql -f schema.sql` matches what `server.js` boots.
+CREATE INDEX IF NOT EXISTS health_observations_recipient_observed_idx
+  ON health_observations (care_recipient_id, observed_at DESC);
 CREATE UNIQUE INDEX IF NOT EXISTS health_observations_source_record_uidx
   ON health_observations (source_type, source_record_id)
   WHERE source_record_id IS NOT NULL;

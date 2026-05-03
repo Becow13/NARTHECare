@@ -35,6 +35,20 @@ const CREATE_INDEX_RECIPIENT_METRIC_OBSERVED_SQL = `
     ON health_observations (care_recipient_id, metric_type, observed_at DESC);
 `
 
+// Read path index — covers the "list every observation for one
+// recipient, newest first, no metric_type filter" query (used by the
+// untyped dashboard feed and `generateDailySummaryForRecipient`'s
+// window pull). The 3-col index above cannot serve this case: its
+// middle column `metric_type` blocks an in-order seek on
+// `observed_at`, so the planner falls back to scan-and-sort. Mirrors
+// the versioned migration
+// `apps/backend/migrations/0002_health_observations_recipient_observed.sql`
+// so a fresh `psql -f schema.sql` reproduces what `server.js` boots.
+const CREATE_INDEX_RECIPIENT_OBSERVED_SQL = `
+  CREATE INDEX IF NOT EXISTS health_observations_recipient_observed_idx
+    ON health_observations (care_recipient_id, observed_at DESC);
+`
+
 // Idempotent ingest — Phase 4A relies on this UNIQUE for ON CONFLICT.
 // Built here (not in the Phase 4A migration) so reads and writes share a
 // single source of truth and a partial index re-create cannot diverge.
@@ -251,5 +265,6 @@ export async function insertObservationsBatch(pool, recipientId, rows) {
 export async function ensureHealthObservationSchema(pool) {
   await pool.query(CREATE_TABLE_SQL)
   await pool.query(CREATE_INDEX_RECIPIENT_METRIC_OBSERVED_SQL)
+  await pool.query(CREATE_INDEX_RECIPIENT_OBSERVED_SQL)
   await pool.query(CREATE_INDEX_SOURCE_RECORD_UNIQUE_SQL)
 }

@@ -1,0 +1,21 @@
+-- 0002_health_observations_recipient_observed.sql
+--
+-- Adds a 2-col index for the "list every observation for one care
+-- recipient, newest first, no metric_type filter" query path. The
+-- existing 3-col index on (care_recipient_id, metric_type,
+-- observed_at DESC) cannot deliver an in-order seek for that query
+-- because metric_type sits between the leading-prefix column and
+-- the ORDER BY column — the planner has to scan every matching row
+-- and sort by observed_at. The dashboard's untyped feed and the
+-- daily-summary window pull both hit that path.
+--
+-- Idempotent on purpose: every migration in this directory must be
+-- safe to run on every boot. Re-running this file on a database
+-- that has already created the index is a no-op.
+--
+-- Zero-downtime: this is a pure additive index — no column change,
+-- no data movement, and no read-path SQL change. In-flight queries
+-- continue to use the existing index until the planner switches
+-- to the new one.
+CREATE INDEX IF NOT EXISTS health_observations_recipient_observed_idx
+  ON health_observations (care_recipient_id, observed_at DESC);
