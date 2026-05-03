@@ -5,6 +5,13 @@ import {
   careRecipientService,
   careRecipientProfileService,
   auditService,
+  healthObservationService,
+  metricBaselineService,
+  aiSummaryService,
+  alertService,
+  appointmentService,
+  actionPlanService,
+  careRecipientDataSourceService,
 } from "./services/index.js"
 import { MAX_PAYLOAD_BYTES } from "./lib/health-data.js"
 import { extractBearerToken } from "./lib/cognito-auth.js"
@@ -256,6 +263,444 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
       console.error("[API care-recipients/:id/profile]", e)
       return res.status(500).json({
         error: e instanceof Error ? e.message : "Failed to load care recipient profile",
+      })
+    }
+  })
+
+  // ─── Phase 4 read endpoints ────────────────────────────────────────────
+  // Each handler:
+  //   1. validates the `:id` is UUID-shaped (→ 400 otherwise),
+  //   2. gates on `requireCareRecipientAccess` (→ 403; collapses
+  //      "no membership" and "no such recipient" so existence is not
+  //      leaked — same convention as `GET /care-recipients/:id`),
+  //   3. parses the query string in a pure helper (→ 400 on bad input),
+  //   4. fetches via the service (always returns an array, possibly
+  //      empty — Phase 4A / 4B will populate the underlying tables),
+  //   5. writes a single audit row with `metadata = { count }` only.
+  //      No PHI (metric values, summary text, alert titles, etc.) ever
+  //      lands in `audit_logs.metadata`.
+
+  // ─── GET /care-recipients/:id/observations ─────────────────────────────
+
+  app.get(
+    "/care-recipients/:id/observations",
+    requireCognitoUser,
+    async (req, res) => {
+      try {
+        const { id } = req.params
+        if (!_isUuid(id)) {
+          return res.status(400).json({ error: "Invalid care recipient id" })
+        }
+
+        try {
+          await careRecipientService.requireCareRecipientAccess(pool, id, req.user.id)
+        } catch (e) {
+          if (e instanceof CareRecipientAccessError) {
+            return res.status(403).json({ error: e.message })
+          }
+          throw e
+        }
+
+        let result
+        try {
+          result = await healthObservationService.listObservationsForRecipient(
+            pool,
+            id,
+            req.query,
+          )
+        } catch (e) {
+          return res.status(400).json({
+            error: e instanceof Error ? e.message : "Invalid query",
+          })
+        }
+
+        const { ipAddress, userAgent } = extractRequestContext(req)
+        await auditService.logAction(pool, {
+          actorUserId: req.user.id,
+          action: AUDIT_ACTIONS.listHealthObservations,
+          resourceType: AUDIT_RESOURCE_TYPES.healthObservation,
+          resourceId: id,
+          metadata: { count: result.observations.length },
+          ipAddress,
+          userAgent,
+        })
+
+        return res.json(result)
+      } catch (e) {
+        console.error("[API care-recipients/:id/observations]", e)
+        return res.status(500).json({
+          error: e instanceof Error ? e.message : "Failed to load observations",
+        })
+      }
+    },
+  )
+
+  // ─── GET /care-recipients/:id/baselines ────────────────────────────────
+
+  app.get(
+    "/care-recipients/:id/baselines",
+    requireCognitoUser,
+    async (req, res) => {
+      try {
+        const { id } = req.params
+        if (!_isUuid(id)) {
+          return res.status(400).json({ error: "Invalid care recipient id" })
+        }
+
+        try {
+          await careRecipientService.requireCareRecipientAccess(pool, id, req.user.id)
+        } catch (e) {
+          if (e instanceof CareRecipientAccessError) {
+            return res.status(403).json({ error: e.message })
+          }
+          throw e
+        }
+
+        let result
+        try {
+          result = await metricBaselineService.listBaselinesForRecipient(
+            pool,
+            id,
+            req.query,
+          )
+        } catch (e) {
+          return res.status(400).json({
+            error: e instanceof Error ? e.message : "Invalid query",
+          })
+        }
+
+        const { ipAddress, userAgent } = extractRequestContext(req)
+        await auditService.logAction(pool, {
+          actorUserId: req.user.id,
+          action: AUDIT_ACTIONS.listMetricBaselines,
+          resourceType: AUDIT_RESOURCE_TYPES.metricBaseline,
+          resourceId: id,
+          metadata: { count: result.baselines.length },
+          ipAddress,
+          userAgent,
+        })
+
+        return res.json(result)
+      } catch (e) {
+        console.error("[API care-recipients/:id/baselines]", e)
+        return res.status(500).json({
+          error: e instanceof Error ? e.message : "Failed to load baselines",
+        })
+      }
+    },
+  )
+
+  // ─── GET /care-recipients/:id/summaries ────────────────────────────────
+
+  app.get(
+    "/care-recipients/:id/summaries",
+    requireCognitoUser,
+    async (req, res) => {
+      try {
+        const { id } = req.params
+        if (!_isUuid(id)) {
+          return res.status(400).json({ error: "Invalid care recipient id" })
+        }
+
+        try {
+          await careRecipientService.requireCareRecipientAccess(pool, id, req.user.id)
+        } catch (e) {
+          if (e instanceof CareRecipientAccessError) {
+            return res.status(403).json({ error: e.message })
+          }
+          throw e
+        }
+
+        let result
+        try {
+          result = await aiSummaryService.listSummariesForRecipient(
+            pool,
+            id,
+            req.query,
+          )
+        } catch (e) {
+          return res.status(400).json({
+            error: e instanceof Error ? e.message : "Invalid query",
+          })
+        }
+
+        const { ipAddress, userAgent } = extractRequestContext(req)
+        // Summary text is PHI — `metadata` carries only the count so
+        // analytics can ask "how often did caregiver X read summaries?"
+        // without ever touching the model output.
+        await auditService.logAction(pool, {
+          actorUserId: req.user.id,
+          action: AUDIT_ACTIONS.listAiSummaries,
+          resourceType: AUDIT_RESOURCE_TYPES.aiSummary,
+          resourceId: id,
+          metadata: { count: result.summaries.length },
+          ipAddress,
+          userAgent,
+        })
+
+        return res.json(result)
+      } catch (e) {
+        console.error("[API care-recipients/:id/summaries]", e)
+        return res.status(500).json({
+          error: e instanceof Error ? e.message : "Failed to load summaries",
+        })
+      }
+    },
+  )
+
+  // ─── GET /care-recipients/:id/alerts ───────────────────────────────────
+
+  app.get(
+    "/care-recipients/:id/alerts",
+    requireCognitoUser,
+    async (req, res) => {
+      try {
+        const { id } = req.params
+        if (!_isUuid(id)) {
+          return res.status(400).json({ error: "Invalid care recipient id" })
+        }
+
+        try {
+          await careRecipientService.requireCareRecipientAccess(pool, id, req.user.id)
+        } catch (e) {
+          if (e instanceof CareRecipientAccessError) {
+            return res.status(403).json({ error: e.message })
+          }
+          throw e
+        }
+
+        let result
+        try {
+          result = await alertService.listAlertsForRecipient(pool, id, req.query)
+        } catch (e) {
+          return res.status(400).json({
+            error: e instanceof Error ? e.message : "Invalid query",
+          })
+        }
+
+        const { ipAddress, userAgent } = extractRequestContext(req)
+        await auditService.logAction(pool, {
+          actorUserId: req.user.id,
+          action: AUDIT_ACTIONS.listAlerts,
+          resourceType: AUDIT_RESOURCE_TYPES.alert,
+          resourceId: id,
+          metadata: { count: result.alerts.length },
+          ipAddress,
+          userAgent,
+        })
+
+        return res.json(result)
+      } catch (e) {
+        console.error("[API care-recipients/:id/alerts]", e)
+        return res.status(500).json({
+          error: e instanceof Error ? e.message : "Failed to load alerts",
+        })
+      }
+    },
+  )
+
+  // ─── GET /care-recipients/:id/appointments ─────────────────────────────
+
+  app.get(
+    "/care-recipients/:id/appointments",
+    requireCognitoUser,
+    async (req, res) => {
+      try {
+        const { id } = req.params
+        if (!_isUuid(id)) {
+          return res.status(400).json({ error: "Invalid care recipient id" })
+        }
+
+        try {
+          await careRecipientService.requireCareRecipientAccess(pool, id, req.user.id)
+        } catch (e) {
+          if (e instanceof CareRecipientAccessError) {
+            return res.status(403).json({ error: e.message })
+          }
+          throw e
+        }
+
+        let result
+        try {
+          result = await appointmentService.listAppointmentsForRecipient(
+            pool,
+            id,
+            req.query,
+          )
+        } catch (e) {
+          return res.status(400).json({
+            error: e instanceof Error ? e.message : "Invalid query",
+          })
+        }
+
+        const { ipAddress, userAgent } = extractRequestContext(req)
+        await auditService.logAction(pool, {
+          actorUserId: req.user.id,
+          action: AUDIT_ACTIONS.listAppointments,
+          resourceType: AUDIT_RESOURCE_TYPES.appointment,
+          resourceId: id,
+          metadata: { count: result.appointments.length },
+          ipAddress,
+          userAgent,
+        })
+
+        return res.json(result)
+      } catch (e) {
+        console.error("[API care-recipients/:id/appointments]", e)
+        return res.status(500).json({
+          error: e instanceof Error ? e.message : "Failed to load appointments",
+        })
+      }
+    },
+  )
+
+  // ─── GET /care-recipients/:id/action-plans ─────────────────────────────
+
+  app.get(
+    "/care-recipients/:id/action-plans",
+    requireCognitoUser,
+    async (req, res) => {
+      try {
+        const { id } = req.params
+        if (!_isUuid(id)) {
+          return res.status(400).json({ error: "Invalid care recipient id" })
+        }
+
+        try {
+          await careRecipientService.requireCareRecipientAccess(pool, id, req.user.id)
+        } catch (e) {
+          if (e instanceof CareRecipientAccessError) {
+            return res.status(403).json({ error: e.message })
+          }
+          throw e
+        }
+
+        let result
+        try {
+          result = await actionPlanService.listActionPlansForRecipient(
+            pool,
+            id,
+            req.query,
+          )
+        } catch (e) {
+          return res.status(400).json({
+            error: e instanceof Error ? e.message : "Invalid query",
+          })
+        }
+
+        const { ipAddress, userAgent } = extractRequestContext(req)
+        await auditService.logAction(pool, {
+          actorUserId: req.user.id,
+          action: AUDIT_ACTIONS.listActionPlans,
+          resourceType: AUDIT_RESOURCE_TYPES.actionPlan,
+          resourceId: id,
+          metadata: { count: result.actionPlans.length },
+          ipAddress,
+          userAgent,
+        })
+
+        return res.json(result)
+      } catch (e) {
+        console.error("[API care-recipients/:id/action-plans]", e)
+        return res.status(500).json({
+          error: e instanceof Error ? e.message : "Failed to load action plans",
+        })
+      }
+    },
+  )
+
+  // ─── GET /care-recipients/:id/data-sources ─────────────────────────────
+
+  app.get(
+    "/care-recipients/:id/data-sources",
+    requireCognitoUser,
+    async (req, res) => {
+      try {
+        const { id } = req.params
+        if (!_isUuid(id)) {
+          return res.status(400).json({ error: "Invalid care recipient id" })
+        }
+
+        try {
+          await careRecipientService.requireCareRecipientAccess(pool, id, req.user.id)
+        } catch (e) {
+          if (e instanceof CareRecipientAccessError) {
+            return res.status(403).json({ error: e.message })
+          }
+          throw e
+        }
+
+        let result
+        try {
+          result =
+            await careRecipientDataSourceService.listDataSourcesForRecipient(
+              pool,
+              id,
+              req.query,
+            )
+        } catch (e) {
+          return res.status(400).json({
+            error: e instanceof Error ? e.message : "Invalid query",
+          })
+        }
+
+        const { ipAddress, userAgent } = extractRequestContext(req)
+        await auditService.logAction(pool, {
+          actorUserId: req.user.id,
+          action: AUDIT_ACTIONS.listDataSources,
+          resourceType: AUDIT_RESOURCE_TYPES.dataSource,
+          resourceId: id,
+          metadata: { count: result.dataSources.length },
+          ipAddress,
+          userAgent,
+        })
+
+        return res.json(result)
+      } catch (e) {
+        console.error("[API care-recipients/:id/data-sources]", e)
+        return res.status(500).json({
+          error: e instanceof Error ? e.message : "Failed to load data sources",
+        })
+      }
+    },
+  )
+
+  // ─── GET /alerts ───────────────────────────────────────────────────────
+  // Cross-recipient alert feed for the dashboard's `/alerts` route. The
+  // service derives the user's accessible care_recipient_ids from the
+  // existing `care_team_members` join — the SQL never sees a recipient
+  // the caller is not on the team for, so a 200 with 0 rows is the
+  // honest answer for "user has no recipients yet".
+
+  app.get("/alerts", requireCognitoUser, async (req, res) => {
+    try {
+      let result
+      try {
+        result = await alertService.listAlertsForUser(pool, req.user.id, req.query)
+      } catch (e) {
+        return res.status(400).json({
+          error: e instanceof Error ? e.message : "Invalid query",
+        })
+      }
+
+      const { ipAddress, userAgent } = extractRequestContext(req)
+      // No `resource_id` — this is a cross-recipient list; analytics
+      // should still be able to count "user X read the alerts feed".
+      await auditService.logAction(pool, {
+        actorUserId: req.user.id,
+        action: AUDIT_ACTIONS.listAlertsAcrossRecipients,
+        resourceType: AUDIT_RESOURCE_TYPES.alert,
+        resourceId: null,
+        metadata: { count: result.alerts.length },
+        ipAddress,
+        userAgent,
+      })
+
+      return res.json(result)
+    } catch (e) {
+      console.error("[API alerts]", e)
+      return res.status(500).json({
+        error: e instanceof Error ? e.message : "Failed to load alerts",
       })
     }
   })

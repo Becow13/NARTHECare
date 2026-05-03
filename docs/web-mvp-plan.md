@@ -280,29 +280,64 @@ Read endpoint naming (fixed now for adapter siblings):
 `requireCognitoUser → requireCareRecipientAccess → service →
 auditService.logAction`.
 
-### Phase 4 — Backend: data domain schema and read endpoints
+### Phase 4 — Backend: data domain schema and read endpoints ✅
 
-Goal: land the canonical tables and the **read** endpoints the dashboard
-already needs. No write pipelines (HealthKit ingest, baseline compute, AI
-generation, alert engine) in this phase — those each get their own phase
-below so we can ship and audit them independently.
+**Done.** Seven canonical care-recipient-scoped domains land with
+idempotent migrations, layered service / DAO / pure-helper modules, and
+the full read surface the Phase 3 dashboard adapters were already
+shaped against. No write pipelines (HealthKit ingest, baseline compute,
+AI generation, alert engine) in this phase — those each get their own
+phase below so we can ship and audit them independently. Epic OAuth is
+deliberately deferred to its own phase (Phase 6+ in this plan; items
+8–9 in `narthecare-phase1-plan.mdc`) — Phase 4 is read-only and does
+not own any external integration credentials.
 
-Add new tables and endpoints (all additive — no breaking changes):
+Tables added (all `care_recipient_id UUID NOT NULL REFERENCES
+care_recipients(id) ON DELETE CASCADE` + timestamps; full DDL in
+`apps/backend/schema.sql`):
 
-| Domain | Table(s) | New endpoints |
+| Table | Notable indexes |
+| --- | --- |
+| `health_observations` | `(care_recipient_id, metric_type, observed_at DESC)`; partial UNIQUE `(source_type, source_record_id) WHERE source_record_id IS NOT NULL` for Phase 4A's `ON CONFLICT … DO NOTHING` |
+| `metric_baselines` | UNIQUE `(care_recipient_id, metric_type, window_days)` for the Phase 4B nightly recompute UPSERT |
+| `ai_summaries` | `(care_recipient_id, summary_type, generated_at DESC)` |
+| `alerts` | `(care_recipient_id, observed_at DESC)`, `(status, observed_at DESC)` for the cross-recipient feed |
+| `appointments` | `(care_recipient_id, scheduled_for ASC)`; partial UNIQUE `(source_type, source_record_id)` for future Epic Encounter sync |
+| `action_plans` + `action_plan_items` | `(care_recipient_id, status)`; items keyed `(action_plan_id, sort_order ASC)` |
+| `care_recipient_data_sources` | UNIQUE `(care_recipient_id, source_type)` for Phase 4A's registry upsert |
+
+Endpoints added (all additive — no breaking changes):
+
+| Endpoint | Audit action | Notes |
 | --- | --- | --- |
-| Observations | `health_observations` | `GET /care-recipients/:id/observations` |
-| Baselines | `metric_baselines` | `GET /care-recipients/:id/baselines` |
-| AI summaries | `ai_summaries` | `GET /care-recipients/:id/summaries` |
-| Alerts | `alerts` | `GET /care-recipients/:id/alerts`, `GET /alerts` |
-| Appointments | `appointments` | `GET /care-recipients/:id/appointments` |
-| Action plans | `action_plans`, `action_plan_items` | `GET /care-recipients/:id/action-plans` |
-| Data sources registry | `care_recipient_data_sources` | `GET /care-recipients/:id/data-sources` |
-| Epic OAuth | `epic_connections`, `epic_oauth_states` | SMART on FHIR endpoints |
+| `GET /care-recipients/:id/observations` | `LIST_HEALTH_OBSERVATIONS` | Filters: `metricType`, `since`, `limit` (capped at 1000) |
+| `GET /care-recipients/:id/baselines` | `LIST_METRIC_BASELINES` | Filters: `metricType`, `windowDays` (7 / 14 / 30) |
+| `GET /care-recipients/:id/summaries` | `LIST_AI_SUMMARIES` | Filters: `type` (`daily`/`anomaly`/`post_visit`), `limit` |
+| `GET /care-recipients/:id/alerts` | `LIST_ALERTS` | Filters: `severity`, `status`, `limit` |
+| `GET /alerts` | `LIST_ALERTS_ACROSS_RECIPIENTS` | Cross-recipient feed; service derives the user's accessible care_recipient_ids from `care_team_members` and short-circuits when the user has none |
+| `GET /care-recipients/:id/appointments` | `LIST_APPOINTMENTS` | Filters: `status`, `window` (`upcoming` / `past` / `all`); SQL anchors "now" to the server clock |
+| `GET /care-recipients/:id/action-plans` | `LIST_ACTION_PLANS` | Two round-trips by design — items are loaded only when at least one plan exists, so the no-plans path stays single-query |
+| `GET /care-recipients/:id/data-sources` | `LIST_DATA_SOURCES` | Filters: `type`, `status`; constants re-exported from `shared/models/CareRecipientProfile.js` so the registry never drifts from the dashboard view model |
 
-Every endpoint: `requireCognitoUser` → `requireCareRecipientAccess` →
-business logic → `auditService.logAction`. No PHI in `audit_logs.metadata`.
-Every new domain: service + DAO + lib + unit test + integration test.
+Every per-recipient endpoint chains
+`requireCognitoUser → _isUuid(:id) → requireCareRecipientAccess →
+service.parseListQuery → service.fetchForRecipient →
+auditService.logAction`. The 403 path collapses "not on the care team"
+and "recipient does not exist" into the same response so existence is
+not leaked, mirroring the Phase 3 `GET /care-recipients/:id` shape.
+The cross-recipient `/alerts` route writes a single audit row with
+`resource_id = null` and `metadata = { count }`.
+
+Audit safety:
+
+- `audit_logs.metadata` carries `{ count }` only — never metric values,
+  summary text, alert titles, observation timestamps, source record
+  ids, or any other PHI.
+- Route handlers tag logs `console.error("[API <route>]", e)` and never
+  log `req.body`, `req.query`, or response payloads.
+- Service modules are pure of HTTP concerns — `requireCareRecipientAccess`
+  is the only authorization check and lives at the route layer so a
+  background job can reuse the service without re-deriving RBAC.
 
 What this phase **does not** include:
 
@@ -310,10 +345,20 @@ What this phase **does not** include:
 - Baseline computation job (Phase 4B).
 - AI summary generation pipeline (Phase 4B).
 - Alert evaluation / rule engine (Phase 4B).
+- Epic OAuth / SMART on FHIR / `epic_connections` /
+  `epic_oauth_states` (Phase 6+).
 
-Until 4A and 4B land, all the new read endpoints return empty result sets
-for real care recipients (no fabricated PHI). Web pages render the same
-honest "no data yet" empty states they already render in Phase 3.
+Until 4A and 4B land, all the new read endpoints return empty result
+sets for real care recipients (no fabricated PHI). Web pages render the
+same honest "no data yet" empty states they already render in Phase 3.
+
+Tests: 76 new tests. 55 unit tests across `apps/backend/lib/__tests__/
+{health-observations,metric-baselines,ai-summaries,alerts,appointments,
+action-plans,data-sources}.test.js` (parsing + frozen-enum guards).
+21 integration tests in `apps/backend/test/phase4-reads.integration.
+test.js` cover access gates, query-parse failures, audit shape, and
+end-to-end newest-first / filter behavior with seeded fake-pool rows.
+Full suite: 179 passing.
 
 **Backend impact:** additive only. **Aptible deploy:** runs after tests pass.
 
@@ -587,7 +632,67 @@ Aptible app `narthecare-web`). The root `Dockerfile` and `aptible.yml`
 | M | `apps/web/app/(app)/settings/page.tsx` (Phase 2 TODO refresh) |
 | M | `apps/web/README.md`, `apps/web/docs/web-app.md` |
 
+### Phase 4 (done — backend read surface)
+
+Pure helpers (one per domain — no I/O):
+
+| Op | Path |
+| --- | --- |
+| N | `apps/backend/lib/health-observations.js` |
+| N | `apps/backend/lib/metric-baselines.js` |
+| N | `apps/backend/lib/ai-summaries.js` |
+| N | `apps/backend/lib/alerts.js` |
+| N | `apps/backend/lib/appointments.js` |
+| N | `apps/backend/lib/action-plans.js` |
+| N | `apps/backend/lib/data-sources.js` |
+| N | `apps/backend/lib/__tests__/{health-observations,metric-baselines,ai-summaries,alerts,appointments,action-plans,data-sources}.test.js` |
+
+Services + DAOs:
+
+| Op | Path |
+| --- | --- |
+| N | `apps/backend/services/healthObservationService.js` |
+| N | `apps/backend/services/metricBaselineService.js` |
+| N | `apps/backend/services/aiSummaryService.js` |
+| N | `apps/backend/services/alertService.js` |
+| N | `apps/backend/services/appointmentService.js` |
+| N | `apps/backend/services/actionPlanService.js` |
+| N | `apps/backend/services/careRecipientDataSourceService.js` |
+| N | `apps/backend/services/dao/healthObservationDao.js` |
+| N | `apps/backend/services/dao/metricBaselineDao.js` |
+| N | `apps/backend/services/dao/aiSummaryDao.js` |
+| N | `apps/backend/services/dao/alertDao.js` |
+| N | `apps/backend/services/dao/appointmentDao.js` |
+| N | `apps/backend/services/dao/actionPlanDao.js` |
+| N | `apps/backend/services/dao/careRecipientDataSourceDao.js` |
+
+Wiring:
+
+| Op | Path |
+| --- | --- |
+| M | `apps/backend/app.js` (eight new route handlers — seven per-recipient + cross-recipient `/alerts`) |
+| M | `apps/backend/server.js` (`ensureSchema` chain extended for the seven new tables) |
+| M | `apps/backend/services/index.js` (export the seven new services) |
+| M | `apps/backend/lib/audit.js` (`AUDIT_ACTIONS.list*` + `AUDIT_RESOURCE_TYPES.*` for each domain) |
+| M | `apps/backend/schema.sql` (CREATE TABLE / index DDL for all seven tables — mirrors the DAO migrations) |
+| N | `apps/backend/test/phase4-reads.integration.test.js` (route-layer end-to-end coverage) |
+
+`apps/backend/services/dao/healthObservationDao.js` and
+`apps/backend/services/dao/careRecipientDataSourceDao.js` already
+ship the schema-defining UNIQUE indexes Phase 4A's `ON CONFLICT`
+relies on — Phase 4A only adds the write paths, not the indexes.
+
 ### Phase 4A (iOS HealthKit sync to backend)
+
+> **Note:** the rows tagged `N` in the table below for
+> `apps/backend/services/healthObservationService.js`,
+> `apps/backend/services/dao/healthObservationDao.js`,
+> `apps/backend/services/dao/careRecipientDataSourceDao.js`,
+> `apps/backend/lib/health-observations.js`, and
+> `apps/backend/lib/__tests__/health-observations.test.js` already
+> shipped in Phase 4 (read surface). Phase 4A modifies them with the
+> write path (POST handlers, `INSERT … ON CONFLICT`, registry upsert) —
+> treat those rows as `M`.
 
 Shared contract (single source of truth — added once, mirrored everywhere):
 

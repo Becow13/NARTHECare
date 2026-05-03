@@ -10,6 +10,13 @@ import {
   authService,
   careRecipientService,
   auditService,
+  healthObservationService,
+  metricBaselineService,
+  aiSummaryService,
+  alertService,
+  appointmentService,
+  actionPlanService,
+  careRecipientDataSourceService,
 } from "./services/index.js"
 import {
   DEV_MOCK_USER,
@@ -93,11 +100,20 @@ const cognitoVerifier = createVerifier()
 
 async function main() {
   // Order matters: auth tables must exist before care-team/audit FKs are
-  // created. Each ensureSchema is idempotent so reboots are safe.
+  // created, and `care_recipients` must exist before every Phase 4
+  // signal-domain table FKs into it. Each ensureSchema is idempotent
+  // so reboots are safe to repeat the whole list.
   await healthDataService.ensureSchema(pool)
   await authService.ensureSchema(pool)
   await careRecipientService.ensureSchema(pool)
   await auditService.ensureSchema(pool)
+  await healthObservationService.ensureSchema(pool)
+  await metricBaselineService.ensureSchema(pool)
+  await aiSummaryService.ensureSchema(pool)
+  await alertService.ensureSchema(pool)
+  await appointmentService.ensureSchema(pool)
+  await actionPlanService.ensureSchema(pool)
+  await careRecipientDataSourceService.ensureSchema(pool)
 
   // Seed the dev-bypass user AFTER ensureSchema so the `users` table
   // exists. `ensureDevUser` is idempotent (upsert keyed on a stable

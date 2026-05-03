@@ -18,12 +18,33 @@ export const AUDIT_ACTIONS = Object.freeze({
   viewCareRecipient: "VIEW_CARE_RECIPIENT",
   viewCareRecipientProfile: "VIEW_CARE_RECIPIENT_PROFILE",
   listCareRecipients: "LIST_CARE_RECIPIENTS",
+  // Phase 4 read endpoints. Every list/get of care-recipient-scoped
+  // signal data writes one of these; metadata carries non-PHI counts only.
+  listHealthObservations: "LIST_HEALTH_OBSERVATIONS",
+  listMetricBaselines: "LIST_METRIC_BASELINES",
+  listAiSummaries: "LIST_AI_SUMMARIES",
+  listAlerts: "LIST_ALERTS",
+  /** Cross-recipient alert feed (`GET /alerts`) — no resource id. */
+  listAlertsAcrossRecipients: "LIST_ALERTS_ACROSS_RECIPIENTS",
+  listAppointments: "LIST_APPOINTMENTS",
+  listActionPlans: "LIST_ACTION_PLANS",
+  listDataSources: "LIST_DATA_SOURCES",
 })
 
 /** Canonical resource types so analytics queries can filter by kind. */
 export const AUDIT_RESOURCE_TYPES = Object.freeze({
   user: "user",
   careRecipient: "care_recipient",
+  // Phase 4 — one row per signal domain. Audited resource_id is the
+  // care_recipient_id (the partition key), not an individual row id, so
+  // analytics can filter "all access to care recipient X" in one query.
+  healthObservation: "health_observation",
+  metricBaseline: "metric_baseline",
+  aiSummary: "ai_summary",
+  alert: "alert",
+  appointment: "appointment",
+  actionPlan: "action_plan",
+  dataSource: "data_source",
 })
 
 // ─── Request-context extraction ──────────────────────────────────────────────

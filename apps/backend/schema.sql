@@ -88,3 +88,150 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   user_agent TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+
+-- ─── Phase 4 — canonical health-domain tables ─────────────────────────────────
+-- Every table is care-recipient-scoped: `care_recipient_id` is the
+-- partition key and an ON DELETE CASCADE FK so removing a recipient
+-- tears down every derived row in one transaction. Phase 4 only ships
+-- read endpoints; the write paths land in:
+--   - Phase 4A (HealthKit sync → `health_observations`,
+--     `care_recipient_data_sources`),
+--   - Phase 4B (`metric_baselines`, `ai_summaries`, `alerts`).
+
+CREATE TABLE IF NOT EXISTS health_observations (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  care_recipient_id UUID NOT NULL REFERENCES care_recipients(id) ON DELETE CASCADE,
+  metric_type TEXT NOT NULL,
+  value_numeric DOUBLE PRECISION,
+  value_unit TEXT NOT NULL,
+  observed_at TIMESTAMPTZ NOT NULL,
+  source_type TEXT NOT NULL,
+  source_id TEXT,
+  source_record_id TEXT,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS health_observations_recipient_metric_observed_idx
+  ON health_observations (care_recipient_id, metric_type, observed_at DESC);
+CREATE UNIQUE INDEX IF NOT EXISTS health_observations_source_record_uidx
+  ON health_observations (source_type, source_record_id)
+  WHERE source_record_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS metric_baselines (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  care_recipient_id UUID NOT NULL REFERENCES care_recipients(id) ON DELETE CASCADE,
+  metric_type TEXT NOT NULL,
+  window_days INTEGER NOT NULL,
+  p10_numeric DOUBLE PRECISION,
+  p50_numeric DOUBLE PRECISION,
+  p90_numeric DOUBLE PRECISION,
+  sample_count INTEGER NOT NULL DEFAULT 0,
+  computed_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS metric_baselines_recipient_metric_window_uidx
+  ON metric_baselines (care_recipient_id, metric_type, window_days);
+
+CREATE TABLE IF NOT EXISTS ai_summaries (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  care_recipient_id UUID NOT NULL REFERENCES care_recipients(id) ON DELETE CASCADE,
+  summary_type TEXT NOT NULL,
+  summary_text TEXT NOT NULL,
+  evidence JSONB,
+  recommended_actions JSONB,
+  model TEXT,
+  prompt_version TEXT,
+  generated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  source_window_start TIMESTAMPTZ,
+  source_window_end TIMESTAMPTZ,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS ai_summaries_recipient_type_generated_idx
+  ON ai_summaries (care_recipient_id, summary_type, generated_at DESC);
+
+CREATE TABLE IF NOT EXISTS alerts (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  care_recipient_id UUID NOT NULL REFERENCES care_recipients(id) ON DELETE CASCADE,
+  severity TEXT NOT NULL,
+  category TEXT,
+  title TEXT NOT NULL,
+  explanation TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  observed_at TIMESTAMPTZ NOT NULL,
+  source_type TEXT,
+  source_record_id TEXT,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  resolved_at TIMESTAMPTZ
+);
+CREATE INDEX IF NOT EXISTS alerts_recipient_observed_idx
+  ON alerts (care_recipient_id, observed_at DESC);
+CREATE INDEX IF NOT EXISTS alerts_status_observed_idx
+  ON alerts (status, observed_at DESC);
+
+CREATE TABLE IF NOT EXISTS appointments (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  care_recipient_id UUID NOT NULL REFERENCES care_recipients(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  location TEXT,
+  provider_name TEXT,
+  scheduled_for TIMESTAMPTZ NOT NULL,
+  status TEXT NOT NULL DEFAULT 'scheduled',
+  source_type TEXT,
+  source_id TEXT,
+  source_record_id TEXT,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS appointments_recipient_scheduled_idx
+  ON appointments (care_recipient_id, scheduled_for ASC);
+CREATE UNIQUE INDEX IF NOT EXISTS appointments_source_record_uidx
+  ON appointments (source_type, source_record_id)
+  WHERE source_record_id IS NOT NULL;
+
+CREATE TABLE IF NOT EXISTS action_plans (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  care_recipient_id UUID NOT NULL REFERENCES care_recipients(id) ON DELETE CASCADE,
+  title TEXT NOT NULL,
+  goal_text TEXT,
+  status TEXT NOT NULL DEFAULT 'active',
+  due_at TIMESTAMPTZ,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS action_plans_recipient_status_idx
+  ON action_plans (care_recipient_id, status);
+
+CREATE TABLE IF NOT EXISTS action_plan_items (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  action_plan_id UUID NOT NULL REFERENCES action_plans(id) ON DELETE CASCADE,
+  label TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  sort_order INTEGER NOT NULL DEFAULT 0,
+  completed_at TIMESTAMPTZ,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE INDEX IF NOT EXISTS action_plan_items_plan_sort_idx
+  ON action_plan_items (action_plan_id, sort_order ASC);
+
+CREATE TABLE IF NOT EXISTS care_recipient_data_sources (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  care_recipient_id UUID NOT NULL REFERENCES care_recipients(id) ON DELETE CASCADE,
+  source_type TEXT NOT NULL,
+  status TEXT NOT NULL DEFAULT 'not_connected',
+  last_synced_at TIMESTAMPTZ,
+  external_id TEXT,
+  error_message TEXT,
+  metadata JSONB,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+CREATE UNIQUE INDEX IF NOT EXISTS care_recipient_data_sources_recipient_source_uidx
+  ON care_recipient_data_sources (care_recipient_id, source_type);
