@@ -1,5 +1,6 @@
 import Foundation
 import HealthKit
+import UIKit
 
 /// Background HealthKit sync — `HKObserverQuery` + background delivery
 /// + `HKAnchoredObjectQuery` per supported sample type.
@@ -70,7 +71,16 @@ final class HealthKitSyncDiagnostics: ObservableObject {
   @Published private(set) var backgroundDeliveryByMetric:
     [HealthObservationMetricType: BackgroundDeliveryState] = [:]
   @Published private(set) var lastObserverFireAt: Date? = nil
-  @Published private(set) var lastSuccessfulBackgroundSyncAt: Date? = nil
+  /// Persisted across launches so the UI shows the real last background
+  /// delivery time even after a cold start. Written only by
+  /// `recordBackgroundSyncSuccess`; never by manual/foreground sync.
+  @Published private(set) var lastSuccessfulBackgroundSyncAt: Date? = {
+    guard
+      let ts = UserDefaults.standard.object(
+        forKey: HealthKitSyncDiagnostics.lastBgSyncKey) as? Date
+    else { return nil }
+    return ts
+  }()
   @Published private(set) var lastSyncState: LastSyncState = .idle
   /// Short, non-PHI failure code surfaced after `lastSyncState ==
   /// .failure` (e.g. `"http_403"`, `"obs_5"`, `"no_session"`). Never
@@ -81,6 +91,10 @@ final class HealthKitSyncDiagnostics: ObservableObject {
   @Published private(set) var lastSyncSamplesUploaded: Int = 0
 
   private init() {}
+
+  /// UserDefaults key for the persisted background sync timestamp.
+  /// Not PHI — stores only a `Date` (no identifiers or health values).
+  fileprivate static let lastBgSyncKey = "narthecare.healthkit.lastBackgroundSyncAt"
 
   func setAuthorization(_ s: AuthorizationState) { authorization = s }
 
@@ -104,7 +118,18 @@ final class HealthKitSyncDiagnostics: ObservableObject {
   }
 
   func recordSyncSuccess(samplesUploaded: Int) {
-    lastSuccessfulBackgroundSyncAt = Date()
+    lastSyncSamplesUploaded = samplesUploaded
+    lastSyncState = .success
+    lastSyncErrorCode = nil
+  }
+
+  /// Records a successful sync triggered by a real HealthKit background
+  /// observer delivery.  Updates `lastSuccessfulBackgroundSyncAt` and
+  /// persists it to `UserDefaults` so the time survives app restarts.
+  func recordBackgroundSyncSuccess(samplesUploaded: Int) {
+    let now = Date()
+    lastSuccessfulBackgroundSyncAt = now
+    UserDefaults.standard.set(now, forKey: HealthKitSyncDiagnostics.lastBgSyncKey)
     lastSyncSamplesUploaded = samplesUploaded
     lastSyncState = .success
     lastSyncErrorCode = nil
@@ -123,6 +148,7 @@ final class HealthKitSyncDiagnostics: ObservableObject {
     backgroundDeliveryByMetric.removeAll()
     lastObserverFireAt = nil
     lastSuccessfulBackgroundSyncAt = nil
+    UserDefaults.standard.removeObject(forKey: HealthKitSyncDiagnostics.lastBgSyncKey)
     lastSyncState = .idle
     lastSyncErrorCode = nil
     lastSyncSamplesUploaded = 0
@@ -677,6 +703,13 @@ final class HealthKitObserverManager: @unchecked Sendable {
   private func handleObserverFire(
     spec: HealthKitSampleSpec, error: Error?,
   ) async {
+    // HKObserverQuery fires once immediately on registration (while the app
+    // is foregrounded on open) as well as for genuine background deliveries.
+    // Capture the app state now so we only update lastSuccessfulBackgroundSyncAt
+    // for deliveries that arrive while the app is truly in the background.
+    let isBackground = await MainActor.run {
+      UIApplication.shared.applicationState == .background
+    }
     await MainActor.run { HealthKitSyncDiagnostics.shared.recordObserverFire() }
     if let error = error {
       let code = (error as NSError).code
@@ -692,8 +725,12 @@ final class HealthKitObserverManager: @unchecked Sendable {
     do {
       let count = try await runSync(spec: spec)
       await MainActor.run {
-        HealthKitSyncDiagnostics.shared.recordSyncSuccess(
-          samplesUploaded: count)
+        if isBackground {
+          HealthKitSyncDiagnostics.shared.recordBackgroundSyncSuccess(
+            samplesUploaded: count)
+        } else {
+          HealthKitSyncDiagnostics.shared.recordSyncSuccess(samplesUploaded: count)
+        }
       }
     } catch let err as SyncError {
       print(
