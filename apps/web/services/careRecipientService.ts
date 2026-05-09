@@ -241,6 +241,35 @@ export async function updateCareRecipientProfile(
   return response.careRecipient
 }
 
+/** Input for `POST /care-recipients/:id/observations` — single manual reading. */
+export interface CreateObservationInput {
+  metricType: string
+  value: number
+  observedAt: string
+}
+
+/** Response envelope for `POST /care-recipients/:id/observations`. */
+export interface CreateObservationResponse {
+  accepted: number
+}
+
+/**
+ * `POST /care-recipients/:id/observations` — caregiver-entered manual reading.
+ *
+ * The unit is resolved server-side from `metricType`; callers supply only the
+ * metric type name, a numeric value, and an ISO timestamp. Throws
+ * `ApiClientError` for 400 (bad payload), 403 (no membership), 404 (gone).
+ */
+export async function createObservation(
+  id: string,
+  input: CreateObservationInput,
+): Promise<CreateObservationResponse> {
+  return apiClient.postJson<CreateObservationResponse, CreateObservationInput>(
+    `/care-recipients/${encodeURIComponent(id)}/observations`,
+    input,
+  )
+}
+
 /**
  * Composite envelope returned by `GET /care-recipients/:id/dashboard`.
  *

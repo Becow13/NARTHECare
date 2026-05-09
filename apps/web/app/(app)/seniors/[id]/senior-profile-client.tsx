@@ -23,9 +23,9 @@ import Link from "next/link"
 import { Sparkles, CheckCircle2, ChevronRight } from "lucide-react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
-import { DataFreshnessBadge } from "@/components/data-freshness-badge"
 import { VitalsLegend } from "@/components/vitals-legend"
 import { SeniorTabs } from "@/components/senior-tabs"
+import { HealthObservationsPanel } from "@/components/health-observations-panel"
 
 interface SeniorProfileClientProps {
   /** Care-recipient UUID — forwarded to Insights / Alerts deep links. */
@@ -68,20 +68,7 @@ export function SeniorProfileClient({
       </Card>
 
       <div>
-        <div className="flex items-center justify-between gap-3 mb-3 flex-wrap">
-          <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            Vitals — Last 7 Days
-          </h2>
-          <DataFreshnessBadge isLive={false} />
-        </div>
-        <Card className="border-border dark:border-gray-800 dark:bg-gray-900">
-          <CardContent className="p-6 text-center">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              No vitals on record yet. Connect Apple Health or another data
-              source on the member detail to start seeing readings here.
-            </p>
-          </CardContent>
-        </Card>
+        <HealthObservationsPanel recipientId={seniorId} />
       </div>
 
       <div className="space-y-4">

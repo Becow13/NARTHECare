@@ -18,6 +18,8 @@ import { extractRequestContext, AUDIT_ACTIONS, AUDIT_RESOURCE_TYPES } from "./li
 import { IdentityEmailConflictError } from "./lib/identity-errors.js"
 import { CareRecipientAccessError } from "./services/careRecipientService.js"
 import { CareRecipientProfileAccessError } from "./services/careRecipientProfileService.js"
+import { globalLimiter, syncLimiter, authLimiter } from "./lib/rate-limit.js"
+import { isHttpError } from "./lib/http-errors.js"
 
 /**
  * Build the Express application.
@@ -45,6 +47,10 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
   // (`MAX_SYNC_BATCH_SIZE` × the per-sample envelope) and keeps any
   // accidental large body from holding a request worker.
   app.use(express.json({ limit: "1mb" }))
+
+  // Global rate limiter — applied to every route before any auth check.
+  // The /health probe is exempt (see lib/rate-limit.js).
+  app.use(globalLimiter)
 
   const requireCognitoUser = _buildRequireCognitoUser({
     pool,
@@ -79,7 +85,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
   // Audit metadata carries `{ accepted, deduped, rejected, metricTypes }`
   // only — never values, never source_record_ids, never timestamps of
   // individual samples. Body bytes are never logged.
-  app.post("/healthkit/sync", requireCognitoUser, async (req, res) => {
+  app.post("/healthkit/sync", syncLimiter, requireCognitoUser, async (req, res) => {
     try {
       const recipientId =
         req.body?.careRecipientId ?? req.body?.care_recipient_id
@@ -145,9 +151,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
       })
     } catch (e) {
       console.error("[API healthkit-sync]", e)
-      return res.status(500).json({
-        error: e instanceof Error ? e.message : "Failed to sync observations",
-      })
+      return res.status(500).json({ error: "Unable to complete request." })
     }
   })
 
@@ -198,9 +202,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
       return res.json(status)
     } catch (e) {
       console.error("[API healthkit-status]", e)
-      return res.status(500).json({
-        error: e instanceof Error ? e.message : "Failed to load sync status",
-      })
+      return res.status(500).json({ error: "Unable to complete request." })
     }
   })
 
@@ -248,9 +250,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
       return res.json({ user: _publicUser(refreshed) })
     } catch (e) {
       console.error("[API me]", e)
-      return res.status(500).json({
-        error: e instanceof Error ? e.message : "Failed to load user",
-      })
+      return res.status(500).json({ error: "Unable to complete request." })
     }
   })
 
@@ -262,7 +262,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
   // carries the set of changed field NAMES only — never values, never
   // before/after copy, never PHI.
 
-  app.patch("/api/me", requireCognitoUser, async (req, res) => {
+  app.patch("/api/me", authLimiter, requireCognitoUser, async (req, res) => {
     try {
       let updated
       try {
@@ -306,9 +306,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
       return res.json({ user: _publicUser(updated) })
     } catch (e) {
       console.error("[API me PATCH]", e)
-      return res.status(500).json({
-        error: e instanceof Error ? e.message : "Failed to update user",
-      })
+      return res.status(500).json({ error: "Unable to complete request." })
     }
   })
 
@@ -347,9 +345,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
       })
     } catch (e) {
       console.error("[API care-recipients POST]", e)
-      return res.status(500).json({
-        error: e instanceof Error ? e.message : "Failed to create care recipient",
-      })
+      return res.status(500).json({ error: "Unable to complete request." })
     }
   })
 
@@ -376,9 +372,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
       return res.json({ careRecipients: rows })
     } catch (e) {
       console.error("[API care-recipients GET]", e)
-      return res.status(500).json({
-        error: e instanceof Error ? e.message : "Failed to list care recipients",
-      })
+      return res.status(500).json({ error: "Unable to complete request." })
     }
   })
 
@@ -427,9 +421,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
       return res.json({ careRecipient: profile })
     } catch (e) {
       console.error("[API care-recipients/:id/profile]", e)
-      return res.status(500).json({
-        error: e instanceof Error ? e.message : "Failed to load care recipient profile",
-      })
+      return res.status(500).json({ error: "Unable to complete request." })
     }
   })
 
@@ -511,10 +503,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
         return res.json({ careRecipient: updated })
       } catch (e) {
         console.error("[API care-recipients/:id/profile PATCH]", e)
-        return res.status(500).json({
-          error:
-            e instanceof Error ? e.message : "Failed to update care recipient",
-        })
+        return res.status(500).json({ error: "Unable to complete request." })
       }
     },
   )
@@ -574,9 +563,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
         return res.json({ dashboard })
       } catch (e) {
         console.error("[API care-recipients/:id/dashboard]", e)
-        return res.status(500).json({
-          error: e instanceof Error ? e.message : "Failed to load dashboard",
-        })
+        return res.status(500).json({ error: "Unable to complete request." })
       }
     },
   )
@@ -642,15 +629,68 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
         return res.json(result)
       } catch (e) {
         console.error("[API care-recipients/:id/observations]", e)
-        return res.status(500).json({
-          error: e instanceof Error ? e.message : "Failed to load observations",
+        return res.status(500).json({ error: "Unable to complete request." })
+      }
+    },
+  )
+
+  // ─── POST /care-recipients/:id/observations ────────────────────────────
+  // Caregiver-entered manual observation from the web UI. Accepts a single
+  // { metricType, value, observedAt } object; the unit is inferred server-
+  // side from the metric type so the browser never needs to carry the enum.
+
+  app.post(
+    "/care-recipients/:id/observations",
+    requireCognitoUser,
+    async (req, res) => {
+      try {
+        const { id } = req.params
+        if (!_isUuid(id)) {
+          return res.status(400).json({ error: "Invalid care recipient id" })
+        }
+
+        try {
+          await careRecipientService.requireCareRecipientAccess(pool, id, req.user.id)
+        } catch (e) {
+          if (e instanceof CareRecipientAccessError) {
+            return res.status(403).json({ error: e.message })
+          }
+          throw e
+        }
+
+        let result
+        try {
+          result = await healthObservationService.insertManualObservation(
+            pool,
+            id,
+            req.body,
+          )
+        } catch (e) {
+          return res.status(400).json({
+            error: e instanceof Error ? e.message : "Invalid observation",
+          })
+        }
+
+        const { ipAddress, userAgent } = extractRequestContext(req)
+        await auditService.logAction(pool, {
+          actorUserId: req.user.id,
+          action: AUDIT_ACTIONS.createHealthObservation,
+          resourceType: AUDIT_RESOURCE_TYPES.healthObservation,
+          resourceId: id,
+          metadata: { accepted: result.accepted },
+          ipAddress,
+          userAgent,
         })
+
+        return res.status(201).json(result)
+      } catch (e) {
+        console.error("[API POST care-recipients/:id/observations]", e)
+        return res.status(500).json({ error: "Unable to complete request." })
       }
     },
   )
 
   // ─── GET /care-recipients/:id/baselines ────────────────────────────────
-
   app.get(
     "/care-recipients/:id/baselines",
     requireCognitoUser,
@@ -697,9 +737,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
         return res.json(result)
       } catch (e) {
         console.error("[API care-recipients/:id/baselines]", e)
-        return res.status(500).json({
-          error: e instanceof Error ? e.message : "Failed to load baselines",
-        })
+        return res.status(500).json({ error: "Unable to complete request." })
       }
     },
   )
@@ -755,9 +793,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
         return res.json(result)
       } catch (e) {
         console.error("[API care-recipients/:id/summaries]", e)
-        return res.status(500).json({
-          error: e instanceof Error ? e.message : "Failed to load summaries",
-        })
+        return res.status(500).json({ error: "Unable to complete request." })
       }
     },
   )
@@ -806,9 +842,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
         return res.json(result)
       } catch (e) {
         console.error("[API care-recipients/:id/alerts]", e)
-        return res.status(500).json({
-          error: e instanceof Error ? e.message : "Failed to load alerts",
-        })
+        return res.status(500).json({ error: "Unable to complete request." })
       }
     },
   )
@@ -861,9 +895,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
         return res.json(result)
       } catch (e) {
         console.error("[API care-recipients/:id/appointments]", e)
-        return res.status(500).json({
-          error: e instanceof Error ? e.message : "Failed to load appointments",
-        })
+        return res.status(500).json({ error: "Unable to complete request." })
       }
     },
   )
@@ -916,9 +948,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
         return res.json(result)
       } catch (e) {
         console.error("[API care-recipients/:id/action-plans]", e)
-        return res.status(500).json({
-          error: e instanceof Error ? e.message : "Failed to load action plans",
-        })
+        return res.status(500).json({ error: "Unable to complete request." })
       }
     },
   )
@@ -972,9 +1002,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
         return res.json(result)
       } catch (e) {
         console.error("[API care-recipients/:id/data-sources]", e)
-        return res.status(500).json({
-          error: e instanceof Error ? e.message : "Failed to load data sources",
-        })
+        return res.status(500).json({ error: "Unable to complete request." })
       }
     },
   )
@@ -1013,9 +1041,7 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
       return res.json(result)
     } catch (e) {
       console.error("[API alerts]", e)
-      return res.status(500).json({
-        error: e instanceof Error ? e.message : "Failed to load alerts",
-      })
+      return res.status(500).json({ error: "Unable to complete request." })
     }
   })
 
@@ -1060,10 +1086,30 @@ export function createApp({ pool, cognitoVerifier, devAuthBypass = null }) {
       return res.json({ careRecipient: recipient })
     } catch (e) {
       console.error("[API care-recipients/:id]", e)
-      return res.status(500).json({
-        error: e instanceof Error ? e.message : "Failed to load care recipient",
-      })
+      return res.status(500).json({ error: "Unable to complete request." })
     }
+  })
+
+  // ─── Central error handler ──────────────────────────────────────────────
+  // Must be registered AFTER all routes (Express identifies error middleware
+  // by its four-argument signature).
+  //
+  // Strategy:
+  //   - `HttpError` instances (thrown by application code) carry an intended
+  //     HTTP status and a client-safe message — forward both as-is.
+  //   - Every other error is an unexpected failure.  Log it with a tagged
+  //     message for ops and return a generic 500 so internal detail (stack
+  //     traces, query text, DB column names) is never sent to the client.
+  //
+  // PHI note: `e.message` for unexpected errors is deliberately NOT forwarded
+  // to the client; it may contain query fragments or data values.
+  // eslint-disable-next-line no-unused-vars
+  app.use((err, _req, res, _next) => {
+    if (isHttpError(err)) {
+      return res.status(err.statusCode).json({ error: err.message })
+    }
+    console.error("[API unhandled]", err)
+    return res.status(500).json({ error: "Unable to complete request." })
   })
 
   return app

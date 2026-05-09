@@ -158,6 +158,61 @@ export function distinctMetricTypes(rows) {
   return [...new Set(rows.map((r) => r.metric_type))].sort()
 }
 
+// ─── Manual observation input parsing (caregiver web entry) ─────────────────
+
+/**
+ * Normalize a single caregiver-entered manual observation from the web UI.
+ *
+ * Deliberately simpler than `parseSyncRequestBody` — no `sourceRecordId`
+ * is required because manual entries do not come from a deduplication-
+ * capable external source. The `source_record_id` is left `null` so the
+ * partial UNIQUE index on `(source_type, source_record_id)` does not
+ * apply, and the caregiver can record multiple readings for the same metric
+ * type on the same day. The `value_unit` is inferred server-side from the
+ * `metricType` so the frontend does not need to carry the unit enum.
+ *
+ * Throws a plain `Error` (→ 400 at the route layer) on:
+ *   - missing / unknown `metricType`
+ *   - missing / non-finite `value`
+ *   - missing / invalid `observedAt` ISO timestamp
+ *
+ * Returns a row shaped for `INSERT INTO health_observations` — field names
+ * are the SQL column names (`metric_type`, `value_numeric`, …) so the DAO
+ * can accept it without reshaping.
+ */
+export function parseManualObservationInput(body) {
+  const raw = body ?? {}
+
+  const metricType = raw.metricType ?? raw.metric_type
+  if (typeof metricType !== "string" || !METRIC_TYPE_SET.has(metricType)) {
+    throw new Error(
+      `metricType must be one of: ${[...METRIC_TYPE_SET].join(", ")}`,
+    )
+  }
+
+  const valueRaw = raw.value ?? raw.value_numeric
+  const value = Number(valueRaw)
+  if (!Number.isFinite(value)) {
+    throw new Error("value must be a finite number")
+  }
+
+  const observedAt = _parseRequiredIsoTimestamp(
+    raw.observedAt ?? raw.observed_at,
+    "observedAt",
+  )
+
+  return {
+    metric_type: metricType,
+    value_numeric: value,
+    value_unit: METRIC_UNIT_BY_METRIC_TYPE[metricType],
+    observed_at: observedAt,
+    source_type: OBSERVATION_SOURCE_TYPES.manual,
+    source_id: null,
+    source_record_id: null,
+    metadata: null,
+  }
+}
+
 // ─── Internal helpers ───────────────────────────────────────────────────────
 
 function _parseMetricType(value) {

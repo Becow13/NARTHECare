@@ -27,6 +27,8 @@ export const AUDIT_ACTIONS = Object.freeze({
   // Phase 4 read endpoints. Every list/get of care-recipient-scoped
   // signal data writes one of these; metadata carries non-PHI counts only.
   listHealthObservations: "LIST_HEALTH_OBSERVATIONS",
+  /** POST /care-recipients/:id/observations — caregiver-entered manual reading. */
+  createHealthObservation: "CREATE_HEALTH_OBSERVATION",
   listMetricBaselines: "LIST_METRIC_BASELINES",
   listAiSummaries: "LIST_AI_SUMMARIES",
   listAlerts: "LIST_ALERTS",

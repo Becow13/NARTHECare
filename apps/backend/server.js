@@ -60,6 +60,15 @@ const DEV_AUTH_BYPASS = isDevAuthBypassEnabled({
  * Aptible and most managed Postgres providers require TLS but present
  * self-signed intermediates, so we default to `rejectUnauthorized: false`.
  * Set `PGSSLMODE=disable` locally to connect to a plain-text dev database.
+ *
+ * Pool sizing and timeout defaults follow the principle of explicit over
+ * implicit — every value that matters for production stability is set here
+ * rather than relying on undocumented driver defaults.  Override any of
+ * them via the corresponding environment variable.
+ *
+ *   DB_POOL_MAX              – max open connections (default 10)
+ *   DB_IDLE_TIMEOUT_MS       – ms before an idle client is closed (default 30 000)
+ *   DB_CONNECTION_TIMEOUT_MS – ms to wait for a free client before error (default 5 000)
  */
 function createPool() {
   const connectionString = process.env.DATABASE_URL
@@ -68,7 +77,24 @@ function createPool() {
   }
   const ssl =
     process.env.PGSSLMODE === "disable" ? false : { rejectUnauthorized: false }
-  return new Pool({ connectionString, ssl })
+
+  const pool = new Pool({
+    connectionString,
+    ssl,
+    max: Number(process.env.DB_POOL_MAX) || 10,
+    idleTimeoutMillis: Number(process.env.DB_IDLE_TIMEOUT_MS) || 30_000,
+    connectionTimeoutMillis: Number(process.env.DB_CONNECTION_TIMEOUT_MS) || 5_000,
+  })
+
+  // Idle-pool errors (e.g. the database restarted while a client was parked)
+  // would otherwise become unhandled rejections and crash the process.
+  // Logging here lets ops catch pool-level connection churn without surfacing
+  // it as an application 500.
+  pool.on("error", (err) => {
+    console.error("[db-pool] idle client error", err instanceof Error ? err.message : err)
+  })
+
+  return pool
 }
 
 /**

@@ -1,6 +1,7 @@
 import {
   parseObservationListQuery,
   parseSyncRequestBody,
+  parseManualObservationInput,
   distinctMetricTypes,
 } from "../lib/health-observations.js"
 import {
@@ -147,4 +148,31 @@ export async function getHealthkitSyncStatus(pool, recipientId) {
  */
 export async function ensureSchema(pool) {
   return ensureHealthObservationSchema(pool)
+}
+
+/**
+ * Persist a single caregiver-entered manual observation.
+ *
+ * The route handler MUST call `careRecipientService.requireCareRecipientAccess`
+ * before reaching this function. Validation errors from the parser surface as
+ * plain `Error`s (→ 400 at the route layer). Bumps `care_recipients.updated_at`
+ * on successful insert so the Care Members list reflects the new reading.
+ *
+ * Returns `{ accepted: 1 }` on insert, `{ accepted: 0 }` if the row was a
+ * no-op (should not happen for manual entries with null source_record_id, but
+ * the count is passed through for transparency).
+ */
+export async function insertManualObservation(pool, recipientId, body) {
+  const row = parseManualObservationInput(body)
+  const result = await insertObservationsBatch(pool, recipientId, [row])
+  if (result.accepted > 0) {
+    try {
+      await touchCareRecipient(pool, recipientId)
+    } catch (e) {
+      console.warn("[healthObservationService] touchCareRecipient failed", {
+        reason: e instanceof Error ? e.message : "unknown",
+      })
+    }
+  }
+  return { accepted: result.accepted }
 }

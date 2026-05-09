@@ -14,6 +14,12 @@
  * Response body matches the backend envelope `{ observations: […] }`
  * so the Phase 4B vitals adapter parses one shape regardless of which
  * environment serves the request.
+ *
+ * POST /api/data/care-recipients/:id/observations
+ *
+ * Proxy for `POST /care-recipients/:id/observations` — caregiver-entered
+ * manual reading from the web UI. Body: `{ metricType, value, observedAt }`.
+ * The unit is resolved server-side from the metric type. Returns `{ accepted }`.
  */
 
 import { NextResponse, type NextRequest } from "next/server"
@@ -54,9 +60,7 @@ export async function GET(
       return NextResponse.json({ error: "Unauthenticated" }, { status: 401 })
     }
     if (e instanceof apiClient.ApiClientError) {
-      console.error("[API data/care-recipients/:id/observations]", e.status)
-      // Collapse 403 into 404 so the proxy never leaks "this recipient
-      // exists, you just can't see them" to a probing client.
+      console.error("[API data/care-recipients/:id/observations GET]", e.status)
       if (e.status === 403 || e.status === 404) {
         return NextResponse.json({ error: "Not found" }, { status: 404 })
       }
@@ -67,7 +71,53 @@ export async function GET(
       )
     }
     console.error(
-      "[API data/care-recipients/:id/observations]",
+      "[API data/care-recipients/:id/observations GET]",
+      e instanceof Error ? e.name : "unknown",
+    )
+    return NextResponse.json(
+      { error: "Unable to complete request." },
+      { status: 500 },
+    )
+  }
+}
+
+export async function POST(
+  req: NextRequest,
+  { params }: { params: { id: string } },
+) {
+  const { id } = params
+  if (!UUID_PATTERN.test(id)) {
+    return NextResponse.json({ error: "Invalid request." }, { status: 400 })
+  }
+  let body: unknown
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON body." }, { status: 400 })
+  }
+  try {
+    const data = await careRecipientService.createObservation(id, body as Record<string, unknown>)
+    return NextResponse.json(data, { status: 201 })
+  } catch (e) {
+    if (e instanceof apiClient.ApiClientUnauthenticatedError) {
+      return NextResponse.json({ error: "Unauthenticated" }, { status: 401 })
+    }
+    if (e instanceof apiClient.ApiClientError) {
+      console.error("[API data/care-recipients/:id/observations POST]", e.status)
+      if (e.status === 400) {
+        return NextResponse.json({ error: "Unable to complete request." }, { status: 400 })
+      }
+      if (e.status === 403 || e.status === 404) {
+        return NextResponse.json({ error: "Not found" }, { status: 404 })
+      }
+      const status = e.status >= 500 ? 502 : e.status
+      return NextResponse.json(
+        { error: "Unable to complete request." },
+        { status },
+      )
+    }
+    console.error(
+      "[API data/care-recipients/:id/observations POST]",
       e instanceof Error ? e.name : "unknown",
     )
     return NextResponse.json(
