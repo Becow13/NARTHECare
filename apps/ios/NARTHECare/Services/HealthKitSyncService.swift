@@ -120,7 +120,7 @@ final class HealthKitSyncService {
     guard healthKit.isHealthDataAvailable() else {
       throw HealthKitSyncError.healthDataUnavailable
     }
-    guard let idToken = session.idToken() else {
+    guard let idToken = await session.validIdToken() else {
       throw HealthKitSyncError.noActiveSession
     }
     if careRecipientId.isEmpty {
@@ -211,7 +211,7 @@ final class HealthKitSyncService {
   func fetchStatus(careRecipientId: String) async throws
     -> HealthKitSyncStatusResponse
   {
-    guard let idToken = session.idToken() else {
+    guard let idToken = await session.validIdToken() else {
       throw HealthKitSyncError.noActiveSession
     }
     do {
@@ -228,7 +228,7 @@ final class HealthKitSyncService {
   /// can attribute the next sync. Empty array → "no recipient yet"
   /// in the UI.
   func loadCareRecipients() async throws -> [CareRecipientListRow] {
-    guard let idToken = session.idToken() else {
+    guard let idToken = await session.validIdToken() else {
       throw HealthKitSyncError.noActiveSession
     }
     do {

@@ -55,9 +55,11 @@ struct NARTHECareAppApp: App {
 /// background-launched processes.
 ///
 /// **Security:** the delegate never reads token bytes itself — it
-/// hands `HealthKitObserverManager` a closure that pulls the current
-/// ID token from the Keychain at fire time, so a refresh between
-/// launches is picked up without a re-register.
+/// hands `HealthKitObserverManager` a closure that asks
+/// `TokenRefresher` for a non-expired ID token at fire time, so a
+/// background-delivered observer that wakes the app long after the
+/// original 60-minute Cognito ID-token TTL still authenticates
+/// against `/healthkit/sync` instead of stalling on 401.
 final class AppDelegate: NSObject, UIApplicationDelegate {
   func application(
     _: UIApplication,
@@ -71,10 +73,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate {
 
   /// Static, `@Sendable` token provider so the observer manager (which
   /// runs on a HealthKit-internal queue) can safely call it without
-  /// crossing main-actor boundaries. The Keychain is the source of
-  /// truth even mid-session — `AuthSession` writes there too.
+  /// crossing main-actor boundaries. Delegates to `TokenRefresher`
+  /// so the closure transparently refreshes the Cognito ID token
+  /// when the cached one is within the leeway window — without that
+  /// hop, every observer fire after the ~1-hour ID-token TTL would
+  /// 401 even when the refresh token is still valid.
   static let keychainTokenProvider: @Sendable () async -> String? = {
-    guard let data = KeychainHelper.load(key: .idToken) else { return nil }
-    return String(data: data, encoding: .utf8)
+    await TokenRefresher.shared.validIdToken()
   }
 }

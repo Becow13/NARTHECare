@@ -128,13 +128,21 @@ final class AuthSession: NSObject, ObservableObject {
     Task { await HealthKitObserverManager.shared.handleSignOut() }
   }
 
-  /// Returns the stored ID token if a session is active, otherwise `nil`.
+  /// Returns a non-expired Cognito ID token, refreshing first if the
+  /// cached one is missing, expired, or within the refresh-leeway
+  /// window managed by `TokenRefresher`.
   ///
-  /// Call sites must treat the returned value as a credential: never log it,
-  /// never display it, and use it only to set `Authorization: Bearer` headers.
-  func idToken() -> String? {
-    guard let data = KeychainHelper.load(key: .idToken) else { return nil }
-    return String(data: data, encoding: .utf8)
+  /// This is the only token accessor production callers should use.
+  /// Cognito Hosted UI ID tokens have a fixed ~1-hour lifetime; bare
+  /// Keychain reads silently return expired bytes and produced the
+  /// "logged out after a while" + "no background updates" pair of
+  /// bugs prior to the refresh integration.
+  ///
+  /// Call sites must treat the returned value as a credential: never
+  /// log it, never display it, and use it only to set
+  /// `Authorization: Bearer` headers.
+  func validIdToken() async -> String? {
+    await TokenRefresher.shared.validIdToken()
   }
 
   /// Handles a `narthecare://auth/callback` URL delivered via a cold-start
@@ -313,9 +321,11 @@ final class AuthSession: NSObject, ObservableObject {
   ///
   /// Never logs the token, the response body, or the decoded user.
   private func refreshBackendUser(trigger: RefreshTrigger) async {
-    guard let token = idToken() else {
-      // No token in Keychain — treat as unauthenticated. This guards
-      // against `restoreSession` racing with a manual sign-out.
+    guard let token = await TokenRefresher.shared.validIdToken() else {
+      // Either there is no token in the Keychain (e.g. `restoreSession`
+      // racing with a manual sign-out) or the refresh-token grant was
+      // rejected by Cognito and `TokenRefresher` already wiped the
+      // Keychain. In both cases the only safe state is unauthenticated.
       currentUser = nil
       state = .unauthenticated
       return

@@ -30,6 +30,7 @@
 		A10000000000000000000500 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000510 /* KeychainHelper.swift */; };
 		A10000000000000000000501 /* AuthSession.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000511 /* AuthSession.swift */; };
 		A10000000000000000000502 /* LoginView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000512 /* LoginView.swift */; };
+		A10000000000000000000503 /* TokenRefresher.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000513 /* TokenRefresher.swift */; };
 		A10000000000000000000600 /* BackendUser.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000610 /* BackendUser.swift */; };
 		A10000000000000000000700 /* HealthObservation.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000710 /* HealthObservation.swift */; };
 		A10000000000000000000701 /* HealthKitSyncService.swift in Sources */ = {isa = PBXBuildFile; fileRef = A10000000000000000000711 /* HealthKitSyncService.swift */; };
@@ -65,6 +66,7 @@
 		A10000000000000000000510 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KeychainHelper.swift; path = Auth/KeychainHelper.swift; sourceTree = "<group>"; };
 		A10000000000000000000511 /* AuthSession.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AuthSession.swift; path = Auth/AuthSession.swift; sourceTree = "<group>"; };
 		A10000000000000000000512 /* LoginView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LoginView.swift; path = Views/LoginView.swift; sourceTree = "<group>"; };
+		A10000000000000000000513 /* TokenRefresher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TokenRefresher.swift; path = Auth/TokenRefresher.swift; sourceTree = "<group>"; };
 		A10000000000000000000610 /* BackendUser.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BackendUser.swift; path = Models/BackendUser.swift; sourceTree = "<group>"; };
 		A10000000000000000000710 /* HealthObservation.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HealthObservation.swift; path = Models/HealthObservation.swift; sourceTree = "<group>"; };
 		A10000000000000000000711 /* HealthKitSyncService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HealthKitSyncService.swift; path = Services/HealthKitSyncService.swift; sourceTree = "<group>"; };
@@ -141,6 +143,7 @@
 				A10000000000000000000320 /* CognitoCallbackHandler.swift */,
 				A10000000000000000000321 /* CognitoConfig.swift */,
 				A10000000000000000000510 /* KeychainHelper.swift */,
+				A10000000000000000000513 /* TokenRefresher.swift */,
 			);
 			name = Auth;
 			sourceTree = "<group>";
@@ -241,6 +244,7 @@
 				A10000000000000000000500 /* KeychainHelper.swift in Sources */,
 				A10000000000000000000501 /* AuthSession.swift in Sources */,
 				A10000000000000000000502 /* LoginView.swift in Sources */,
+				A10000000000000000000503 /* TokenRefresher.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
