@@ -117,6 +117,24 @@ function createFakePool() {
       }
     }
 
+    // ── care_recipients: touch-only `updated_at` bump ──────────────────
+    // Mirrors `TOUCH_RECIPIENT_SQL` in `careRecipientDao.js`. The sync
+    // service calls this after a successful batch with `accepted > 0`
+    // so `care_recipients.updated_at` reflects last-known activity, not
+    // just last profile edit. Match on the SET shape so the more
+    // generic `updateCareRecipientProfile` UPDATE never lands here.
+    if (
+      s.startsWith("UPDATE care_recipients") &&
+      /SET updated_at = NOW\(\)/.test(s) &&
+      !s.includes("date_of_birth")
+    ) {
+      const [recipientId] = params
+      const row = state.careRecipients.find((r) => r.id === recipientId)
+      if (!row) return { rows: [] }
+      row.updated_at = new Date()
+      return { rows: [{ id: row.id, updated_at: row.updated_at }] }
+    }
+
     // ── audit_logs ─────────────────────────────────────────────────────
     if (s.startsWith("INSERT INTO audit_logs")) {
       const [actor, action, resourceType, resourceId, metadata, ip, ua] = params
@@ -299,18 +317,24 @@ async function buildAppWithRecipients() {
   )
   const aliceRecipientId = nextId()
   const bobRecipientId = nextId()
+  // Seed `updated_at` to a fixed-in-the-past value so the
+  // post-sync bump assertion can compare against a known baseline
+  // without racing the test wall clock.
+  const seededUpdatedAt = new Date("2026-01-01T00:00:00.000Z")
   state.careRecipients.push(
     {
       id: aliceRecipientId,
       name: "Alice's Mom",
       date_of_birth: null,
       primary_condition: null,
+      updated_at: seededUpdatedAt,
     },
     {
       id: bobRecipientId,
       name: "Bob's Dad",
       date_of_birth: null,
       primary_condition: null,
+      updated_at: seededUpdatedAt,
     },
   )
   state.careTeamMembers.push(
@@ -340,6 +364,7 @@ async function buildAppWithRecipients() {
     bobId,
     aliceRecipientId,
     bobRecipientId,
+    seededUpdatedAt,
   }
 }
 
@@ -441,7 +466,8 @@ test("POST /healthkit/sync: 400 on contract-broken payload (unknown metricType)"
 })
 
 test("POST /healthkit/sync: 200 inserts rows, returns counts, writes registry + audit", async () => {
-  const { app, state, aliceRecipientId } = await buildAppWithRecipients()
+  const { app, state, aliceRecipientId, seededUpdatedAt } =
+    await buildAppWithRecipients()
   const { server, baseUrl } = await startServer(app)
   try {
     const res = await fetch(`${baseUrl}/healthkit/sync`, {
@@ -475,6 +501,17 @@ test("POST /healthkit/sync: 200 inserts rows, returns counts, writes registry + 
     assert.ok(registry, "registry row was upserted")
     assert.equal(registry.status, "connected")
     assert.equal(registry.error_message, null)
+
+    // `care_recipients.updated_at` should be bumped past its seeded
+    // baseline now that at least one observation row was actually
+    // persisted. Without this, the dashboard's "last activity" surface
+    // would stale-read the recipient row indefinitely.
+    const recipient = state.careRecipients.find((r) => r.id === aliceRecipientId)
+    assert.ok(recipient.updated_at instanceof Date)
+    assert.ok(
+      recipient.updated_at.getTime() > seededUpdatedAt.getTime(),
+      "care_recipients.updated_at should be bumped after a successful sync",
+    )
 
     const audit = state.auditLogs.find(
       (a) => a.action === "SYNC_HEALTHKIT_OBSERVATIONS",
@@ -514,6 +551,10 @@ test("POST /healthkit/sync: 200 second sync silently dedupes the same source_rec
     assert.equal(firstBody.accepted, 2)
     assert.equal(firstBody.deduped, 0)
 
+    const recipient = state.careRecipients.find((r) => r.id === aliceRecipientId)
+    const updatedAfterFirst = recipient.updated_at
+    assert.ok(updatedAfterFirst instanceof Date)
+
     const second = await fetch(`${baseUrl}/healthkit/sync`, {
       method: "POST",
       headers: authHeader(ALICE_TOKEN),
@@ -526,6 +567,16 @@ test("POST /healthkit/sync: 200 second sync silently dedupes the same source_rec
 
     // Underlying table only ever gained the original two rows.
     assert.equal(state.healthObservations.length, 2)
+
+    // A dedupe-only sync must NOT re-bump `care_recipients.updated_at`
+    // — nothing about the recipient actually changed. Bumping anyway
+    // would break "last meaningful change" semantics and cause
+    // dashboard re-renders on every retry.
+    assert.equal(
+      recipient.updated_at.getTime(),
+      updatedAfterFirst.getTime(),
+      "dedupe-only sync should not bump care_recipients.updated_at",
+    )
   } finally {
     await stopServer(server)
   }

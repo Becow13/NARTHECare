@@ -12,6 +12,7 @@ import {
   upsertSyncStatus,
   fetchSyncStatus,
 } from "./dao/careRecipientDataSourceDao.js"
+import { touchCareRecipient } from "./dao/careRecipientDao.js"
 import { DATA_SOURCE_STATUSES } from "../../../shared/models/CareRecipientProfile.js"
 import { SYNC_SOURCE_TYPES } from "../../../shared/models/HealthObservation.js"
 
@@ -88,6 +89,24 @@ export async function syncHealthkitObservations(pool, recipientId, body) {
     lastSyncedAt: new Date().toISOString(),
     errorMessage: null,
   })
+
+  // Bump `care_recipients.updated_at` only when at least one new
+  // observation was actually persisted. A dedupe-only sync (every row
+  // collapsed by the partial UNIQUE) does not mutate recipient state,
+  // so leaving the timestamp untouched keeps `updated_at` honest about
+  // "last meaningful change". Failure here is non-fatal to the sync
+  // result already returned to iOS — `care_recipient_data_sources`
+  // already carries the authoritative `last_synced_at` and the next
+  // successful sync will catch up.
+  if (result.accepted > 0) {
+    try {
+      await touchCareRecipient(pool, recipientId)
+    } catch (e) {
+      console.warn("[API healthkit-sync] touchCareRecipient failed", {
+        reason: e instanceof Error ? e.message : "unknown",
+      })
+    }
+  }
 
   return {
     accepted: result.accepted,

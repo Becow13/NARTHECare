@@ -86,6 +86,20 @@ const UPDATE_RECIPIENT_PROFILE_SQL = `
   RETURNING ${RECIPIENT_RETURNING_COLUMNS};
 `
 
+// Touch-only update — bump `updated_at` without changing any caller-
+// editable column. Used by write paths that mutate care-recipient-
+// scoped child rows (e.g. `health_observations` from HealthKit sync) so
+// `care_recipients.updated_at` reflects "last time anything about this
+// recipient meaningfully changed", not just "last profile edit". Keeps
+// the COALESCE-based partial-PATCH semantics of `UPDATE_RECIPIENT_PROFILE_SQL`
+// clean by not abusing it for an empty-payload update.
+const TOUCH_RECIPIENT_SQL = `
+  UPDATE care_recipients
+  SET updated_at = NOW()
+  WHERE id = $1
+  RETURNING id, updated_at;
+`
+
 const INSERT_TEAM_MEMBER_SQL = `
   INSERT INTO care_team_members (care_recipient_id, user_id, role, permission_level)
   VALUES ($1, $2, $3, $4)
@@ -259,6 +273,23 @@ export async function updateCareRecipientProfile(pool, recipientId, fields) {
     emergencyContactName,
     emergencyContactPhone,
   ])
+  return rows[0] ?? null
+}
+
+/**
+ * Bump `care_recipients.updated_at` to NOW() without touching any
+ * other column.
+ *
+ * Used by write paths that mutate care-recipient-scoped child tables
+ * (e.g. the HealthKit sync, which inserts into `health_observations`)
+ * so the parent row's `updated_at` reflects last-known activity, not
+ * just last profile edit. The route handler MUST have already gated
+ * on `requireCareRecipientAccess`. Returns the touched row's
+ * `{ id, updated_at }`, or `null` when the recipient does not exist
+ * (defensive — the access gate prevents this in practice).
+ */
+export async function touchCareRecipient(pool, recipientId) {
+  const { rows } = await pool.query(TOUCH_RECIPIENT_SQL, [recipientId])
   return rows[0] ?? null
 }
 
